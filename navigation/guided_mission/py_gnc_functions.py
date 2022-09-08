@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from .PrintColours import *
 import rospy
-from math import atan2, pow, sqrt, degrees, radians, sin, cos
+from math import atan2, pow, sqrt, degrees, radians, sin, cos, asin, pi
 from std_msgs.msg import Float64
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 from nav_msgs.msg import Odometry
@@ -33,6 +33,9 @@ class gnc_api:
         self.local_offset_g = 0.0
         self.correction_heading_g = 0.0     
         self.local_desired_heading_g = 0.0
+
+        self.pitch = 0.0
+        self.roll = 0.0
 
         self.ns = rospy.get_namespace()
         if self.ns == "/":
@@ -120,10 +123,17 @@ class gnc_api:
             self.current_pose_g.pose.pose.orientation.z,
         )
 
+        phi = atan2((2*(q0*q1+q2*q3)), (1-2*(pow(q1, 2)+pow(q2, 2))))
+
+        theta = asin(2*(q0*q2-q1*q1))
+
         psi = atan2((2 * (q0 * q3 + q1 * q2)),
                     (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
 
         self.current_heading_g = degrees(psi) - self.local_offset_g
+
+        self.pitch = degrees(theta)
+        self.roll = degrees(phi)
 
 
     def compass_cb(self, msg):
@@ -164,6 +174,9 @@ class gnc_api:
         """
         return self.current_heading_g
 
+
+    def get_current_pitch_roll_yaw(self):
+        return self.pitch, self.roll, self.current_heading_g
 
     def get_current_location(self):
         current_pos_local = Point()
