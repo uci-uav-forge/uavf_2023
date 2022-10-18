@@ -1,5 +1,4 @@
-Pip installing pcl for python does not work at the moment. Instead, 
-we'll use a conda environment with python 3.6. 
+Pip installing pcl for python does not work at the moment. Instead, we'll use a conda environment with python 3.6. 
 
 1. Follow this link to install conda:
     - https://gist.github.com/kauffmanes/5e74916617f9993bc3479f401dfec7da
