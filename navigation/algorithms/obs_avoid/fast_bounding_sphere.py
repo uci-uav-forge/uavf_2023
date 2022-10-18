@@ -9,10 +9,18 @@ import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
 
 
+def downsample(cloud):
+    fil = cloud.make_voxel_grid_filter()
+    fil.set_leaf_size(0.5 , 0.5, 0.5)
+    down_cloud = fil.filter()
+
+    return down_cloud
+
+
 def filter_outliers(cloud):
     fil = cloud.make_statistical_outlier_filter()
-    fil.set_mean_k(30)
-    fil.set_std_dev_mul_thresh(0.5)
+    fil.set_mean_k(10)
+    fil.set_std_dev_mul_thresh(10E-10)
     fil_cloud = fil.filter()
     fil_data = np.asarray(fil_cloud)
     
@@ -20,17 +28,10 @@ def filter_outliers(cloud):
 
 
 def bounding_sphere_naive(positions: np.ndarray) -> Tuple[np.ndarray, float]:
-    """Create bounding sphere by checking all points
-
-    1. Find axis-aligned bounding box,
-    2. Find center of box
-    3. Find distance from center of box to every position: radius is max
-
-    Still very fast method, with tighter radius; around 160 µs
-    """
     bbox = np.vstack([np.amin(positions, 0), np.amax(positions, 0)])
     center = np.average(bbox, axis=0)
     radius = np.linalg.norm(center - positions, axis=1).max()
+    
     return center, radius
 
 
@@ -63,22 +64,25 @@ def draw_plot(pt_cloud, sphere):
 
 
 if __name__ == '__main__':
-    # generate data points and convert to point cloud
+    # control group
     n = 100000
     data = np.random.randn(n, 3)
-    # purposely add outliers
-    for i in range(1000):
-        data = np.append(data, [[-5*i/100, -10, -10]], axis=0)
+    center, r = bounding_sphere_naive(positions=data)
+    sphere = param_sphere(center, r)
+    data_plot = gen_plot(data)
+    draw_plot(data_plot, sphere)
+
+    # add outliers and convert to point cloud
+    data = np.append(data, 100*np.random.randn(500, 3), axis=0)
     float_data = data.astype(np.float32)
     cloud = pcl.PointCloud()
     cloud.from_array(float_data)
 
-    # filter the cloud and get plot arrays
+    # downsample and filter point cloud, calculate sphere
     st = time.time()
-    fil_data = filter_outliers(cloud)
-    # compute bounding sphere 
+    down_cloud = downsample(cloud)
+    fil_data = filter_outliers(down_cloud)
     center, r = bounding_sphere_naive(positions=fil_data)
-    # time to filter pcl and computer bounding sphere
     print('filtered execution time: ' + str(time.time() - st))
     data_plot = gen_plot(fil_data)
 
