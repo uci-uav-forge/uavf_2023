@@ -3,13 +3,10 @@
 from typing import Tuple
 import numpy as np
 import pcl
-from scipy import spatial
-
+import time 
 import matplotlib
-matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
-import time 
 
 
 def filter_outliers(cloud):
