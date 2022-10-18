@@ -13,7 +13,6 @@ def downsample(cloud):
     fil = cloud.make_voxel_grid_filter()
     fil.set_leaf_size(0.5 , 0.5, 0.5)
     down_cloud = fil.filter()
-
     return down_cloud
 
 
@@ -23,7 +22,6 @@ def filter_outliers(cloud):
     fil.set_std_dev_mul_thresh(10E-10)
     fil_cloud = fil.filter()
     fil_data = np.asarray(fil_cloud)
-    
     return fil_data
 
 
@@ -31,7 +29,6 @@ def bounding_sphere_naive(positions: np.ndarray) -> Tuple[np.ndarray, float]:
     bbox = np.vstack([np.amin(positions, 0), np.amax(positions, 0)])
     center = np.average(bbox, axis=0)
     radius = np.linalg.norm(center - positions, axis=1).max()
-    
     return center, radius
 
 
@@ -40,7 +37,6 @@ def gen_plot(cloud):
     cloudX = cloud[:, 0]   
     cloudY = cloud[:, 1]
     cloudZ = cloud[:, 2]
-
     return np.array([cloudX, cloudY, cloudZ])
 
 
@@ -49,7 +45,6 @@ def param_sphere(center, radius):
     x = center[0] + radius*np.cos(u)*np.sin(v)
     y = center[1] + radius*np.sin(u)*np.sin(v)
     z = center[2] + radius*np.cos(v)
-    
     return np.array([x, y, z])
 
 
@@ -59,7 +54,6 @@ def draw_plot(pt_cloud, sphere):
 
     ax.scatter(pt_cloud[0], pt_cloud[1], pt_cloud[2], c='red', alpha=1)
     ax.scatter(sphere[0], sphere[1], sphere[2], c='blue', alpha=0.01)
-
     plt.show()
 
 
