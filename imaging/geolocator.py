@@ -1,8 +1,12 @@
+'''
+Modifies targets by attaching gps position
+'''
 import detector
+import fieldcapturer
 
 class Geolocator:
     def __init__(self):
         pass
     
-    def tag_target(self, target: detector.Target):
+    def locate(self, target: detector.Target, drone_status: fieldcapturer.DroneStatus) -> detector.Target:
         pass
