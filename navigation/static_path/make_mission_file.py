@@ -65,6 +65,7 @@ class MissionObject:
 if __name__ == '__main__':
 
     # MissionObject constructor takes list of GPS coordinates as input
+    '''
     test = MissionObject(
         home=(33.64678917, -117.8426853, 50),
         waypoints=[
@@ -74,7 +75,18 @@ if __name__ == '__main__':
         ],
         land=(33.6466316, -117.84288985, 0)
     )
-
+    '''
+    test = MissionObject(
+        home=(47.3977507, 8.5456073, 100),
+        waypoints=[
+            (47.39777838174398, 8.544492608041622, 50),
+            (47.39902740038751, 8.542841123072154, 60),
+            (47.39967503756078, 8.547245178153947, 110),
+            (47.39732731494636, 8.545570793020584, 80)
+        ],
+        land=(47.3977507, 8.5456073, 0)
+    )
     # export function creates '.plan' file that can be uploaded to QGC
     # json_type MUST BE FALSE for QGC to read, enable for testing
-    test.export("generated_aldrich_path", json_type=False)
+    #test.export("generated_aldrich_path", json_type=False)
+    test.export("default_path", json_type=False)
