@@ -20,14 +20,10 @@ class Imager:
             result = self.detector.detect(tile)
             if result != None:
                 frame_targets.append(result)
-
-        frame_targets = [
-            target._replace(
-                center_coords=
-                    self.geolocator.locate(
-                        target.center_pix, 
-                        capture_result.drone_status)) 
-                for target in frame_targets]
+        
+        for target in frame_targets:
+            target.center_coords = \
+                self.geolocator.locate(target.center_pix, capture_result.drone_status)
         
         for target in frame_targets:
             self.target_aggregator.add_target(target)
