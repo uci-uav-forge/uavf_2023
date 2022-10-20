@@ -13,6 +13,8 @@ class node:
         self.f = g + h
         self.parent = parent
 
+        x = 2   
+
 def calculateH(x, y):
     h = 0
     while x != goalX or y != goalY:
