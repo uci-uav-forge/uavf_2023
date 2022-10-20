@@ -18,6 +18,6 @@ class Detector:
         # owns the ml models used for detection.
         pass
 
-    def detect(self, tile: fieldcapturer.Tile) -> Optional[Target]:
+    def detect(self, image: Any) -> List[Target]:
         return None
 

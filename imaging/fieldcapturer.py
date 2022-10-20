@@ -9,19 +9,12 @@ class DroneStatus(NamedTuple):
     altitude: Any
     coords: Any
 
-class Tile(NamedTuple):
-    img: Any
-    px_offset: Any
-
-class CaptureResult(NamedTuple):
-    drone_status: DroneStatus
-    tiles: List[Tile]
-    img: Any
-
 class FieldCapturer:
     def __init__(self):
         pass
-    def capture(self) -> CaptureResult:
+    def capture(self) -> Any:
+        pass
+    def get_drone_status(self) -> DroneStatus:
         pass
     def update_coords(self, coords):
         pass
