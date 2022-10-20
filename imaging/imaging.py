@@ -11,20 +11,18 @@ class Imager:
         self.geolocator = geolocator.Geolocator()
         self.target_aggregator = targetaggregator.TargetAggregator()
     def capture(self):
-        capture_result = self.field_capturer.capture()
+        capture_image = self.field_capturer.capture()
+        drone_status = self.field_capturer.get_drone_status()
 
-        frame_targets = []
-
-        # todo, this work and work below is parallelizable
-        for tile in capture_result.tiles:
-            result = self.detector.detect(tile)
-            if result != None:
-                frame_targets.append(result)
+        frame_targets = self.detector.detect(capture_image)
         
         for target in frame_targets:
             target.center_coords = \
-                self.geolocator.locate(target.center_pix, capture_result.drone_status)
+                self.geolocator.locate(target.center_pix, drone_status)
         
+        return frame_targets #???
+'''
         for target in frame_targets:
             self.target_aggregator.add_target(target)
+'''
         
