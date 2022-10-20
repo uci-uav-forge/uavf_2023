@@ -1,9 +1,7 @@
 import detector
 import fieldcapturer
-import framesummary
 import geolocator
 import targetaggregator
-import targetnavigator
 
 
 class Imager:
