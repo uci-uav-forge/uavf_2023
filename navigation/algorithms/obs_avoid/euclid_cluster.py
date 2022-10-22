@@ -63,6 +63,6 @@ for j, indices in enumerate(cluster_indices):
 
     cloud_cluster.from_array(points)
     ss = "cloud_cluster_" + str(j) + ".pcd";
-    pcl.save(cloud_cluster, ss)
+    #pcl.save(cloud_cluster, ss)
 
 print(cloud_cluster)
