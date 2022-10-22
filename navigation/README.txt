@@ -18,7 +18,7 @@ For PX4:
 Setting up Ardupilot, MAVProxy, Guided Mode:
 
 	1. Ardupilot and MAVProxy 
-		Clone ardupilot into home directory
+		Clone ardupilot into home directory.
 		$ git clone https://github.com/ArduPilot/ardupilot.git
 		$ cd ardupilot
 
@@ -49,26 +49,26 @@ Setting up Ardupilot, MAVProxy, Guided Mode:
 		cd into catkin_ws
 		$ catkin build -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/usr/include/python3.7m
 
-		Convenience script for launching ArduCopter simulator
+		Convenience script for launching ArduCopter simulator:
 			$ cp ~/catkin_ws/src/iq_sim/scripts/startsitl.sh ~
 			Now you can start Ardupilot sitl with:
 				$ ~/startsitl.sh
 		
-		Launch the gazebo world in a new terminal
+		Launch the gazebo world in a new terminal:
 			cd into catkin_ws
 			$ source devel/setup.bash
 				If a launch file isnt working, try sourcing the workspace first
 			$ roslaunch iq_sim droneOnly.launch
 				It will take a while to launch the first time!
 		
-		Start MAVROS node in a new terminal
+		Start MAVROS node in a new terminal:
 			$ roslaunch iq_sim apm.launch
-				Launches MAVROS node
+				Launches MAVROS node.
 		
 		Test your simulation!
 			Open up Gazebo and the terminal where you launched startsitl.sh
 			Press 'enter', the terminal should now say 'STABILIZE>'
-			Check MAVProxy console while sending commands to see the drone status
+			Check MAVProxy console while sending commands to see the drone status.
 				$ mode guided 
 				$ arm throttle 
 				$ takeoff 15
@@ -79,21 +79,21 @@ Setting up Ardupilot, MAVProxy, Guided Mode:
 		cd into catkin_ws/src
 		$ git clone https://github.com/Intelligent-Quads/iq_gnc.git
 		$ cd iq_gnc/scripts
-			Scripts for dynamic control using guided mode
-			We can use these as a template for our own scripts
+			Scripts for dynamic control using guided mode.
+			We can use these as a template for our own scripts.
 		$ cd ../src/iq_gnc/
-			py_gnc_functions.py has methods that abstract the guided mode interface for us
-			We can use these methods or use them as a template for our own
-			I have copied these python files into our own repository for convenience 
+			py_gnc_functions.py has methods that abstract the guided mode interface for us.
+			We can use these methods or use them as a template for our own.
+			I have copied these python files into our own repository for convenience. 
 	
 
 	4. To summarize...
 		$ ~/startsitl.sh
-			starts the ArduCopter sitl and MAVProxy ground control station
+			starts the ArduCopter sitl and MAVProxy ground control station.
 		$ roslaunch iq_sim droneOnly.launch
-			launches the gazebo simulation
+			launches the gazebo simulation.
 		$ roslaunch iq_sim apm.launch
-			starts MAVROS node
+			starts MAVROS node.
 
 
 	Source: https://github.com/Intelligent-Quads/iq_tutorials
