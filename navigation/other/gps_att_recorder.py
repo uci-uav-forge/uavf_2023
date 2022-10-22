@@ -23,11 +23,14 @@ class GPS_Attitude_Recorder():
         # initialize node and subs, sync subs into 1 callback
         rospy.init_node("GPS_Attitude_subscriber_node")
         gps_sub = message_filters.Subscriber(
-            "/mavros/global_position/raw/fix", NavSatFix)
+            "/mavros/global_position/raw/fix", NavSatFix
+        )
         pose_sub = message_filters.Subscriber(
-            '/mavros/local_position/pose', PoseStamped)
+            '/mavros/local_position/pose', PoseStamped
+        )
         sync = message_filters.ApproximateTimeSynchronizer(
-                        [gps_sub, pose_sub], 20, 2)
+            [gps_sub, pose_sub], 20, 2
+        )
         sync.registerCallback(self.callback)
 
         # record start time and start timer
@@ -50,8 +53,10 @@ class GPS_Attitude_Recorder():
             self.timer = time.time()
 
             # get euler angles from quaternion
-            orient = np.array([pose.pose.orientation.x, pose.pose.orientation.y,
-                            pose.pose.orientation.z, pose.pose.orientation.w])
+            orient = np.array(
+                [pose.pose.orientation.x, pose.pose.orientation.y,
+                pose.pose.orientation.z, pose.pose.orientation.w]
+            )
             roll, pitch, yaw = euler_from_quaternion(orient)
             att_arr = np.asarray((roll, pitch, yaw))
 
