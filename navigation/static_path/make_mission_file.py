@@ -11,6 +11,8 @@ class MissionObject:
         self.obj["firmwareType"] = 12
         self.obj["hoverSpeed"] = 5
         self.obj["items"] = list()
+        
+        x = 2
 
         self.obj["items"].append(self._generate_subdict(home, mode='TAKEOFF', doJumpId=1))
 
