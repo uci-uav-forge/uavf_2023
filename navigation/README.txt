@@ -94,3 +94,6 @@ Setting up Ardupilot, MAVProxy, Guided Mode:
 			launches the gazebo simulation
 		$ roslaunch iq_sim apm.launch
 			starts MAVROS node
+
+
+	Source: https://github.com/Intelligent-Quads/iq_tutorials
