@@ -23,11 +23,23 @@ def filter_outliers(cloud):
     return fil_data
 
 
-def bounding_sphere_naive(positions: np.ndarray) -> Tuple[np.ndarray, float]:
+def bound_sphere(positions: np.ndarray) -> Tuple[np.ndarray, float]:
     bbox = np.vstack([np.amin(positions, 0), np.amax(positions, 0)])
     center = np.average(bbox, axis=0)
     radius = np.linalg.norm(center - positions, axis=1).max()
     return center, radius
+
+
+def bound_box(positions: np.ndarray) -> np.ndarray:
+    p0 = np.amin(positions, 0)
+    p1 = np.amax(positions, 0)
+    p2 = np.array([p1[0], p0[1], p0[2]])
+    p3 = np.array([p0[0], p1[1], p0[2]])
+    p4 = np.array([p1[0], p1[1], p0[2]])
+    p5 = np.array([p0[0], p0[1], p1[2]])
+    p6 = np.array([p1[0], p0[1], p1[2]])
+    p7 = np.array([p0[0], p1[1], p1[2]])
+    return np.array([p0, p1, p2, p3, p4, p5, p6, p7])
 
 
 def gen_plot(data):
@@ -46,12 +58,15 @@ def param_sphere(center, radius):
     return np.array([x, y, z])
 
 
-def draw_plot(data_plot, sphere):
+def draw_plot(data_plot, shape, check_cube):
     fig = plt.figure(figsize=(9,10))
     ax = fig.add_subplot(projection='3d')
 
     ax.scatter(data_plot[0], data_plot[1], data_plot[2], c='red', alpha=1)
-    ax.scatter(sphere[0], sphere[1], sphere[2], c='blue', alpha=0.01)
+    if (check_cube):
+        ax.scatter(shape[0], shape[1], shape[2], c='blue', alpha=1)
+    else:
+        ax.scatter(shape[0], shape[1], shape[2], c='blue', alpha=0.01)
     plt.show()
 
 
@@ -59,10 +74,6 @@ if __name__ == '__main__':
     # control group
     n = 100000
     data = np.random.randn(n, 3)
-    #center, r = bounding_sphere_naive(positions=data)
-    #sphere = param_sphere(center, r)
-    #data_plot = gen_plot(data)
-    #draw_plot(data_plot, sphere)
 
     # add outliers and convert to point cloud
     data = np.append(data, 100*np.random.randn(500, 3), axis=0)
@@ -74,19 +85,23 @@ if __name__ == '__main__':
     st = time.time()
     down_cloud = downsample(cloud)
     fil_data = filter_outliers(down_cloud)
-    center, r = bounding_sphere_naive(positions=fil_data)
+    cube_data = bound_box(positions=fil_data)
+    #center, r = bound_sphere(positions=fil_data)
     print('filtered execution time: ' + str(time.time() - st))
     data_plot = gen_plot(fil_data)
 
     # rerun with original point cloud
     st = time.time()
     data = np.asarray(cloud)
-    center1, r1 = bounding_sphere_naive(positions=data)
+    cube_data1 = bound_box(positions=data)
+    #center1, r1 = bound_sphere(positions=data)
     print('unfiltered execution time: ' + str(time.time() - st))
     data_plot1 = gen_plot(data)
 
-    #compare filtered and unfiltered clouds and spheres
-    sphere = param_sphere(center, r)
-    sphere1 = param_sphere(center1, r1)
-    draw_plot(data_plot, sphere)
-    draw_plot(data_plot1, sphere1)
+    #compare filtered and unfiltered clouds and cubes
+    #sphere = param_sphere(center, r)
+    #sphere1 = param_sphere(center1, r1)
+    cube_plot = gen_plot(cube_data)
+    cube_plot1 = gen_plot(cube_data1)
+    draw_plot(data_plot, cube_plot, True)
+    draw_plot(data_plot1, cube_plot1, True)

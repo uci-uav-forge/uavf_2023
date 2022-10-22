@@ -13,7 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   mavros
   message_filters
   rospy
-  sensors_msgs
+  sensor_msgs
   std_msgs
   visualization_msgs
 )
@@ -75,7 +75,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   geographic_msgs#   geometry_msgs#   sensors_msgs#   std_msgs#   visualization_msgs
+#   geographic_msgs#   geometry_msgs#   sensor_msgs#   std_msgs#   visualization_msgs
 # )
 
 ################################################
@@ -110,7 +110,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES uavf_2023
-#  CATKIN_DEPENDS geographic_msgs geometry_msgs mavros message_filters rospy sensors_msgs std_msgs visualization_msgs
+#  CATKIN_DEPENDS geographic_msgs geometry_msgs mavros message_filters rospy sensor_msgs std_msgs visualization_msgs
 #  DEPENDS system_lib
 )
 
