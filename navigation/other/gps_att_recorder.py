@@ -29,7 +29,7 @@ class GPS_Attitude_Recorder():
             '/mavros/local_position/pose', PoseStamped
         )
         sync = message_filters.ApproximateTimeSynchronizer(
-            [gps_sub, pose_sub], 20, 2
+            [gps_sub, pose_sub], 1, 1
         )
         sync.registerCallback(self.callback)
 
