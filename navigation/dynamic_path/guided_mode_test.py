@@ -14,7 +14,7 @@ class GPS_Publisher():
         self.drone = gnc_api()
         self.drone.wait4connect()
         self.drone.wait4start()
-        self.drone.takeoff(5)
+        self.drone.takeoff(10)
     
 
     def set_waypoint(self, lat, long):
@@ -27,7 +27,7 @@ class GPS_Publisher():
         msg = GeoPoseStamped()
         msg.pose.position.latitude = lat
         msg.pose.position.longitude = long
-        msg.pose.position.altitude = 5
+        msg.pose.position.altitude = 10
         self.gps_pub.publish(msg)
         #self.drone.land()
 
