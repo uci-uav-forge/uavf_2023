@@ -37,21 +37,17 @@ class DataGenerator():
         self.screen = pygame.display.set_mode([self.resolution,resolution])
 
 
-    def generate_letter(self, font, letter, numImages = 15, path="", startNum = 0):
-        '''Generates data for the given font and number of images'''
-        changeDeg = 360 // numImages
-        currentDeg = 0
-        font = pygame.font.SysFont(font, self.resolution)
-        for number in range(numImages):
+    def generate_font_letters(self, fontName):
+        '''Generates letters for the given font'''
+        font = pygame.font.SysFont(fontName, self.resolution)
+        for x in ALPHABET:
             self.screen.fill((0,0,0)) # Fill screen with black
-            letter = font.render(letter, True, (255,255,255), (0,0,0))
-            letter = pygame.transform.rotate(letter, currentDeg)
-            currentDeg += changeDeg
+            letter = font.render(x, True, (255,255,255), (0,0,0))
             textRect = letter.get_rect()
             textRect.center = (self.resolution // 2, self.resolution // 2)
             self.screen.blit(letter, textRect)
             pygame.display.flip()
-            pygame.image.save(self.screen, f"{path}/data/{letter}_{startNum + number}.jpg")
+            pygame.image.save(self.screen, f".\\fonts\\{fontName}\\{x}.jpg")
     
 
     def generate_letters(self, font, distribution, numImages, path="", labelPath=".\dataset\labels.txt", startNum = 0):

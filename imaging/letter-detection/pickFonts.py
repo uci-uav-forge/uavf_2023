@@ -17,7 +17,7 @@ for fontName in f:
     while running:
         for x in range(7):
             for y in range(5):
-                imp = pygame.image.load(f".\\data\\fonts\\{fontName}\{ALPHABET[x * 5 + y]}.jpg")
+                imp = pygame.image.load(f".\\fonts\\{fontName}\{ALPHABET[x * 5 + y]}.jpg")
                 screen.blit(imp, (x*128,y*128))
                 running2 = True
         pygame.display.flip()
