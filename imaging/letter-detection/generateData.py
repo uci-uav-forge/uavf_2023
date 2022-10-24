@@ -55,7 +55,6 @@ class DataGenerator():
     
 
     def generate_letters(self, font, distribution, numImages, path="", labelPath=".\dataset\labels.txt", startNum = 0):
-        print(numImages, startNum)
         with open(labelPath, "a") as file:
             currentDeg = 0
             font = pygame.font.SysFont(font, self.resolution)
