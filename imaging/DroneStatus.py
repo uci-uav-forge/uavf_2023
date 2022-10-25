@@ -3,7 +3,7 @@ from collections import namedtuple
 
 @dataclass
 class DroneStatus():
-    GPSCoord: tuple(float,float))
+    GPSCoord: tuple(float,float)
     Altitude: float
     Pitch: float
     Yaw: float
