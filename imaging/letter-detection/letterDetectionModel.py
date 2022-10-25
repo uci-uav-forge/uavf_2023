@@ -2,7 +2,9 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
 
+# change train dataset directory here
 train_directory = '../letter_generation/train/'
+# change file name here
 train_df = pd.read_csv(train_directory + 'train.txt')
 
 train_file_paths = train_df['file_name'].values
@@ -10,7 +12,9 @@ train_labels = train_df['label'].values
 
 ds_train = tf.data.Dataset.from_tensor_slices((train_file_paths, train_labels))
 
+# change test dataset directory here
 test_directory = '../letter_generation/test/'
+# change file name here
 test_df = pd.read_csv(test_directory + 'test.txt')
 
 test_file_paths = test_df['file_name'].values
