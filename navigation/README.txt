@@ -7,7 +7,6 @@ For PX4:
 		$ cd ~/catkin_ws
 		$ catkin build -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/usr/include/python3.7m
 
-
 	Installing ROS and MAVROS (Ubuntu 20):
 		https://docs.google.com/document/d/1iDZaO9g8QdiUE_a3mRM_urEm7MaIqPoOlQ1OcymD9Dk/edit
 
@@ -39,7 +38,6 @@ Setting up Ardupilot, MAVProxy, Guided Mode:
 			cd into ardupilot/ArduCopter
 			$ python sim_vehicle.py -w
 				ArduCopter should launch now!
-
 
 	2. ArduCopter ROS-Gazebo Simulation
 		$ sudo apt install xterm
@@ -74,7 +72,6 @@ Setting up Ardupilot, MAVProxy, Guided Mode:
 				$ takeoff 15
 				$ mode land
 	
-
 	3. Guided Mode
 		cd into catkin_ws/src
 		$ git clone https://github.com/Intelligent-Quads/iq_gnc.git
@@ -86,7 +83,6 @@ Setting up Ardupilot, MAVProxy, Guided Mode:
 			We can use these methods or use them as a template for our own.
 			I have copied these python files into our own repository for convenience. 
 	
-
 	4. To summarize...
 		$ ~/startsitl.sh
 			starts the ArduCopter sitl and MAVProxy ground control station.
@@ -95,5 +91,15 @@ Setting up Ardupilot, MAVProxy, Guided Mode:
 		$ roslaunch iq_sim apm.launch
 			starts MAVROS node.
 
-
 	Source: https://github.com/Intelligent-Quads/iq_tutorials
+
+
+Setting Up Nvidia TX2 as Companion Computer:
+
+	1. https://ardupilot.org/dev/docs/companion-computer-nvidia-tx2.html#companion-computer-nvidia-tx2
+
+	2. Install APSync 
+		https://ardupilot.org/dev/docs/apsync-intro.html#apsync-intro-installing-apsync
+	
+	3. Connect MAVROS
+		https://ardupilot.org/dev/docs/ros-connecting.html
