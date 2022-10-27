@@ -2,6 +2,17 @@ import pygame
 import os
 import DataGenerator
 
+
+def gen_fonts():
+    try:
+        with open("fonts.txt" ,"w") as file:
+            for x in pygame.font.get_fonts():
+                file.write(x)
+                file.write("\n")
+    except Exception:
+        pass
+
+
 def main():
     ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
     
@@ -9,6 +20,8 @@ def main():
         os.mkdir("./fonts") # Make directory if it doesn't exist
     except:
         pass
+    
+    gen_fonts()
 
     gen = DataGenerator.DataGenerator()
     with open("fonts.txt", 'r') as f:
