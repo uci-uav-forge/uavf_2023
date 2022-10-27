@@ -1,4 +1,4 @@
-import generateData
+import DataGenerator
 import os
 import math
 class DataSet():
@@ -10,7 +10,7 @@ class DataSet():
         self.numLabels = 36
         self.distributions = dict()
         self.remaining = 1
-        self.generater = generateData.DataGenerator(128)
+        self.generater = DataGenerator.DataGenerator(128)
 
 
     def createFilesAndDirectories(self):
@@ -71,8 +71,6 @@ def main():
     d.setRemainingDistributions()
     d.generate()
 
-
-    
 
 if __name__ == "__main__":
     main()

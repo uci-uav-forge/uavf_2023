@@ -3,33 +3,8 @@ import os
 import math
 ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
 
-# # Create file directories 
-# for x in ALPHABET:
-#     try:
-#         os.mkdir(f'./data/{x}')
-#     except:
-#         pass
-# pygame.init()
-# clock = pygame.time.Clock()
-# resolution = 128
-
-
-# def main():
-#     # Create file directories 
-#     for x in ALPHABET:
-#         try:
-#             os.mkdir(f'./data/{x}')
-#         except:
-#             pass
-#     # choose = int(input("Please enter num font: "))
-#     choose = 2
-#     with open("fonts.txt", "r") as file:
-#         f = file.readlines()
-#     font = f[choose].strip()
-#     print(f"you have chosen: {font}")
-#     generate_letters(font)
-
 class DataGenerator():
+    
     
     def __init__(self, resolution=128):
         self.resolution = 128
@@ -71,7 +46,7 @@ class DataGenerator():
                     screen.blit(letter, textRect)
                     pygame.display.flip()
                     pygame.image.save(screen, f"{path}\{startNum}.jpg")
-                    file.write(f"{startNum}.jpg" + ", " + str(index) + "\n")
+                    file.write(f"./data/{startNum}.jpg" + ", " + str(index) + "\n")
                     startNum += 1
 
 
