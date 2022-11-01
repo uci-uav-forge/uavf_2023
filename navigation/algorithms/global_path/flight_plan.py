@@ -116,7 +116,37 @@ class Flight_Zone():
         plt.show()
     
 
-    def run_astar(self, start, wps):
+    def process_dropzone(self, drop_bds):
+        drop_pts = []
+        for gps in drop_bds:
+            drop_pts.append(np.array(self.GPS_to_XY(gps)))
+
+        delt1 = drop_pts[0] - drop_pts[len(drop_bds)-1]
+        delt2 = delt1
+        shortest1 = math.hypot(delt1[0], delt2[1])
+        shortest2 = math.hypot(delt2[0], delt2[1])
+        pair1 = (drop_pts[0], drop_pts[len(drop_bds)-1])
+        pair2 = (drop_pts[0], drop_pts[len(drop_bds)-1])
+
+        for i in range(len(drop_bds)-1):
+            delta = drop_pts[i+1] - drop_pts[i]
+            length = math.hypot(delta[0], delta[1])
+
+            if length < shortest1:
+                shortest2 = shortest1
+                shortest1 = length
+                pair2 = pair1
+                pair1 = (drop_pts[i+1], drop_pts[i])
+            elif length < shortest2:
+                shortest2 = length
+                pair2 = (drop_pts[i+1], drop_pts[i])
+        
+        wp1 = ((pair1[0][0] + pair1[1][0]) / 2, (pair1[0][1] + pair1[1][1]) / 2)
+        wp2 = ((pair2[0][0] + pair2[1][0]) / 2, (pair2[0][1] + pair2[1][1]) / 2)
+        return [wp1, wp2]
+
+
+    def gen_globalpath(self, start, wps, drop_bds):
         w = self.x_dim
         h = self.y_dim
         walls = test_map.boundary
@@ -126,10 +156,14 @@ class Flight_Zone():
         for gps in wps:
             waypts.append(self.GPS_to_XY(gps))
         
+        # waypoints to cross the dropzone
+        drop_pts = self.process_dropzone(drop_bds)
+        drop_order = drop_pts
         order = [home]
         curr = home
         # order the waypoints
         while len(waypts):
+            #if len(waypts):
             nxt = waypts[0]
             idx = 0
             dist = math.hypot(nxt[0]-curr[0], nxt[1]-curr[1])
@@ -138,14 +172,37 @@ class Flight_Zone():
                 dx = waypts[i][0] - curr[0]
                 dy = waypts[i][1] - curr[1]
                 temp_dist = math.hypot(dx, dy)
+                drop_dist = temp_dist
+
                 if temp_dist < dist:
                     nxt = waypts[i]
                     idx = i
                     dist = temp_dist
-            curr = nxt
-            order.append(nxt)
-            waypts.pop(idx)
-        
+            
+            drop_dist = dist
+            if len(drop_pts):
+                dx1 = drop_pts[0][0] - curr[0]
+                dy1 = drop_pts[0][1] - curr[1]
+                dx2 = drop_pts[1][0] - curr[0]
+                dy2 = drop_pts[1][1] - curr[1]
+
+                if math.hypot(dx1, dy1) > math.hypot(dx2, dy2):
+                    drop_order = [drop_pts[1], drop_pts[0]]
+                    drop_dist = math.hypot(dx2, dy2)
+            
+            if drop_dist < dist:
+                curr = drop_order[1]
+                order.extend(drop_order)
+                drop_pts.clear()
+            else:
+                curr = nxt
+                order.append(nxt)
+                waypts.pop(idx)
+                
+        if len(drop_pts):
+            order.extend(drop_order)
+            drop_pts.clear()
+
         global_path = []
         for i in range(len(order) - 1):
             start = (round(order[i][0]), round(order[i][1]))
@@ -153,7 +210,6 @@ class Flight_Zone():
             path = astar(self.x_dim, self.y_dim, self.boundary, start, end)
             global_path.extend(path)
 
-        print(global_path)
         self.draw_map(order, global_path)
 
 
@@ -186,5 +242,11 @@ if __name__ == '__main__':
         (38.31453025427406, -76.5446561487259),
         (38.31565519010776, -76.54972205096031)
     ]
-    test_map.run_astar(start, wps)
+    drop_bds = [
+        (38.31461655840247, -76.54516814545798),
+        (38.31442098816458, -76.54523151910101),
+        (38.31440638590367, -76.54394559930905),
+        (38.314208221753645, -76.54400447836372)
+    ]
+    test_map.gen_globalpath(start, wps, drop_bds)
     #test_map.draw_map(w, h, path)
