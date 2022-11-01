@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import math
 import utm
 import numpy as np
-from Astar import astar
+from astar import astar
 
 
 class Flight_Zone():
@@ -150,7 +150,7 @@ class Flight_Zone():
         w = self.x_dim
         h = self.y_dim
         walls = test_map.boundary
-        #convert to xy
+        # convert to xy
         home = self.GPS_to_XY(start)
         waypts = []
         for gps in wps:
@@ -198,7 +198,7 @@ class Flight_Zone():
                 curr = nxt
                 order.append(nxt)
                 waypts.pop(idx)
-                
+
         if len(drop_pts):
             order.extend(drop_order)
             drop_pts.clear()
@@ -209,6 +209,12 @@ class Flight_Zone():
             end = (round(order[i+1][0]), round(order[i+1][1]))
             path = astar(self.x_dim, self.y_dim, self.boundary, start, end)
             global_path.extend(path)
+        
+        wp_order = []
+        for pt in order:
+            wp_order.append(self.XY_to_GPS(pt))
+        print('waypoint order:')
+        print(wp_order)
 
         self.draw_map(order, global_path)
 
