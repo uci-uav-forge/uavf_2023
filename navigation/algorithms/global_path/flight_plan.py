@@ -187,8 +187,11 @@ class Flight_Zone():
                 dy2 = drop_pts[1][1] - curr[1]
 
                 if math.hypot(dx1, dy1) > math.hypot(dx2, dy2):
+                    print('h')
                     drop_order = [drop_pts[1], drop_pts[0]]
                     drop_dist = math.hypot(dx2, dy2)
+                else:
+                    drop_dist = math.hypot(dx1, dy1)
             
             if drop_dist < dist:
                 curr = drop_order[1]
@@ -198,11 +201,11 @@ class Flight_Zone():
                 curr = nxt
                 order.append(nxt)
                 waypts.pop(idx)
-
+        '''
         if len(drop_pts):
             order.extend(drop_order)
             drop_pts.clear()
-
+        '''
         global_path = []
         for i in range(len(order) - 1):
             start = (round(order[i][0]), round(order[i][1]))
@@ -246,7 +249,7 @@ if __name__ == '__main__':
         (38.318084991945966, -76.54909120275754),
         (38.317170076120384, -76.54519141386767),
         (38.31453025427406, -76.5446561487259),
-        (38.31565519010776, -76.54972205096031)
+        (38.31534881557715, -76.54085345989367)
     ]
     drop_bds = [
         (38.31461655840247, -76.54516814545798),
