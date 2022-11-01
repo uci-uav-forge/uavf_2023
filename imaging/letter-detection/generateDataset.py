@@ -2,7 +2,8 @@ import DataGenerator
 import os
 import math
 class DataSet():
-    def __init__(self, size):
+    def __init__(self, size, path=""):
+        self.path = path
         self.createFilesAndDirectories()
         self.isDistributed = False
         self.size = size
@@ -10,20 +11,25 @@ class DataSet():
         self.numLabels = 36
         self.distributions = dict()
         self.remaining = 1
-        self.generater = DataGenerator.DataGenerator(128)
+        self.generater = DataGenerator.DataGenerator(128, path=path)
+        
 
 
     def createFilesAndDirectories(self):
         '''Creates file hierarchy needed to run'''
         try:
-            os.mkdir('.\dataset')
+            os.mkdir(f'.{self.path}')
+        except Exception:
+            pass
+        try:
+            os.mkdir(f'.{self.path}/dataset')
         except Exception: # directories already exist
             pass
         try:
-            os.mkdir('.\dataset\data')
+            os.mkdir(f'.{self.path}/dataset/data')
         except Exception: # directories already exist
             pass
-        with open(".\dataset\labels.txt", "w") as f:
+        with open(f".{self.path}/dataset/labels.txt", "w") as f:
             f.write("file, label\n")
 
 
@@ -56,12 +62,11 @@ class DataSet():
             fonts : list = file.readlines()
         numPhotos = math.ceil(self.size /len(fonts))
         for x in range(len(fonts)):
-            self.generater.generate_letters(fonts[x], self.distributions, numPhotos, path =".\dataset\data", labelPath=".\dataset\labels.txt", startNum = (x * numPhotos))
+            self.generater.generate_letters(fonts[x], self.distributions, numPhotos, startNum = (x * numPhotos))
         
 
 def main():
-    d = DataSet(2000) # Change the number here to change the size of the dataset
-    
+    d = DataSet(5000, path="/train") # Change the number here to change the size of the dataset
     custom_distributions = {}
     #add (key, 0 <= dist <= 1) to the custom_distributions
     #TODO Have them read from a file
