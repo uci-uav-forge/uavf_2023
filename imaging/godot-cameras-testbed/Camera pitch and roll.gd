@@ -18,5 +18,5 @@ func _process(delta):
 		yield(VisualServer, "frame_post_draw")
 		first = false
 		var image = get_viewport().get_texture().get_data()
-		image.save_png("/home/eric/Code/forge-godot/roll-pitch-23deg-yaw-22deg.png")
+		image.save_png("res://roll-pitch-23deg-yaw-22deg.png")
 		
