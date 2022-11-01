@@ -11,21 +11,14 @@ class TargetInfo:
     CalcGPSCoord: InitVar[Optional[tuple]] = None
 
 
-    def updateGPS(self,missingcoord):
-            self.CalcGPSCoord = missingcoord
+    def updateGPS(self, missingcoord):
+        self.CalcGPSCoord = missingcoord
 
 
 
-
-targetexampleinfo = TargetInfo("triangle",("blue","black"),"A", (4,6))
-print(targetexampleinfo)
-targetexampleinfo.updateGPS((500,200))
-print(targetexampleinfo)
-print(targetexampleinfo.CalcGPSCoord)
-        
-    
-
-
-
-
-
+if __name__ == '__main__':
+    targetexampleinfo = TargetInfo("triangle",("blue","black"),"A", (4,6))
+    print(targetexampleinfo)
+    targetexampleinfo.updateGPS((500,200))
+    print(targetexampleinfo)
+    print(targetexampleinfo.CalcGPSCoord)

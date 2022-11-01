@@ -1,61 +1,75 @@
 from typing import *
-import detector
-import TargetInfo
+import statistics
+from TargetInfo import TargetInfo
+import collections
 
-#want to return a list of gps coordinates, mostlikely a list of tuples
 class TargetAggregator:
+    # subjective value of .00001 degrees = 1.11m; TODO adjust based on empirical variance
+    GPS_EPSILON = 0.00007
+
     def __init__(self):
-        self.targets_by_attrs = {} 
+        # A map from target attributes to lists of target groups - 
+        # each target group is a list of positions found which are close to each other.
+        # We will aggregate each group somehow when we finalize coordinates
+        # ex: {(square,red,W,green) : [[(50,50), (50.004,50), ...],[(100,100)], ... ] }
+        self.targets_by_attrs = collections.defaultdict(list)
 
+    def add_target(self, target: TargetInfo):
+        assert target.CalcGPSCoord != None
 
-# ex: {(square,red,W,green) : [[(50,50), (80,90), ...],[], ... ] }
+        attribute_key = (target.Shape, target.Colors[0], target.Letter, target.Colors[1])
 
-    def add_target(self, target: TargetInfo): #included comparison and addition
-        if (len(self.targets_by_attrs)==0):
-            attributekey = (target.Shape,target.Colors[0],target.Letter,target.Colors[1])
-            self.targets_by_attrs[attributekey] = [[target.CalcGPSCoord]]
+        matching_target_groups = self.targets_by_attrs[attribute_key]
 
-        else:
-            for eachtarget in self.targets_by_attrs:
-                if (target.Shape, target.Colors[0], target.Letter, target.Colors[1] ) == (eachtarget):
-                    for eachgpsgroup in self.targets_by_attrs[eachtarget]:
-                        # iterating over a list of list of tuple so [[(59,30),(50,38),] ]
-                        # so eachgpsgroup is the list inside of the big list 
-                        for eachcoord in eachgpsgroup:
-                        # value is subjective though .00001 degrees = 1.11m; can be changed the range
-                            if (abs(eachcoord[0] - target.CalcGPSCoord[0])<= 0.00007) & (abs(eachcoord[1] - target.calcGPSCoord[1])<= 0.00007):
-                                eachgpsgroup.append(target.CalcGPSCoord)
-                                target.CalcGPSCoord = None
-                            else:
-                                self.targets_by_attrs[eachtarget].append([target.CalcGPSCoord])
-                                target.CalcGPSCoord = None
+        for target_group in matching_target_groups:
+            for coord in target_group:
+                if abs(coord[0] - target.CalcGPSCoord[0]) <= TargetAggregator.GPS_EPSILON and \
+                    abs(coord[1] - target.CalcGPSCoord[1]) <= TargetAggregator.GPS_EPSILON:
+                    # Return early if we find a pre-existing group this measurement is close to, adding it to that group.
+                    target_group.append(target.CalcGPSCoord)
+                    return
 
-            if (target.CalcGPSCoord != None):
-                attributekey = (target.Shape,target.Colors[0],target.Letter,target.Colors[1])
-                self.targets_by_attrs[attributekey] = [[target.CalcGPSCoord]]
-
-        
-    def get_targets(self) -> List[detector.Target]:
-        return list(self.targets_by_attrs.values())
+        # This attribute combination is far from all others like it. Start a new group.
+        self.targets_by_attrs[attribute_key].append([target.CalcGPSCoord])
     
-    def finalize_gps(self):
-        for eachattrs in self.targets_by_attrs:
-            for eachgroup in self.targets_by_attrs[eachattrs]:
-                sortlat, sortlong = [],[]
-                for eachcoord in eachgroup:
-                    sortlat.append(eachcoord[0])
-                    sortlat.append(eachcoord[1])
-                sortlat.sort()
-                sortlong.sort()
-                median = sortlat.length() // 2
-                eachgroup = [(sortlat[median],sortlong[median])]
-        #expected result (shape,shapecolor,letter,lettercolor):[[(lat1,long1)],[(lat2,long2)], etc.]
+    def get_targets(self) -> dict[Tuple, List[Tuple]]:
+        # returns map from target attributes to list of median positions
+        result = {attr: [(statistics.median(coord[0] for coord in group), 
+                          statistics.median(coord[1] for coord in group))
+                        for group in groups]
+                    for attr, groups in self.targets_by_attrs.items()}
+        return result
 
 
-        
+
+if __name__ == '__main__':
+    agg = TargetAggregator()
+
+    testshape_1 = TargetInfo('triangle', ('red','black'), 'Q', (4,6))
+    testshape_2 = TargetInfo('square', ('green','white'), 'X', (4,6))
+
+    testshape_1.updateGPS((4,6))
+    testshape_2.updateGPS((4,6))
+
+    agg.add_target(testshape_1)
+    agg.add_target(testshape_2)
+
+    assert agg.get_targets() == {('triangle','red','Q','black') : [(4,6)], ('square','green','X','white') : [(4,6)]}, \
+        "Correctly returns inputted targets"
+
+    TargetAggregator.GPS_EPSILON = 10
+
+    testshape_3 = TargetInfo('triangle', ('red','black'), 'Q', (4,10), (4,10))
+    testshape_3.updateGPS((4,10))
+    agg.add_target(testshape_3)
 
 
-# order: cmp target info to existing targetaggregator,targets_by_attrs 
-# returns the target if it needs to be added to the list then add it to the target aggregator attributes
+    assert agg.get_targets() == {('triangle','red','Q','black') : [(4,8)], ('square','green','X','white') : [(4,6)]}, \
+        "Combines close targets"
 
+    testshape_4 = TargetInfo('triangle', ('red','black'), 'Q', (4,30), (4,30))
+    testshape_4.updateGPS((4,30))
+    agg.add_target(testshape_4)
 
+    assert agg.get_targets() == {('triangle','red','Q','black') : [(4,8), (4,30)], ('square','green','X','white') : [(4,6)]}, \
+        "Doesn't combine far targets"
