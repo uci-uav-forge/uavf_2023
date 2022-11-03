@@ -1,11 +1,15 @@
 from fieldcapturer import *
 import time
+import argparse
 
-interval = 2
+ap = argparse.ArgumentParser()
+ap.add_argument('interval',type=int)
+ar = ap.parse_args()
+
 
 fc = FieldCapturer()
 
 while True:
     img = fc.capture()
-    time.sleep(2)
+    time.sleep(ar.interval)
 
