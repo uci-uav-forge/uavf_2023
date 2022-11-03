@@ -1,0 +1,13 @@
+Circle
+Halfcircle
+Heptagon
+Hexagon
+Octagon
+Pentagon
+Plus
+QuarterCircle
+Rectangle
+Square
+Star
+Trapezoid
+Triangle
