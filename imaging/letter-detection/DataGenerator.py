@@ -48,6 +48,7 @@ class DataGenerator():
                     pygame.image.save(screen, f".{self.path}/dataset/data/{startNum}.jpg")
                     file.write(f"./data/{startNum}.jpg" + ", " + str(index) + "\n")
                     startNum += 1
+        return startNum
 
 
     # def generate_data(self, font, numImages = 15, path=""):

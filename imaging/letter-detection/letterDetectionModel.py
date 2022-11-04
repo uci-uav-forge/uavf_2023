@@ -2,6 +2,9 @@ import pandas as pd
 import tensorflow as tf
 from tensorflow import keras
 
+from collections import defaultdict
+
+
 # change train dataset directory here
 train_directory = './train/dataset'
 # change file name here
@@ -90,11 +93,26 @@ for row in range(len(result)):
 #    if predict[i] != test_labels[i]:
 #        wrong_predictions.append((chr(test_labels[i]), chr(predict[i])))
 #print(wrong_predictions)
-dict = {}
+d = {}
 for i in range(len(predict)):
-    dict[test_file_paths[i]] = (predict[i], test_labels[i])
+    file_path = test_file_paths[i]
+    prediction = predict[i]
+    actual_label = test_labels[i]
+    d.update({file_path: (prediction, actual_label)})
 
-print(dict)
+alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
+def evaluateChars(predictions:dict[tuple[int,int]]):
+    numCorrect = defaultdict(int)
+    totals = defaultdict(int)
+    for predicted, correct in predictions.values():
+        numCorrect[correct]
+        totals[correct] += 1
+        if(predicted == correct):
+            numCorrect[correct] += 1
+    for letter, (n, t) in enumerate(zip(numCorrect.values(),totals.values())):
+        print(alpha[letter], ":", n,"out of", t)
+    
+evaluateChars(d)
 
 
     

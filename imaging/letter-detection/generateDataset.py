@@ -61,12 +61,14 @@ class DataSet():
         with open("myfonts.txt", "r") as file:
             fonts : list = file.readlines()
         numPhotos = math.ceil(self.size /len(fonts))
+        totalCount = 0
         for x in range(len(fonts)):
-            self.generater.generate_letters(fonts[x], self.distributions, numPhotos, startNum = (x * numPhotos))
-        
+            # self.generater.generate_letters(fonts[x], self.distributions, numPhotos, startNum = (x * numPhotos))
+            totalCount = self.generater.generate_letters(fonts[x], self.distributions, numPhotos, startNum = totalCount)
+
 
 def main():
-    d = DataSet(5000, path="/train") # Change the number here to change the size of the dataset
+    d = DataSet(1000, path="/test") # Change the number here to change the size of the dataset
     custom_distributions = {}
     #add (key, 0 <= dist <= 1) to the custom_distributions
     #TODO Have them read from a file
