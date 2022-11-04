@@ -85,7 +85,7 @@ class Flight_Zone():
     def draw_map(self, wps, path) -> None:
         scale = max(self.x_dim, self.y_dim)
         fig, ax1 = plt.subplots(
-            figsize=(14 * abs(self.x_dim/scale), 14 * abs(self.y_dim/scale))
+            figsize=(10 * abs(self.x_dim/scale), 10 * abs(self.y_dim/scale))
         )
         ax1.set_title('Flight Zone')
         ax1.set_xlabel('(meters)')
@@ -146,7 +146,7 @@ class Flight_Zone():
         return [wp1, wp2]
 
 
-    def gen_globalpath(self, home, wps, drop_bds):
+    def gen_globalpath(self, home, wps, drop_bds=[]):
         # convert to xy
         home = self.GPS_to_XY(home)
         waypts = []
@@ -154,7 +154,11 @@ class Flight_Zone():
             waypts.append(self.GPS_to_XY(gps))
 
         # waypoints to cross the dropzone
-        drop_pts = self.process_dropzone(drop_bds)
+        if len(drop_bds):
+            drop_pts = self.process_dropzone(drop_bds)
+        else:
+            drop_pts = drop_bds
+            
         order = [home]
         curr = home
         # order the waypoints
@@ -237,7 +241,8 @@ if __name__ == '__main__':
         (38.31461655840247, -76.54516814545798),
         (38.31442098816458, -76.54523151910101),
         (38.31440638590367, -76.54394559930905),
-        (38.314208221753645, -76.54400447836372)
+        (38.314208221753645, -76.54400447836372),
+        (38.31461655840247, -76.54516814545798)
     ]
     test_map = Flight_Zone(bound_coords)
 
