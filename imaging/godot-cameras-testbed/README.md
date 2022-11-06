@@ -1,0 +1,5 @@
+# This is a project you can run in the Godot game engine to generate testing images.
+
+The original purpose of this was to check manually to see how much distortion is caused by camera tilt and see if we really need to account for that in our generated training data. Turns out, when the shapes are near the edge of the image and the camera is on max tilt, they get pretty skewed.
+
+To run it, just import it into Godot and press run. It should regenerate png images for each of the different rotations. This works by having 3 cameras in the game that each draw to their own 5.3K 16:9 viewport, then save those viewports to images with the scripts attached to each camera. One annoying bug I ran into was that you need to set the update mode on the viewport objects to "Always" or else they just render nothing.

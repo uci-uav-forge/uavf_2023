@@ -1,0 +1,1 @@
+blender --background --use-extension 1 -E CYCLES -t 0 -P 'dataGen.py' -- --dir ./2023output --backgnd ./images/ --shape_dir ./target_objs/shapes/ --alpha_dir ./target_objs/alphanumerics/ --n 6000 
