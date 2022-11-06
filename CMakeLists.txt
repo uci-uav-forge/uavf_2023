@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   visualization_msgs
+  mavros_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -110,7 +111,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES uavf_2023
-#  CATKIN_DEPENDS geographic_msgs geometry_msgs mavros message_filters rospy sensor_msgs std_msgs visualization_msgs
+#  CATKIN_DEPENDS geographic_msgs geometry_msgs mavros message_filters rospy sensor_msgs std_msgs visualization_msgs mavros_msgs
 #  DEPENDS system_lib
 )
 
