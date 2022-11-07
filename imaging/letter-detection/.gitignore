@@ -1,4 +1,4 @@
-./imaging/letter-detection/test/
-./imaging/letter-detection/train/
-./imaging/letter-detection/myfonts.txt
-./imaging/letter-detection/fonts.txt
+/test/
+/train/
+myfonts.txt
+fonts.txt
