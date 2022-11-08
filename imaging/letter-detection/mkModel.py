@@ -4,14 +4,13 @@ import keras
 
 
 model = keras.Sequential([
-    keras.layers.Conv2D(10, (3, 3), input_shape = (128,128,1), activation = 'relu'),
+    keras.layers.Conv2D(16, (8, 8), input_shape = (128,128,1), activation = 'relu'),
     keras.layers.MaxPooling2D(pool_size = (2,2)),
-    keras.layers.Conv2D(20, (5, 5), activation = 'relu'),
+    keras.layers.Conv2D(32, (5, 5), activation = 'relu'),
     keras.layers.MaxPooling2D(pool_size = (2,2)),
-    keras.layers.Dropout(0.1),
+    keras.layers.Dropout(0.2),
     keras.layers.Flatten(),
-    keras.layers.Dense(60, activation = 'relu'),
-    keras.layers.Dense(60, activation = 'relu'),
+    keras.layers.Dense(40),
     keras.layers.Dense(35, activation = 'relu')
     
 ])
@@ -20,7 +19,7 @@ model.compile(optimizer=tf.optimizers.Adam(),
                 loss=[keras.losses.SparseCategoricalCrossentropy(from_logits=True),], 
                 metrics="accuracy")
 alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
-model.fit(ds_train, epochs=1, shuffle=True)
+model.fit(ds_train, epochs=2, shuffle=True)
 print("Evaluate: ")
 result = model.predict(ds_test)
 
@@ -40,27 +39,19 @@ for row in range(len(result)):
 #    if predict[i] != test_labels[i]:
 #        wrong_predictions.append((chr(test_labels[i]), chr(predict[i])))
 #print(wrong_predictions)
-d = dict()
-for i in range(len(predict)):
-    x = int(test_labels[i])
-    print(predict[i], test_labels[i])
-    d[test_file_paths[i]] = (predict[i], test_labels[i])
-    print(test_file_paths[i],d[test_file_paths[i]])
 
 alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
-def evaluateChars(predictions:dict[tuple[int,int]]):
-    for x in predictions.items():
-        print(x)
+def evaluateChars():
     numCorrect = defaultdict(int)
     totals = defaultdict(int)
-    for name, (predicted, correct) in predictions.items():
-        numCorrect[correct] = numCorrect[correct]
-        totals[correct] += 1
-        if(predicted == correct):
-            numCorrect[correct] += 1
-    print("xxxxx", len(numCorrect), len(totals))
+    for i in range(len(predict)):
+        print(f'Guessed {alpha[predict[i]]} and was {alpha[test_labels[i]]}')
+        totals[test_labels[i]] += 1
+        numCorrect[test_labels[i]] # init key if not created yet
+        if(test_labels[i] == predict[i]):
+            numCorrect[test_labels[i]] += 1
     for letter, (n, t) in enumerate(zip(numCorrect.values(),totals.values())):
         print(alpha[letter], ":", n,"out of", t)
     
-evaluateChars(d)
+evaluateChars()
 

@@ -6,7 +6,7 @@ from collections import defaultdict
 
 
 # change train dataset directory here
-train_directory = '../train/dataset'
+train_directory = './train/dataset'
 # change file name here
 train_df = pd.read_csv(train_directory + '/labels.txt')
 
@@ -19,7 +19,7 @@ ds_train = ds_train.shuffle(2000, seed=10)
 
 
 # change test dataset directory here
-test_directory = '../test/dataset'
+test_directory = './test/dataset'
 # change file name here
 test_df = pd.read_csv(test_directory + '/labels.txt')
 
@@ -27,10 +27,6 @@ test_file_paths = test_df['file'].values
 test_labels = test_df[' label'].values
 ds_test = tf.data.Dataset.from_tensor_slices((test_file_paths, test_labels))
 
-for epoch in range(4):
-    for x, y in ds_train:
-        # train here
-        pass
 
 def train_read_image(image_file, label):
     image = tf.io.read_file(train_directory + image_file)
@@ -46,6 +42,6 @@ def augment (image, label):
     image = tf.image.random_brightness(image, max_delta=0.05)
     return image, label
 
-ds_train = ds_train.map(train_read_image).map(augment).batch(10)
-ds_test = ds_test.map(test_read_image).batch(10)
+ds_train = ds_train.map(train_read_image).batch(2)
+ds_test = ds_test.map(test_read_image).batch(2)
 #conv2d(numFilters, kernelSize)
