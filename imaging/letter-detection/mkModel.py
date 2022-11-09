@@ -4,14 +4,16 @@ import keras
 
 
 model = keras.Sequential([
-    keras.layers.Conv2D(16, (8, 8), input_shape = (128,128,1), activation = 'relu'),
+    keras.layers.Conv2D(32, (5, 5), input_shape = (128,128,1), activation = 'relu'),
+    keras.layers.Conv2D(64, (5, 5), activation = 'relu'),
     keras.layers.MaxPooling2D(pool_size = (2,2)),
-    keras.layers.Conv2D(32, (5, 5), activation = 'relu'),
+    keras.layers.Conv2D(128, (5, 5), activation = 'relu'),
     keras.layers.MaxPooling2D(pool_size = (2,2)),
-    keras.layers.Dropout(0.2),
+    # keras.layers.Conv2D(256, (5, 5), activation = 'relu'),
+    # keras.layers.MaxPooling2D(pool_size = (2,2)),
     keras.layers.Flatten(),
-    keras.layers.Dense(40),
-    keras.layers.Dense(35, activation = 'relu')
+    keras.layers.Dense(64),
+    keras.layers.Dense(35, activation = 'softmax')
     
 ])
 
@@ -19,8 +21,10 @@ model.compile(optimizer=tf.optimizers.Adam(),
                 loss=[keras.losses.SparseCategoricalCrossentropy(from_logits=True),], 
                 metrics="accuracy")
 alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
-model.fit(ds_train, epochs=2, shuffle=True)
-print("Evaluate: ")
+model.fit(ds_train, epochs=1, shuffle=True)
+model.save("./trained_model.h5")
+model.evaluate(ds_test)
+
 result = model.predict(ds_test)
 
 predict = []
