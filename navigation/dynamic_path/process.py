@@ -49,4 +49,19 @@ rate = rospy.Rate(3)
 
 
 while not pq.empty():
-    pass
+    cur_waypoint = pq.queue[0]
+    cw_x, cw_y, cw_z, cw_ang = cur_waypoint.coords()
+
+    drone.set_destination(
+        x=cw_x, y=cw_y, z=cw_z, psi=cw_ang)
+
+    while not drone.check_waypoint_reached():
+        next = pq.queue[0]
+        if next != cur_waypoint:
+            cur_waypoint = next
+            n_x, n_y, n_z, n_ang = next.coords()
+            drone.set_destination(
+                x=n_x, y=n_y, z=n_z, psi=n_ang)
+    
+    
+
