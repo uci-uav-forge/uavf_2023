@@ -186,7 +186,7 @@ class Flight_Zone():
                 waypts.pop(idx)
 
         if len(drop_pts):
-            order.extend(drop_order)
+            order.extend(drop_pts)
             drop_pts.clear()
         
         global_path = []

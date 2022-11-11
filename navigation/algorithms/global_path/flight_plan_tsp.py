@@ -8,7 +8,7 @@ from python_tsp.exact import solve_tsp_dynamic_programming
 from python_tsp.distances import euclidean_distance_matrix
 from shapely.geometry import LineString, Point, Polygon
 from collections import deque
-from astar import astar
+import time
 
 
 class Flight_Zone():
@@ -19,8 +19,7 @@ class Flight_Zone():
         self.x_dim = round(max_x - min_x)
         self.y_dim = round(max_y - min_y)
         self.bd_pts = list(map(self.GPS_to_XY, bound_coords))
-        self.boundary = self.calc_boundary(bound_coords)
-        self.wp_order = []
+        self.global_path = []
 
     # convert gps to relative xy points using a reference utm coordinate
     def GPS_to_XY(self, gps: tuple) -> tuple:
@@ -55,34 +54,6 @@ class Flight_Zone():
             min_y = min(min_y, utm_xy[1])
             max_y = max(max_y, utm_xy[1])
         return min_x, max_x, min_y, max_y, zone_num, zone_let
-    
-
-    def calc_boundary(self, bound_coords) -> list:
-        bd_pts = list(map(self.GPS_to_XY, bound_coords))
-        bd_pts = [(round(pt[0]), round(pt[1])) for pt in bd_pts]
-        disc_bdry = []
-        
-        for i in range(0, len(bd_pts)-1, 1):
-            Xo = bd_pts[i][0]
-            X1 = bd_pts[i+1][0]
-            Yo = bd_pts[i][1]
-            Y1 = bd_pts[i+1][1]
-            m = (Y1 - Yo)/(X1 - Xo) 
-            step = 1
-
-            if abs(X1 - Xo) >= abs(Y1 - Yo):
-                if X1 - Xo < 0:
-                    step = -1
-                for x in range(Xo, X1, step):
-                    y = round(float(m * (x - Xo) + Yo))
-                    disc_bdry.append((x, y)) 
-            else:
-                if Y1 - Yo < 0:
-                    step = -1
-                for y in range(Yo, Y1, step):
-                    x = round(float((y - Yo)/m + Xo))
-                    disc_bdry.append((x, y)) 
-        return disc_bdry
     
 
     def process_dropzone(self, drop_bds):
@@ -135,43 +106,24 @@ class Flight_Zone():
         path_arr = np.asarray(path)
         path_T = path_arr.T
         x_path, y_path = path_T
-        print(len(x_path))
 
-        x_vals = [pt[0] for pt in self.boundary]
-        y_vals = [pt[1] for pt in self.boundary]
+        bd_arr = np.asarray(self.bd_pts)
+        bd_T = bd_arr.T
+        x_bd, y_bd = bd_T
 
-        plt.plot(x_vals, y_vals, 'r-')
+        plt.plot(x_bd, y_bd, 'r-')
         plt.plot(x_path, y_path, 'b-')
         plt.plot(x_wp, y_wp, 'go')
         plt.show()
-
-
-    def bds_btwn_intersections(self, intersections, bd_line) -> list:
-        bds_btwn = []
-        lims = [0, 0]
-        # if the path enters the polygon at the intersection
-        if bd_line.within(intersections[1]):
-            lims[1] = self.bd_pts[j+1]
-        # if the path exits the polygon at the intersection
-        elif bd_line.within(intersections[0]):
-            lims[0] = (self.bd_pts[j])
-        
-        ind_0 = self.bd_pts.index(lims[0])
-        ind_1 = self.bd_pts.index(lims[1])
-        for k in range(ind_0, ind_1 + 1, -1):
-            bds_btwn.append(self.bd_pts[k])
-
-        return bds_btwn
 
 
     def gen_globalpath(self, home, wps, drop_bds):
         # waypoints to cross the dropzone
         drop_pts = self.process_dropzone(drop_bds)
 
-        # convert waypoints to xy
+        # convert gps waypoints to xy
         waypts = [self.GPS_to_XY(home)]
         for gps in wps: waypts.append(self.GPS_to_XY(gps))
-        #waypts.append(drop_pts[0])
         waypts.extend(drop_pts)
 
         # set up distance matrix
@@ -182,103 +134,67 @@ class Flight_Zone():
         for i in range(1, len(waypts) - 1): 
             dist_matrix[len(waypts) - 1][i] = 1147483647
             dist_matrix[len(waypts) - 2][i] = 1147483647
-        
+
         # traveling salesman to optimally order waypoints
         order, dist = solve_tsp_dynamic_programming(dist_matrix)
-        #print(order)
-        #print(str(dist) + ' meters')
         
         # add in waypoints to avoid boundary
-        global_path = [waypts[order[0]]]
         pt_order = [waypts[order[0]]]
+        waypt_order = [waypts[order[0]]]
 
         for i in range(len(waypts) - 1):
-            path = LineString([
-                waypts[order[i]], waypts[order[i+1]]
-            ])
+            path = LineString([waypts[order[i]], waypts[order[i+1]]])
             polygon = Polygon(self.bd_pts)
             polygon_ext = LineString(list(polygon.exterior.coords))
             intersections = polygon_ext.intersection(path)
-
+            
             if not intersections.is_empty:
                 print(intersections)
                 bds_btwn = []
-                lims = [0, 0]
+                lims = [None] * 2
 
                 for j in range(len(self.bd_pts) - 1):
                     bd_line = LineString([self.bd_pts[j], self.bd_pts[j+1]])
                     # if the path enters the polygon at the intersection
-                    if bd_line.equals_exact(intersections.geoms[1]):
+                    if bd_line.distance(intersections.geoms[1]) < 1e-1:
                         lims[1] = self.bd_pts[j+1]
                     # if the path exits the polygon at the intersection
-                    elif bd_line.equals_exact(intersections.geoms[0]):
+                    elif bd_line.distance(intersections.geoms[0]) < 1e-1:
                         lims[0] = (self.bd_pts[j])
 
                 # repeat for final index to 0
                 bd_line = LineString([self.bd_pts[len(self.bd_pts) - 1], self.bd_pts[0]])
-                if bd_line.equals_exact(intersections.geoms[1]):
-                    print(intersections.geoms[1])
+                if bd_line.distance(intersections.geoms[1]) < 1e-1:
                     lims[1] = self.bd_pts[j+1]
-                elif bd_line.equals_exact(intersections.geoms[0]):
-                    print(intersections.geoms[1])
+                elif bd_line.distance(intersections.geoms[0]) < 1e-1:
                     lims[0] = (self.bd_pts[j])
 
                 # search for indices of limiting bounds
-                ind_0 = self.bd_pts.index(lims[0])
-                ind_1 = self.bd_pts.index(lims[1])
-                # append every bound in between limits
-                for k in range(ind_0, ind_1 + 1, -1):
-                    bds_btwn.append(self.bd_pts[k])
-                global_path.extend(bds_btwn)
-                global_path.extend(bds_btwn)
+                ind0 = self.bd_pts.index(lims[0])
+                ind1 = self.bd_pts.index(lims[1])
+                # cross product to determine if bound is above or below path
+                # add distance above or below so new path does not cross over
+                for k in range(ind0, ind1 - 1, -1):
+                    v1 = (path.boundary.geoms[1].x - path.boundary.geoms[0].x, 
+                          path.boundary.geoms[1].y - path.boundary.geoms[0].y)   # Vector 1
+                    v2 = (path.boundary.geoms[1].x - self.bd_pts[k][0], 
+                          path.boundary.geoms[1].y - self.bd_pts[k][1])   # Vector 2
+                    xp = v1[0]*v2[1] - v1[1]*v2[0]
+                    
+                    if xp <= 0: 
+                        bd_around = (self.bd_pts[k][0], self.bd_pts[k][1] + 10)
+                    elif xp > 0: 
+                        bd_around = (self.bd_pts[k][0], self.bd_pts[k][1] - 10)
 
-            global_path.append(waypts[order[i+1]])
+                    bds_btwn.append(bd_around)
+                pt_order.extend(bds_btwn)
+            
             pt_order.append(waypts[order[i+1]])
+            waypt_order.append(waypts[order[i+1]])
 
-        self.wp_order = list(map(self.XY_to_GPS, pt_order))
-        self.draw_map(pt_order, global_path)
-
-        '''
-        # check from 0 to final index of bound list
-        for j in range(len(self.bd_pts) - 1):
-            bound = LineString([
-                self.bd_pts[j], self.bd_pts[j+1]
-            ])
-            int_pt = path.intersection(bound)
-            if not int_pt.is_empty:
-                global_path.append((int_pt.x, int_pt.y))
-
-        # check from final index to 0
-        bound = LineString([
-            self.bd_pts[len(self.bd_pts)-1], self.bd_pts[0]
-        ])
-        int_pt = path.intersection(bound)
-        if not int_pt.is_empty:
-            global_path.append((int_pt.x, int_pt.y))
-        
-        # append waypoint
-        global_path.append(waypts[order[i+1]])
-        pt_order.append(waypts[order[i+1]])
-
-        print(len(global_path))
-        print(len(pt_order))
-
-        self.wp_order = list(map(self.XY_to_GPS, pt_order))
-        self.draw_map(pt_order, global_path)
-        '''
-        '''
-        global_path = []
-        for i in range(len(order) - 1):
-            start = (round(order[i][0]), round(order[i][1]))
-            end = (round(order[i+1][0]), round(order[i+1][1]))
-            path = astar(self.x_dim, self.y_dim, self.boundary, start, end)
-            global_path.extend(path)
-        
-        self.wp_order = list(map(self.XY_to_GPS, order))
-        print('waypoint order:')
-        print(self.wp_order)
-        self.draw_map(order, global_path)
-        '''
+        # convert xy to gps for global path and plot
+        self.global_path = deque(map(self.XY_to_GPS, pt_order))
+        self.draw_map(waypt_order, pt_order)
 
 
 if __name__ == '__main__':
@@ -311,12 +227,17 @@ if __name__ == '__main__':
     start = (38.316376, -76.556096)    
     wps = [
         (38.31652512851874, -76.553698306299), 
-        #(38.316930096287635, -76.5504102489997),
+        (38.316930096287635, -76.5504102489997),
         (38.31850420404286, -76.5520175439768 ),
         (38.318084991945966, -76.54909120275754),
         (38.317170076120384, -76.54519141386767),
         (38.31453025427406, -76.5446561487259),
-        (38.31534881557715, -76.54085345989367)
+        (38.31534881557715, -76.54085345989367),
+        (38.316679010868775, -76.54884916043693),
+        (38.31859824405069, -76.54601674779236),
+        (38.31659483274522, -76.54723983506672),
+        (38.315736210982266, -76.5453730176419),
+        (38.31603925511844, -76.54876332974675)
     ]
+
     test_map.gen_globalpath(start, wps, drop_bds)
-    #test_map.draw_map(w, h, path)
