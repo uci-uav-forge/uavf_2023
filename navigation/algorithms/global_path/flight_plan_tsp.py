@@ -8,7 +8,6 @@ from python_tsp.exact import solve_tsp_dynamic_programming
 from python_tsp.distances import euclidean_distance_matrix
 from shapely.geometry import LineString, Point, Polygon
 from collections import deque
-import time
 
 
 class Flight_Zone():
