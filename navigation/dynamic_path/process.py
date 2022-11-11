@@ -3,6 +3,7 @@ import math
 from iq_gnc.py_gnc_functions import *
 import rospy
 
+# wrapper class for XY coordinates for priority queue
 class Point:
     def __init__(self, coords: tuple, type: str):
         self.x, self.y, self.z, self.ang = coords
@@ -18,7 +19,7 @@ class Point:
         return (self.x, self.y, self.z, self.ang)
 
     
-
+# variables
 ORIGIN = Point(coords=(0, 0, 0, 0), type='WAYPOINT')
 
 z0 = 50
@@ -29,11 +30,13 @@ vdrop = 2
 
 pq = PriorityQueue()
 
+# init drone
 rospy.init_node("drone_controller", anonymous=True)
 drone = gnc_api()
 drone.wait4connect()
 drone.wait4start()
 
+# load waypoints into queue
 goals = [[0, 0, 3, 0], [5, 0, 3, -90], [5, 5, 3, 0],
              [0, 5, 3, 90], [0, 0, 3, 180], [0, 0, 3, 0]]
 
@@ -42,12 +45,13 @@ for goal in goals:
     dist = goal_point.distance(ORIGIN)
     pq.put((10**9 - dist, goal_point))
 
+# drone takeoff
 drone.initialize_local_frame()
 drone.takeoff(z0)
 rate = rospy.Rate(3)
 
 
-
+# outer loop: check if there are more waypoints to travel to
 while not pq.empty():
     cur_waypoint = pq.queue[0]
     cw_x, cw_y, cw_z, cw_ang = cur_waypoint.coords()
@@ -55,6 +59,7 @@ while not pq.empty():
     drone.set_destination(
         x=cw_x, y=cw_y, z=cw_z, psi=cw_ang)
 
+    # get next waypoint, if obs/drop detected, go there
     while not drone.check_waypoint_reached():
         next = pq.queue[0]
         if next != cur_waypoint:
