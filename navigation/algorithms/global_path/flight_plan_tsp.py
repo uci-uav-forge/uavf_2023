@@ -7,9 +7,12 @@ from python_tsp.distances import euclidean_distance_matrix
 from shapely.geometry import LineString, Point, Polygon
 from collections import deque
 
-
+# FLIGHT PLAN PARAMETERS: minimum altitude and 'normal' altitude in meters AGL
 class Flight_Zone():
-    def __init__(self, bound_coords: list, home: tuple):
+    def __init__(self, bound_coords: list, home: tuple, min_alt=25, avg_alt=30):
+        self.min_alt = min_alt # meters
+        self.avg_alt = avg_alt
+
         self.ref_pt = utm.from_latlon(home[0], home[1])
         self.zone_num = self.ref_pt[2]
         self.zone_let = self.ref_pt[3]
@@ -22,11 +25,16 @@ class Flight_Zone():
 
     # convert gps to relative xy points using a reference utm coordinate
     def GPS_to_XY(self, gps: tuple) -> tuple:
-        lat, lon = gps
+        lat = gps[0]
+        lon = gps[1]
         utm_xy = utm.from_latlon(lat, lon)
         x = utm_xy[0] - self.ref_pt[0]
         y = utm_xy[1] - self.ref_pt[1]
-        return (x, y) 
+
+        if len(gps) == 3:
+            return (x, y, gps[2]) 
+        else:
+            return (x,y)
     
     # convert relative xy back to gps
     def XY_to_GPS(self, xy: tuple) -> tuple:
@@ -74,8 +82,8 @@ class Flight_Zone():
                 shortest2 = length
                 pair2 = (drop_bd_pts[i+1], drop_bd_pts[i])
         
-        wp1 = ((pair1[0][0] + pair1[1][0]) / 2, (pair1[0][1] + pair1[1][1]) / 2)
-        wp2 = ((pair2[0][0] + pair2[1][0]) / 2, (pair2[0][1] + pair2[1][1]) / 2)
+        wp1 = ((pair1[0][0] + pair1[1][0]) / 2, (pair1[0][1] + pair1[1][1]) / 2, self.min_alt)
+        wp2 = ((pair2[0][0] + pair2[1][0]) / 2, (pair2[0][1] + pair2[1][1]) / 2, self.min_alt)
         return [wp1, wp2]
 
 
@@ -96,11 +104,11 @@ class Flight_Zone():
 
         wp_arr = np.asarray(wps)
         wp_T = wp_arr.T 
-        x_wp, y_wp = wp_T
+        x_wp, y_wp, z_wp = wp_T
 
         path_arr = np.asarray(path)
         path_T = path_arr.T
-        x_path, y_path = path_T
+        x_path, y_path, z_path = path_T
 
         bd_arr = np.asarray(self.bd_pts)
         bd_T = bd_arr.T
@@ -124,8 +132,13 @@ class Flight_Zone():
 
 
     def run_tsp(self, waypts):
+        # remove altitude column from waypts
+        waypt_arr = np.empty([len(waypts), len(waypts[0])])
+        for i in range(len(waypts)): 
+            waypt_arr[i] = np.asarray(waypts[i])
+        waypt_arr = np.delete(np.array(waypts), 2, 1)
         # set up distance matrix
-        dist_matrix = euclidean_distance_matrix(np.array(waypts))
+        dist_matrix = euclidean_distance_matrix(waypt_arr)
         dist_matrix[:, 0] = 0
         dist_matrix[len(waypts) - 1][len(waypts) - 1] = 0
         dist_matrix[len(waypts) - 2][len(waypts) - 1] = 0
@@ -143,7 +156,7 @@ class Flight_Zone():
         drop_pts = self.process_dropzone(drop_bds)
 
         # convert gps waypoints to xy
-        waypts = [(0,0)]
+        waypts = [(0, 0, 0)]
         for gps in wps: waypts.append(self.GPS_to_XY(gps))
         waypts.extend(drop_pts)
 
@@ -190,9 +203,9 @@ class Flight_Zone():
 
                     # offset path from bound point depedning on cross product, add to global path
                     if xp <= 0: 
-                        bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] + 10)
+                        bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] + 10, self.avg_alt)
                     elif xp > 0: 
-                        bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] - 10)
+                        bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] - 10, self.avg_alt)
                     pt_order.append(bd_around)
             
             # append to global path and order of "official" given waypoints
@@ -235,19 +248,21 @@ if __name__ == '__main__':
     ]
 
     home = (38.316376, -76.556096) 
-    test_map = Flight_Zone(bound_coords, home)
+    min_alt = 25
+    avg_alt = 30
+    test_map = Flight_Zone(bound_coords, home, min_alt, avg_alt)
 
-    wps = [
-        (38.31652512851874, -76.553698306299), 
-        (38.316930096287635, -76.5504102489997),
-        (38.31850420404286, -76.5520175439768 ),
-        (38.318084991945966, -76.54909120275754),
-        (38.317170076120384, -76.54519141386767),
-        (38.31453025427406, -76.5446561487259),
-        (38.31534881557715, -76.54085345989367),
-        (38.316679010868775, -76.54884916043693),
-        (38.315736210982266, -76.5453730176419),
-        (38.31603925511844, -76.54876332974675)
+    wps = [ #LLA, example wps at 30 meters AGL
+        ( 38.31652512851874,   -76.553698306299, 30), 
+        (38.316930096287635,  -76.5504102489997, 30),
+        ( 38.31850420404286,  -76.5520175439768, 30),
+        (38.318084991945966, -76.54909120275754, 30),
+        (38.317170076120384, -76.54519141386767, 30),
+        ( 38.31453025427406,  -76.5446561487259, 30),
+        ( 38.31534881557715, -76.54085345989367, 30),
+        (38.316679010868775, -76.54884916043693, 30),
+        (38.315736210982266,  -76.5453730176419, 30),
+        ( 38.31603925511844, -76.54876332974675, 30)
     ]
 
     test_map.gen_globalpath(wps, drop_bds)
