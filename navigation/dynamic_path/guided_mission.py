@@ -4,6 +4,9 @@ import math
 import rospy
 from iq_gnc.py_gnc_functions import *
 from PrintColours import *
+import sys
+sys.path.insert(0, '/home/herpderk/uav_catkin_ws/src/uavf_2023/navigation/algorithms/global_path')
+from flight_plan import Flight_Zone
 
 
 # mission parameters
