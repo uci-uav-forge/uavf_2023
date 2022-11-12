@@ -51,14 +51,10 @@ class Flight_Zone():
     
 
     def calc_boundary(self, bound_coords) -> list:
-        bd_pts = []
+        bd_pts = list(map(self.GPS_to_XY, bound_coords))
+        bd_pts = [(round(pt[0]), round(pt[1])) for pt in bd_pts]
         disc_bdry = []
-
-        for coord in bound_coords:
-            pt = self.GPS_to_XY(coord)
-            rounded = (round(pt[0]), round(pt[1]))
-            bd_pts.append(rounded)
-
+        
         for i in range(0, len(bd_pts)-1, 1):
             Xo = bd_pts[i][0]
             X1 = bd_pts[i+1][0]
@@ -105,11 +101,9 @@ class Flight_Zone():
         path_T = path_arr.T
         x_path, y_path = path_T
 
-        x_vals = []
-        y_vals = []
-        for pt in self.boundary:
-            x_vals.append(pt[0])
-            y_vals.append(pt[1])
+        x_vals = [pt[0] for pt in self.boundary]
+        y_vals = [pt[1] for pt in self.boundary]
+
         plt.plot(x_vals, y_vals, 'r-')
         plt.plot(x_path, y_path, 'b-')
         plt.plot(x_wp, y_wp, 'go')
@@ -117,10 +111,8 @@ class Flight_Zone():
     
 
     def process_dropzone(self, drop_bds):
-        drop_pts = []
-        for gps in drop_bds:
-            drop_pts.append(np.array(self.GPS_to_XY(gps)))
-
+        drop_pts = [np.array(self.GPS_to_XY(gps)) for gps in drop_bds]
+        
         delt1 = drop_pts[0] - drop_pts[len(drop_bds)-1]
         delt2 = delt1
         shortest1 = math.hypot(delt1[0], delt2[1])
@@ -149,10 +141,7 @@ class Flight_Zone():
     def gen_globalpath(self, home, wps, drop_bds=[]):
         # convert to xy
         home = self.GPS_to_XY(home)
-        waypts = []
-        for gps in wps:
-            waypts.append(self.GPS_to_XY(gps))
-
+        waypts = [self.GPS_to_XY(gps) for gps in wps]
         # waypoints to cross the dropzone
         if len(drop_bds):
             drop_pts = self.process_dropzone(drop_bds)
@@ -201,7 +190,7 @@ class Flight_Zone():
                 waypts.pop(idx)
 
         if len(drop_pts):
-            order.extend(drop_order)
+            order.extend(drop_pts)
             drop_pts.clear()
         
         global_path = []
@@ -211,11 +200,9 @@ class Flight_Zone():
             path = astar(self.x_dim, self.y_dim, self.boundary, start, end)
             global_path.extend(path)
         
-        for pt in order:
-            self.wp_order.append(self.XY_to_GPS(pt))
+        self.wp_order = list(map(self.XY_to_GPS, order))
         print('waypoint order:')
         print(self.wp_order)
-
         self.draw_map(order, global_path)
 
 
