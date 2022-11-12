@@ -6,29 +6,11 @@ from iq_gnc.py_gnc_functions import *
 from PrintColours import *
 
 
-# wrapper class for XY coordinates for priority queue
-class Point:
-    def __init__(self, coords: tuple, type: str):
-        self.x, self.y, self.z, self.ang = coords
-        self.type = type
-    
-    def distance(self, other: 'Point'):
-        dx = other.x - self.x
-        dy = other.y - self.y
-        dz = other.z - self.z
-        return math.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
+# mission parameters
+Z0 = 50
+Zdrop = 5
 
-    def coords(self):
-        return (self.x, self.y, self.z, self.ang)
-
-    
-# variables
-ORIGIN = Point(coords=(0, 0, 0, 0), type='WAYPOINT')
-
-z0 = 50
-zdrop = 5
-
-vavg = 3
+vavg = 10
 vdrop = 2
 
 pq = PriorityQueue()
