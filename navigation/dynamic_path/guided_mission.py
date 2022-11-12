@@ -1,4 +1,6 @@
 from queue import PriorityQueue
+from multiprocess import Process
+from multiprocess.managers import BaseManager
 import numpy as np
 import math
 import rospy
@@ -11,7 +13,7 @@ sys.path.insert(0, '/home/herpderk/uav_catkin_ws/src/uavf_2023/navigation/algori
 from flight_plan_tsp import Flight_Zone
 
 
-def mission_process(): 
+def guided_mission(mission_q: PriorityQueue): 
     # mission parameters in SI units
     takeoff_alt = 30
     drop_alt = 25
@@ -64,7 +66,6 @@ def mission_process():
     # initialize priority queue
     # priority queue pops low values first
     # assignment: avoidance= d-1000000000, target= d, path= 1000000000
-    mission_q = PriorityQueue()
     for i in range(1, len(test_map.global_path)): 
         mission_q.put((1000000000, test_map.global_path[i]))
     
@@ -109,6 +110,21 @@ def mission_process():
 
         mission_q.get()
     
-    
+
+class MyManager(BaseManager):
+    pass
+MyManager.register('PriorityQueue', PriorityQueue)
+
+
 if __name__ == '__main__':
-    mission_process()
+    mission_q = PriorityQueue()
+    guided_mission(mission_q)
+    '''
+    # initialize manager
+    manager = MyManager()
+    manager.start()
+
+    mission_q = manager.PriorityQueue()
+    mission_process = Process(target=guided_mission, args=[mission_q])
+    '''
+    
