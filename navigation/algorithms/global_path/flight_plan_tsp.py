@@ -5,7 +5,7 @@ import numpy as np
 from python_tsp.exact import solve_tsp_dynamic_programming
 from python_tsp.distances import euclidean_distance_matrix
 from shapely.geometry import LineString, Point, Polygon
-from collections import deque
+from queue import PriorityQueue
 
 # FLIGHT PLAN PARAMETERS: minimum altitude and 'normal' altitude in meters AGL
 class Flight_Zone():
@@ -214,12 +214,8 @@ class Flight_Zone():
         
         # rerun tsp, reorgqnize global path including boundary offsets
         order, dist = self.run_tsp(pt_order)
-        temp = [pt for pt in pt_order]
-        pt_order = [temp[order_element] for order_element in order]
-        
-        # convert xy to gps for global path and plot
-        self.global_path = deque(map(self.XY_to_GPS, pt_order))
-        self.draw_map(waypt_order, pt_order)
+        self.global_path = [pt_order[i] for i in order]
+        self.draw_map(waypt_order, self.global_path)
 
 
 if __name__ == '__main__':
