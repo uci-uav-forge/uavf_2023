@@ -1,5 +1,3 @@
-# BOUND COORDINATES MUST BE ORDERED COUNTER-CLOCKWISE
-
 import matplotlib.pyplot as plt
 import math
 import utm
@@ -11,13 +9,15 @@ from collections import deque
 
 
 class Flight_Zone():
-    def __init__(self, bound_coords: list):
-        min_x, max_x, min_y, max_y, \
-        self.zone_num, self.zone_let = self.get_box(bound_coords)
-        self.ref_pt = (min_x, min_y)
-        self.x_dim = round(max_x - min_x)
-        self.y_dim = round(max_y - min_y)
-        self.bd_pts = list(map(self.GPS_to_XY, bound_coords))
+    def __init__(self, bound_coords: list, home: tuple):
+        self.ref_pt = utm.from_latlon(home[0], home[1])
+        self.zone_num = self.ref_pt[2]
+        self.zone_let = self.ref_pt[3]
+
+        self.bd_pts = self.sort_counterclockwise(list(map(self.GPS_to_XY, bound_coords)))
+        self.bd_pts.append(self.bd_pts[0])
+
+        self.x_dim, self.y_dim = self.get_dims()
         self.global_path = []
 
     # convert gps to relative xy points using a reference utm coordinate
@@ -36,47 +36,43 @@ class Flight_Zone():
         return gps 
 
     # return extreme utm coordinates
-    def get_box(self, bound_coords: tuple) -> tuple:
-        utm_init = utm.from_latlon(bound_coords[0][0], bound_coords[0][1])
-        zone_num = utm_init[2]
-        zone_let = utm_init[3]
+    def get_dims(self) -> tuple:
+        min_x = self.bd_pts[0][0]
+        max_x = self.bd_pts[0][0]
+        min_y = self.bd_pts[0][1]
+        max_y = self.bd_pts[0][1]
 
-        min_x = utm_init[0]
-        max_x = utm_init[0]
-        min_y = utm_init[1]
-        max_y = utm_init[1]
+        for pt in self.bd_pts:
+            min_x = min(min_x, pt[0])
+            max_x = max(max_x, pt[0])
+            min_y = min(min_y, pt[1])
+            max_y = max(max_y, pt[1])
 
-        for i in range(1, len(bound_coords)):
-            utm_xy = utm.from_latlon(bound_coords[i][0], bound_coords[i][1])
-            min_x = min(min_x, utm_xy[0])
-            max_x = max(max_x, utm_xy[0])
-            min_y = min(min_y, utm_xy[1])
-            max_y = max(max_y, utm_xy[1])
-        return min_x, max_x, min_y, max_y, zone_num, zone_let
+        return round(max_x - min_x), round(max_y - min_y)
     
 
     def process_dropzone(self, drop_bds):
-        drop_pts = [np.array(self.GPS_to_XY(gps)) for gps in drop_bds]
+        drop_bd_pts = [np.array(self.GPS_to_XY(gps)) for gps in drop_bds]
         
-        delt1 = drop_pts[0] - drop_pts[len(drop_bds)-1]
+        delt1 = drop_bd_pts[0] - drop_bd_pts[len(drop_bds)-1]
         delt2 = delt1
         shortest1 = math.hypot(delt1[0], delt2[1])
         shortest2 = math.hypot(delt2[0], delt2[1])
-        pair1 = (drop_pts[0], drop_pts[len(drop_bds)-1])
-        pair2 = (drop_pts[0], drop_pts[len(drop_bds)-1])
+        pair1 = (drop_bd_pts[0], drop_bd_pts[len(drop_bds)-1])
+        pair2 = (drop_bd_pts[0], drop_bd_pts[len(drop_bds)-1])
 
         for i in range(len(drop_bds)-1):
-            delta = drop_pts[i+1] - drop_pts[i]
+            delta = drop_bd_pts[i+1] - drop_bd_pts[i]
             length = math.hypot(delta[0], delta[1])
 
             if length < shortest1:
                 shortest2 = shortest1
                 shortest1 = length
                 pair2 = pair1
-                pair1 = (drop_pts[i+1], drop_pts[i])
+                pair1 = (drop_bd_pts[i+1], drop_bd_pts[i])
             elif length < shortest2:
                 shortest2 = length
-                pair2 = (drop_pts[i+1], drop_pts[i])
+                pair2 = (drop_bd_pts[i+1], drop_bd_pts[i])
         
         wp1 = ((pair1[0][0] + pair1[1][0]) / 2, (pair1[0][1] + pair1[1][1]) / 2)
         wp2 = ((pair2[0][0] + pair2[1][0]) / 2, (pair2[0][1] + pair2[1][1]) / 2)
@@ -91,12 +87,12 @@ class Flight_Zone():
         ax1.set_title('Flight Zone')
         ax1.set_xlabel('(meters)')
         ax1.set_ylabel('(meters)')
-        ax1.set_xlim(-10, self.x_dim + 10)
-        ax1.set_ylim(-10, self.y_dim + 10)
+        #ax1.set_xlim(-10, self.x_dim + 10)
+        #ax1.set_ylim(-10, self.y_dim + 10)
 
-        tick_scale = math.floor(math.log(min(self.x_dim, self.y_dim), 10))
-        plt.xticks(np.arange(0, self.x_dim, 10**tick_scale))
-        plt.yticks(np.arange(0, self.y_dim, 10**tick_scale))
+        #tick_scale = math.floor(math.log(min(self.x_dim, self.y_dim), 10))
+        #plt.xticks(np.arange(0, self.x_dim, 10**tick_scale))
+        #plt.yticks(np.arange(0, self.y_dim, 10**tick_scale))
 
         wp_arr = np.asarray(wps)
         wp_T = wp_arr.T 
@@ -116,15 +112,18 @@ class Flight_Zone():
         plt.show()
 
 
-    def gen_globalpath(self, home, wps, drop_bds):
-        # waypoints to cross the dropzone
-        drop_pts = self.process_dropzone(drop_bds)
+    def sort_counterclockwise(self, points, centre = None):
+        if centre:
+            centre_x, centre_y = centre
+        else:
+            centre_x, centre_y = sum([x for x,_ in points])/len(points), sum([y for _,y in points])/len(points)
+            angles = [math.atan2(y - centre_y, x - centre_x) for x,y in points]
+            counterclockwise_indices = sorted(range(len(points)), key=lambda i: angles[i])
+            counterclockwise_points = [points[i] for i in counterclockwise_indices]
+        return counterclockwise_points
 
-        # convert gps waypoints to xy
-        waypts = [self.GPS_to_XY(home)]
-        for gps in wps: waypts.append(self.GPS_to_XY(gps))
-        waypts.extend(drop_pts)
 
+    def run_tsp(self, waypts):
         # set up distance matrix
         dist_matrix = euclidean_distance_matrix(np.array(waypts))
         dist_matrix[:, 0] = 0
@@ -134,63 +133,77 @@ class Flight_Zone():
             dist_matrix[len(waypts) - 1][i] = 1147483647
             dist_matrix[len(waypts) - 2][i] = 1147483647
 
-        # traveling salesman to optimally order waypoints
+        # traveling salesman 
         order, dist = solve_tsp_dynamic_programming(dist_matrix)
-        
-        # add in waypoints to avoid boundary
+        return order, dist
+
+
+    def gen_globalpath(self, wps, drop_bds):
+        # waypoints to cross the dropzone
+        drop_pts = self.process_dropzone(drop_bds)
+
+        # convert gps waypoints to xy
+        waypts = [(0,0)]
+        for gps in wps: waypts.append(self.GPS_to_XY(gps))
+        waypts.extend(drop_pts)
+
+        # get optimal order from tsp
+        order, dist = self.run_tsp(waypts)
+
+        # pt_order: global path, waypt_order: order of "official" waypoints
+        # temp_bd_pts: stores intersections between bounds and paths
         pt_order = [waypts[order[0]]]
         waypt_order = [waypts[order[0]]]
+        temp_bd_pts = [pt for pt in self.bd_pts]
+        
+        polygon = Polygon(self.bd_pts)
+        polygon_ext = LineString(list(polygon.exterior.coords))
 
         for i in range(len(waypts) - 1):
             path = LineString([waypts[order[i]], waypts[order[i+1]]])
-            polygon = Polygon(self.bd_pts)
-            polygon_ext = LineString(list(polygon.exterior.coords))
-            intersections = polygon_ext.intersection(path)
+            inters = polygon_ext.intersection(path)
             
-            if not intersections.is_empty:
-                print(intersections)
-                bds_btwn = []
-                lims = [None] * 2
+            if not inters.is_empty:
+                print(inters)
+                # add intersections to temporary boundary
+                inters0 = (inters.geoms[0].x, inters.geoms[0].y)
+                inters1 = (inters.geoms[1].x, inters.geoms[1].y)
+                temp_bd_pts.extend([inters0, inters1])
+                # sort counterclockwise, get "marker" indices
+                temp_bd_pts = self.sort_counterclockwise(temp_bd_pts)
+                ind0 = temp_bd_pts.index(inters0)
+                ind1 = temp_bd_pts.index(inters1)
+                # always search from small to big indices
+                if ind0 < ind1:
+                    ind_range = range(ind0+1, ind1)
+                elif ind1 < ind0:
+                    ind_range = range(ind1+1, ind0)
 
-                for j in range(len(self.bd_pts) - 1):
-                    bd_line = LineString([self.bd_pts[j], self.bd_pts[j+1]])
-                    # if the path enters the polygon at the intersection
-                    if bd_line.distance(intersections.geoms[1]) < 1e-1:
-                        lims[1] = self.bd_pts[j+1]
-                    # if the path exits the polygon at the intersection
-                    elif bd_line.distance(intersections.geoms[0]) < 1e-1:
-                        lims[0] = (self.bd_pts[j])
+                # compute cross product to determine if bound is above or below path
+                v1 = (path.boundary.geoms[1].x - path.boundary.geoms[0].x, 
+                      path.boundary.geoms[1].y - path.boundary.geoms[0].y)   # Vector 1
 
-                # repeat for final index to 0
-                bd_line = LineString([self.bd_pts[len(self.bd_pts) - 1], self.bd_pts[0]])
-                if bd_line.distance(intersections.geoms[1]) < 1e-1:
-                    lims[1] = self.bd_pts[j+1]
-                elif bd_line.distance(intersections.geoms[0]) < 1e-1:
-                    lims[0] = (self.bd_pts[j])
-
-                # search for indices of limiting bounds
-                ind0 = self.bd_pts.index(lims[0])
-                ind1 = self.bd_pts.index(lims[1])
-                # cross product to determine if bound is above or below path
-                # add distance above or below so new path does not cross over
-                for k in range(ind0, ind1 - 1, -1):
-                    v1 = (path.boundary.geoms[1].x - path.boundary.geoms[0].x, 
-                          path.boundary.geoms[1].y - path.boundary.geoms[0].y)   # Vector 1
-                    v2 = (path.boundary.geoms[1].x - self.bd_pts[k][0], 
-                          path.boundary.geoms[1].y - self.bd_pts[k][1])   # Vector 2
+                for k in ind_range:
+                    v2 = (path.boundary.geoms[1].x - temp_bd_pts[k][0], 
+                          path.boundary.geoms[1].y - temp_bd_pts[k][1])   # Vector 2
                     xp = v1[0]*v2[1] - v1[1]*v2[0]
-                    
-                    if xp <= 0: 
-                        bd_around = (self.bd_pts[k][0], self.bd_pts[k][1] + 10)
-                    elif xp > 0: 
-                        bd_around = (self.bd_pts[k][0], self.bd_pts[k][1] - 10)
 
-                    bds_btwn.append(bd_around)
-                pt_order.extend(bds_btwn)
+                    # offset path from bound point depedning on cross product, add to global path
+                    if xp <= 0: 
+                        bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] + 10)
+                    elif xp > 0: 
+                        bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] - 10)
+                    pt_order.append(bd_around)
             
+            # append to global path and order of "official" given waypoints
             pt_order.append(waypts[order[i+1]])
             waypt_order.append(waypts[order[i+1]])
-
+        
+        # rerun tsp, reorgqnize global path including boundary offsets
+        order, dist = self.run_tsp(pt_order)
+        temp = [pt for pt in pt_order]
+        pt_order = [temp[order_element] for order_element in order]
+        
         # convert xy to gps for global path and plot
         self.global_path = deque(map(self.XY_to_GPS, pt_order))
         self.draw_map(waypt_order, pt_order)
@@ -198,7 +211,6 @@ class Flight_Zone():
 
 if __name__ == '__main__':
     # competition gps coordinates
-    # IMPORT: BOUND COORDINATES MUST BE ORDERED COUNTER-CLOCKWISE
     bound_coords = [
         (38.31729702009844, -76.55617670782419), 
         (38.31594832826572, -76.55657341657302), 
@@ -221,9 +233,10 @@ if __name__ == '__main__':
         (38.31440638590367, -76.54394559930905),
         (38.314208221753645, -76.54400447836372)
     ]
-    test_map = Flight_Zone(bound_coords)
 
-    start = (38.316376, -76.556096)    
+    home = (38.316376, -76.556096) 
+    test_map = Flight_Zone(bound_coords, home)
+
     wps = [
         (38.31652512851874, -76.553698306299), 
         (38.316930096287635, -76.5504102489997),
@@ -233,10 +246,8 @@ if __name__ == '__main__':
         (38.31453025427406, -76.5446561487259),
         (38.31534881557715, -76.54085345989367),
         (38.316679010868775, -76.54884916043693),
-        (38.31859824405069, -76.54601674779236),
-        (38.31659483274522, -76.54723983506672),
         (38.315736210982266, -76.5453730176419),
         (38.31603925511844, -76.54876332974675)
     ]
 
-    test_map.gen_globalpath(start, wps, drop_bds)
+    test_map.gen_globalpath(wps, drop_bds)
