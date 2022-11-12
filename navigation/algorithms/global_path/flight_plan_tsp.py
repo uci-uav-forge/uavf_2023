@@ -25,9 +25,7 @@ class Flight_Zone():
 
     # convert gps to relative xy points using a reference utm coordinate
     def GPS_to_XY(self, gps: tuple) -> tuple:
-        lat = gps[0]
-        lon = gps[1]
-        utm_xy = utm.from_latlon(lat, lon)
+        utm_xy = utm.from_latlon(gps[0], gps[1])
         x = utm_xy[0] - self.ref_pt[0]
         y = utm_xy[1] - self.ref_pt[1]
 
