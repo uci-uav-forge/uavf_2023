@@ -66,7 +66,7 @@ def mission_process():
     # assignment: avoidance= d-1000000000, target= d, path= 1000000000
     mission_q = PriorityQueue()
     for i in range(1, len(test_map.global_path)): 
-        mission_q.put((1000000, test_map.global_path[i]))
+        mission_q.put((1000000000, test_map.global_path[i]))
     
     # initialize drone
     drone = gnc_api()
@@ -106,7 +106,7 @@ def mission_process():
                 else:
                     drone.set_speed(avg_spd)
                 rate.sleep()
-                
+
         mission_q.get()
     
     
