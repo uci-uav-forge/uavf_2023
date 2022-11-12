@@ -27,7 +27,7 @@ class gnc_api:
 
         self.current_heading_g = 0.0
         self.local_offset_g = 0.0
-        self.correction_heading_g = 0.0
+        self.correction_heading_g = 0.0     
         self.local_desired_heading_g = 0.0
 
         self.ns = rospy.get_namespace()
