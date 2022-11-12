@@ -149,7 +149,7 @@ class Flight_Zone():
         return order, dist
 
 
-    def gen_globalpath(self, wps, drop_bds):
+    def gen_globalpath(self, wps, drop_bds) -> None:
         # waypoints to cross the dropzone
         drop_pts = self.process_dropzone(drop_bds)
 
