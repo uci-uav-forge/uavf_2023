@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import math
 import utm
 import numpy as np
 from python_tsp.exact import solve_tsp_dynamic_programming
@@ -17,14 +16,14 @@ class Flight_Zone():
         self.zone_num = self.ref_pt[2]
         self.zone_let = self.ref_pt[3]
 
-        self.bd_pts = self.sort_counterclockwise(list(map(self.GPS_to_XY, bound_coords)))
+        self.bd_pts = self.sort_counterclockwise(list(map(self.GPS_to_ENU, bound_coords)))
         self.bd_pts.append(self.bd_pts[0])
 
         self.x_dim, self.y_dim = self.get_dims()
         self.global_path = []
 
     # convert gps to relative xy points using a reference utm coordinate
-    def GPS_to_XY(self, gps: tuple) -> tuple:
+    def GPS_to_ENU(self, gps: tuple) -> tuple:
         utm_xy = utm.from_latlon(gps[0], gps[1])
         x = utm_xy[0] - self.ref_pt[0]
         y = utm_xy[1] - self.ref_pt[1]
@@ -35,11 +34,15 @@ class Flight_Zone():
             return (x, y)
     
     # convert relative xy back to gps
-    def XY_to_GPS(self, xy: tuple) -> tuple:
-        utm_x = xy[0] + self.ref_pt[0]
-        utm_y = xy[1] + self.ref_pt[1]
+    def ENU_to_GPS(self, enu: tuple) -> tuple:
+        utm_x = enu[0] + self.ref_pt[0]
+        utm_y = enu[1] + self.ref_pt[1]
         gps = utm.to_latlon(utm_x, utm_y, self.zone_num, self.zone_let)
-        return gps 
+        
+        if len(enu) == 3:
+            return (gps[0], gps[1], enu[2]) 
+        else:
+            return gps 
 
     # return extreme utm coordinates
     def get_dims(self) -> tuple:
@@ -58,18 +61,18 @@ class Flight_Zone():
     
 
     def process_dropzone(self, drop_bds):
-        drop_bd_pts = [np.array(self.GPS_to_XY(gps)) for gps in drop_bds]
+        drop_bd_pts = [np.array(self.GPS_to_ENU(gps)) for gps in drop_bds]
         
         delt1 = drop_bd_pts[0] - drop_bd_pts[len(drop_bds)-1]
         delt2 = delt1
-        shortest1 = math.hypot(delt1[0], delt2[1])
-        shortest2 = math.hypot(delt2[0], delt2[1])
+        shortest1 = np.hypot(delt1[0], delt2[1])
+        shortest2 = np.hypot(delt2[0], delt2[1])
         pair1 = (drop_bd_pts[0], drop_bd_pts[len(drop_bds)-1])
         pair2 = (drop_bd_pts[0], drop_bd_pts[len(drop_bds)-1])
 
         for i in range(len(drop_bds)-1):
             delta = drop_bd_pts[i+1] - drop_bd_pts[i]
-            length = math.hypot(delta[0], delta[1])
+            length = np.hypot(delta[0], delta[1])
 
             if length < shortest1:
                 shortest2 = shortest1
@@ -96,7 +99,7 @@ class Flight_Zone():
         #ax1.set_xlim(-10, self.x_dim + 10)
         #ax1.set_ylim(-10, self.y_dim + 10)
 
-        #tick_scale = math.floor(math.log(min(self.x_dim, self.y_dim), 10))
+        #tick_scale = np.floor(np.log(min(self.x_dim, self.y_dim), 10))
         #plt.xticks(np.arange(0, self.x_dim, 10**tick_scale))
         #plt.yticks(np.arange(0, self.y_dim, 10**tick_scale))
 
@@ -123,7 +126,7 @@ class Flight_Zone():
             centre_x, centre_y = centre
         else:
             centre_x, centre_y = sum([x for x,_ in points])/len(points), sum([y for _,y in points])/len(points)
-            angles = [math.atan2(y - centre_y, x - centre_x) for x,y in points]
+            angles = [np.atan2(y - centre_y, x - centre_x) for x,y in points]
             counterclockwise_indices = sorted(range(len(points)), key=lambda i: angles[i])
             counterclockwise_points = [points[i] for i in counterclockwise_indices]
         return counterclockwise_points
@@ -155,7 +158,7 @@ class Flight_Zone():
 
         # convert gps waypoints to xy
         waypts = [(0, 0, 0)]
-        for gps in wps: waypts.append(self.GPS_to_XY(gps))
+        for gps in wps: waypts.append(self.GPS_to_ENU(gps))
         waypts.extend(drop_pts)
 
         # get optimal order from tsp
