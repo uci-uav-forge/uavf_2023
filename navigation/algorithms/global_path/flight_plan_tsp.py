@@ -32,7 +32,7 @@ class Flight_Zone():
         if len(gps) == 3:
             return (x, y, gps[2]) 
         else:
-            return (x,y)
+            return (x, y)
     
     # convert relative xy back to gps
     def XY_to_GPS(self, xy: tuple) -> tuple:
