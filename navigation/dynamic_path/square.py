@@ -7,7 +7,7 @@ from py_gnc_functions import *
 # To print colours (optional).
 from PrintColours import *
 #from iq_gnc.PrintColours import *
-
+import time
 
 def main():
     # Initializing ROS node.
@@ -21,7 +21,7 @@ def main():
     drone.wait4start()
 
     # Create local reference frame.
-    drone.initialize_local_frame()
+    #drone.initialize_local_frame()
     # Request takeoff with an altitude of 3m.
     drone.takeoff(3)
     # Specify control loop rate. We recommend a low frequency to not over load the FCU with messages. Too many messages will cause the drone to be sluggish.
@@ -32,15 +32,23 @@ def main():
              [0, 5, 3, 90], [0, 0, 3, 180], [0, 0, 3, 0]]
     i = 0
 
+    drone.set_destination(
+            x=0, y=0, z=3, psi=90)
+    time.sleep(10)
+    drone.land()
+
+    '''
     while i < len(goals):
         drone.set_destination(
             x=goals[i][0], y=goals[i][1], z=goals[i][2], psi=goals[i][3])
+        print('CURR HEADING: ' + str(drone.get_current_heading()))
         rate.sleep()
         if drone.check_waypoint_reached():
             i += 1
     # Land after all waypoints is reached.
     drone.land()
     rospy.loginfo(CGREEN2 + "All waypoints reached landing now." + CEND)
+    '''
 
 
 if __name__ == '__main__':

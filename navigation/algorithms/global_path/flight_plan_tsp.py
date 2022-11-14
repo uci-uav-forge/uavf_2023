@@ -20,7 +20,6 @@ class Flight_Zone():
         self.bd_pts.append(self.bd_pts[0])
 
         self.x_dim, self.y_dim = self.get_dims()
-        self.global_path = []
 
     # convert gps to relative xy points using a reference utm coordinate
     def GPS_to_ENU(self, gps: tuple) -> tuple:
@@ -61,12 +60,16 @@ class Flight_Zone():
     
 
     def process_dropzone(self, drop_bds):
+        if len(drop_bds) == 0:
+            return []
+
         drop_bd_pts = [np.array(self.GPS_to_ENU(gps)) for gps in drop_bds]
-        
         delt1 = drop_bd_pts[0] - drop_bd_pts[len(drop_bds)-1]
         delt2 = delt1
+
         shortest1 = np.hypot(delt1[0], delt2[1])
         shortest2 = np.hypot(delt2[0], delt2[1])
+
         pair1 = (drop_bd_pts[0], drop_bd_pts[len(drop_bds)-1])
         pair2 = (drop_bd_pts[0], drop_bd_pts[len(drop_bds)-1])
 
@@ -91,7 +94,7 @@ class Flight_Zone():
     def draw_map(self, wps, path) -> None:
         scale = max(self.x_dim, self.y_dim)
         fig, ax1 = plt.subplots(
-            figsize=(14 * abs(self.x_dim/scale), 14 * abs(self.y_dim/scale))
+            figsize=(10 * abs(self.x_dim/scale), 10 * abs(self.y_dim/scale))
         )
         ax1.set_title('Flight Zone')
         ax1.set_xlabel('(meters)')
@@ -126,7 +129,7 @@ class Flight_Zone():
             centre_x, centre_y = centre
         else:
             centre_x, centre_y = sum([x for x,_ in points])/len(points), sum([y for _,y in points])/len(points)
-            angles = [np.atan2(y - centre_y, x - centre_x) for x,y in points]
+            angles = [np.arctan2(y - centre_y, x - centre_x) for x,y in points]
             counterclockwise_indices = sorted(range(len(points)), key=lambda i: angles[i])
             counterclockwise_points = [points[i] for i in counterclockwise_indices]
         return counterclockwise_points
@@ -152,7 +155,7 @@ class Flight_Zone():
         return order, dist
 
 
-    def gen_globalpath(self, wps, drop_bds) -> None:
+    def gen_globalpath(self, wps: list, drop_bds=[]) -> list:
         # waypoints to cross the dropzone
         drop_pts = self.process_dropzone(drop_bds)
 
@@ -215,8 +218,9 @@ class Flight_Zone():
         
         # rerun tsp, reorgqnize global path including boundary offsets
         order, dist = self.run_tsp(pt_order)
-        self.global_path = [pt_order[i] for i in order]
-        self.draw_map(waypt_order, self.global_path)
+        global_path = [pt_order[i] for i in order]
+        self.draw_map(waypt_order, global_path)
+        return global_path
 
 
 if __name__ == '__main__':

@@ -39,20 +39,20 @@ class gnc_api:
         self.local_pos_pub = rospy.Publisher(
             name="{}mavros/setpoint_position/local".format(self.ns),
             data_class=PoseStamped,
-            queue_size=10,
+            queue_size=1,
         )
 
         self.currentPos = rospy.Subscriber(
             name="{}mavros/global_position/local".format(self.ns),
             data_class=Odometry,
-            queue_size=10,
+            queue_size=1,
             callback=self.pose_cb,
         )
 
         self.state_sub = rospy.Subscriber(
             name="{}mavros/state".format(self.ns),
             data_class=State,
-            queue_size=10,
+            queue_size=1,
             callback=self.state_cb,
         )
 
@@ -399,7 +399,7 @@ class gnc_api:
         rospy.loginfo(
             CGREEN2 + "The X-Axis is facing: {}".format(self.local_offset_g) + CEND)
 
-    def check_waypoint_reached(self, pos_tol=0.3, head_tol=0.01):
+    def check_waypoint_reached(self, pos_tol=3, head_tol=3):
         """This function checks if the waypoint is reached within given tolerance and returns an int of 1 or 0. This function can be used to check when to request the next waypoint in the mission.
 
         Args:
