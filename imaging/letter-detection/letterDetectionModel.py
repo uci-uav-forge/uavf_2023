@@ -42,6 +42,6 @@ def augment (image, label):
     image = tf.image.random_brightness(image, max_delta=0.05)
     return image, label
 
-ds_train = ds_train.map(train_read_image).batch(2)
-ds_test = ds_test.map(test_read_image).batch(2)
+ds_train = ds_train.map(train_read_image).batch(16)
+ds_test = ds_test.map(test_read_image).batch(16)
 #conv2d(numFilters, kernelSize)
