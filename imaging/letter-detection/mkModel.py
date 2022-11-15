@@ -1,6 +1,8 @@
 from letterDetectionModel import *
 from collections import defaultdict
 import keras
+from keras.callbacks import LearningRateScheduler
+import numpy as np
 
 
 model = keras.Sequential([
@@ -17,45 +19,24 @@ model = keras.Sequential([
     
 ])
 
-model.compile(optimizer=tf.optimizers.Adam(),
-                loss=[keras.losses.SparseCategoricalCrossentropy(from_logits=True),], 
+
+epochs = 20
+learning_rate = 0.01
+decay_rate = 0.5
+
+def exp_decay(epoch):
+    lr_new = learning_rate * np.exp(-decay_rate*epoch)
+    return lr_new
+
+# learning schedule callback
+lr_rate = LearningRateScheduler(exp_decay)
+
+
+model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
+                loss=[keras.losses.SparseCategoricalCrossentropy()], 
                 metrics="accuracy")
-alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
-model.fit(ds_train, epochs=1, shuffle=True)
+log_dir = "logs/fit/slModel0_18"
+tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+model.fit(ds_train, epochs=epochs, shuffle=True, callbacks=[lr_rate, tensorboard_callback])
+
 model.save("./trained_model.h5")
-model.evaluate(ds_test)
-
-result = model.predict(ds_test)
-
-predict = []
-for row in range(len(result)):
-    max = 0
-    max_col = 0
-    i = 0
-    for col in range(len(result[0])):
-        if result[row][col] > max:
-            max = result[row][col]
-            max_col = col
-    predict.append(max_col)
-
-#wrong_predictions = []
-#for i in range(len(predict)):
-#    if predict[i] != test_labels[i]:
-#        wrong_predictions.append((chr(test_labels[i]), chr(predict[i])))
-#print(wrong_predictions)
-
-alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
-def evaluateChars():
-    numCorrect = defaultdict(int)
-    totals = defaultdict(int)
-    for i in range(len(predict)):
-        print(f'Guessed {alpha[predict[i]]} and was {alpha[test_labels[i]]}')
-        totals[test_labels[i]] += 1
-        numCorrect[test_labels[i]] # init key if not created yet
-        if(test_labels[i] == predict[i]):
-            numCorrect[test_labels[i]] += 1
-    for letter, (n, t) in enumerate(zip(numCorrect.values(),totals.values())):
-        print(alpha[letter], ":", n,"out of", t)
-    
-evaluateChars()
-

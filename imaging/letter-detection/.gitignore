@@ -1,5 +1,8 @@
 /test/
 /train/
+/fonts/
+/logs/
+/__pycache__/
 myfonts.txt
 fonts.txt
 trained_model.h5
