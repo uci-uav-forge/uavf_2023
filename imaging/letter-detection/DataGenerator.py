@@ -46,7 +46,7 @@ class DataGenerator():
                     screen.blit(letter, textRect)
                     pygame.display.flip()
                     pygame.image.save(screen, f".{self.path}/dataset/data/{startNum}.jpg")
-                    file.write(f"data/{startNum}.jpg" + ", " + str(index) + "\n")
+                    file.write(f"/data/{startNum}.jpg" + ", " + str(index) + "\n")
                     startNum += 1
         return startNum
 
