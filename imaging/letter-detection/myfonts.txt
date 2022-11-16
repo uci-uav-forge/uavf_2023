@@ -1,8 +1,10 @@
-arial
-bahnschrift
-calibri
-consolas
-ebrima
-gadugi
+leelawadeeui
 leelawadeeuisemilight
 lucidaconsole
+lucidasans
+malgungothic
+microsofttaile
+msgothic
+msuigothic
+nirmalaui
+nirmalauisemilight
