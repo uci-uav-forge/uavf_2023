@@ -1,8 +1,6 @@
 # Implementation of guidance, navigation, and control using Ardupilot, MAVROS, and the Intelligent-Quads GNC package!
 from queue import PriorityQueue
-from multiprocess import Process
 from multiprocess.managers import BaseManager
-from tf.transformations import euler_from_quaternion
 import numpy as np
 import time
 import json
@@ -16,18 +14,15 @@ sys.path.insert(0, '/home/herpderk/uav_catkin_ws/src/uavf_2023/navigation/algori
 from flight_plan_tsp import Flight_Zone
 
 
-def guided_mission(mission_q: PriorityQueue): 
+def init_mission(mission_q): 
     # mission parameters in SI units
     takeoff_alt = 30 # m
     drop_alt = 25 # m
-    avg_spd = 20 # m/s
-    drop_spd = 3
+    avg_spd = 15 # m/s
+    drop_spd = 3 # m/s
 
-    # initialize ROS node and get home position
-    rospy.init_node("drone_GNC", anonymous=True)
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
     home = (home_fix.latitude, home_fix.longitude)
-    #home = (38.316376, -76.556096)
 
     # read mission objectives from json file
     data = json.load(open('objectives.json'))
@@ -40,45 +35,49 @@ def guided_mission(mission_q: PriorityQueue):
     
     test_map = Flight_Zone(bound_coords, home, drop_alt, avg_alt)
     global_path = test_map.gen_globalpath(wps, drop_bds)
-    
-    # initialize drone
-    drone = gnc_api()
-    drone.wait4connect()
-    drone.wait4start()
-    # drone takeoff
-    drone.initialize_local_frame()
-    drone.takeoff(takeoff_alt)
-    time.sleep(30)
-    rate = rospy.Rate(10)
-    
+
     # initialize priority queue
-    # priority queue pops low values first
-    # assignment: avoidance= d-1,000,000,000, globalpath= n in num of waypoints
-    #drop= d+1,000,000,000, d for drop= distance from final waypoint(the end of the drop zone)
     for i in range(1, len(global_path)): 
         mission_q.put((int(i), global_path[i]))
     # add home position at the end, always goes last, home= 2,000,000,000
     mission_q.put((int(2000000000), (0, 0, avg_alt)))
+
+    return global_path, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt
+
+
+def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt):
+    # init drone api
+    rate = rospy.Rate(10)
+    drone = gnc_api()
+    drone.wait4connect()
+    drone.wait4start()
+
+    # drone takeoff
+    drone.initialize_local_frame()
+    drone.takeoff(takeoff_alt)
+    drone.set_destination(
+        x=0, y=0, z=takeoff_alt, psi=0)
+    while not drone.check_waypoint_reached():
+        pass
     
     prev_wp = (0, 0, 0)
     # outer loop: check if there are more waypoints to travel to
     while mission_q.qsize():
         # get next waypoint
         curr_wp = mission_q.queue[0][1]
-        print(curr_wp)
         # calc desired heading
         curr_pos = drone.enu_2_local()
         hdg = -90 + np.degrees(
             np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x))
 
-        drone.set_destination(
-            x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg)
-
-        # slow down if moving to drop point
+        # lower alt and slow down if moving to drop point
         if mission_q.queue[0][0] > 1000000000 and mission_q.queue[0][0] < 2000000000:
+            curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
             drone.set_speed(drop_spd)
         else:
             drone.set_speed(avg_spd)
+        drone.set_destination(
+            x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg)
 
         # get next waypoint, if obs/drop detected, go there
         while not drone.check_waypoint_reached():
@@ -89,46 +88,39 @@ def guided_mission(mission_q: PriorityQueue):
                 print()
                 curr_wp = next_wp
                 # calc desired heading
-                curr_pos = drone.enu_2_local()
+                curr_pos = drone.get_current_location()
                 hdg = -90 + np.degrees(
                     np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x))
 
-                drone.set_destination(
-                    x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg)
-
-                # slow down if moving to drop point
+                # lower alt and slow down if moving to drop point
                 if mission_q.queue[0][0] > 1000000000 and mission_q.queue[0][0] < 2000000000:
+                    curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
                     drone.set_speed(drop_spd)
                 else:
                     drone.set_speed(avg_spd)
+                drone.set_destination(
+                    x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg)
+
             else:
-                curr_pos = drone.enu_2_local()
+                curr_pos = drone.get_current_location()
                 print('current position: ' + str((curr_pos.x, curr_pos.y)))
             rate.sleep()
 
         mission_q.get()
     
     # correct heading
-    drone.set_destination(
-        x=0, y=0, z=avg_alt, psi=0)
-    time.sleep(10)
+    drone.set_heading(0)
+    time.sleep(5)
     # land at home position
     drone.land()
     
 
-class MyManager(BaseManager):
-    pass
-MyManager.register('PriorityQueue', PriorityQueue)
-
-
 if __name__ == '__main__':
-    mission_q = PriorityQueue()
-    guided_mission(mission_q)
-    '''
-    # initialize manager
-    manager = MyManager()
-    manager.start()
+    # initialize ROS node and get home position
+    rospy.init_node("drone_GNC", anonymous=True)
 
-    mission_q = manager.PriorityQueue()
-    mission_process = Process(target=guided_mission, args=[mission_q])
-    '''
+    mission_q = PriorityQueue()
+    # init mission
+    global_path, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt = init_mission(mission_q)
+    # run control loop
+    mission_loop(mission_q, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt)
