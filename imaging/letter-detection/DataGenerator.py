@@ -37,7 +37,7 @@ class DataGenerator():
                 numPhotos = math.ceil(distribution[text] * numImages)
                 currentDeg = 0
                 for _ in range(numPhotos):
-                    currentDeg += random.randint(-50, 65)
+                    currentDeg += random.randint(-1000, 10000)
                     screen.fill((0,0,0)) # Fill screen with black
                     letter = font.render(text, True, (255,255,255), (0,0,0))
                     letter = pygame.transform.rotate(letter, currentDeg)
