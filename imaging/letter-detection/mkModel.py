@@ -1,8 +1,8 @@
 from letterDetectionModel import *
 from collections import defaultdict
 import keras
-from keras.callbacks import LearningRateScheduler
-import numpy as np
+# from keras.callbacks import LearningRateScheduler
+# import numpy as np
 
 
 model = keras.Sequential([
@@ -20,23 +20,24 @@ model = keras.Sequential([
 ])
 
 
-epochs = 20
-learning_rate = 0.01
-decay_rate = 0.5
+# epochs = 1
+# learning_rate = 0.01
+# decay_rate = 0.5
 
-def exp_decay(epoch):
-    lr_new = learning_rate * np.exp(-decay_rate*epoch)
-    return lr_new
+# def exp_decay(epoch):
+#     lr_new = learning_rate * np.exp(-decay_rate*epoch)
+#     return lr_new
 
-# learning schedule callback
-lr_rate = LearningRateScheduler(exp_decay)
+# # learning schedule callback
+# lr_rate = LearningRateScheduler(exp_decay)
 
 
-model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
-                loss=[keras.losses.SparseCategoricalCrossentropy()], 
+model.compile(optimizer=tf.optimizers.Adam(),
+                loss=[keras.losses.SparseCategoricalCrossentropy(from_logits=True),], 
                 metrics="accuracy")
-log_dir = "logs/fit/slModel0_18"
-tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-model.fit(ds_train, epochs=epochs, shuffle=True, callbacks=[lr_rate, tensorboard_callback])
+                
+# log_dir = "logs/fit/slModel0_18"
+# tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+model.fit(ds_train, epochs=20)
 
 model.save("./trained_model.h5")
