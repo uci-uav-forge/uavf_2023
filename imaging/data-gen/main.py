@@ -41,7 +41,7 @@ def create_shape_dataset(video_file_name:str, shapes_directory:str, shape_resolu
                 "id": i+5000*(test_idx+1),
                 "image_id": i,
                 "category_id": category_num,
-                "bbox": [(x_offset+shape_w//2),(y_offset+shape_h//2),shape_w,shape_h],
+                "bbox": [(x_offset),(y_offset),shape_w,shape_h],
                 "area": shape_w*shape_h,
                 "segmentation": [],
                 "iscrowd": 0
