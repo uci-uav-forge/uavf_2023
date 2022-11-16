@@ -6,7 +6,7 @@ from collections import defaultdict
 
 
 # change train dataset directory here
-train_directory = './train/dataset'
+train_directory = '/train/dataset'
 # change file name here
 train_df = pd.read_csv(train_directory + '/labels.txt')
 
@@ -19,7 +19,7 @@ ds_train = ds_train.shuffle(2000, seed=10)
 
 
 # change test dataset directory here
-test_directory = './test/dataset'
+test_directory = '/test/dataset'
 # change file name here
 test_df = pd.read_csv(test_directory + '/labels.txt')
 
