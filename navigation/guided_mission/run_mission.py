@@ -86,13 +86,14 @@ class PriorityAssigner():
     def avoid_cb(self, avoid_coord):
         prio = int(-1000000000)
         curr_pos = self.pos_updater.get_current_location()
-        avoid_wp_x = curr_pos.x + avoid_coord.x
-        avoid_wp_y = curr_pos.y + avoid_coord.y
-        avoid_wp_z = curr_pos.z + avoid_coord.z
+        wp_x = curr_pos.x + avoid_coord.x
+        wp_y = curr_pos.y + avoid_coord.y
+        wp_z = curr_pos.z + avoid_coord.z
 
-        self.mission_q.put(
-            (prio, (avoid_wp_x, avoid_wp_y, avoid_wp_z))
-        )
+        if self.mission_q.queue[0][0] == prio:
+            self.mission_q.queue[0][1] = (wp_x, wp_y, wp_z)
+        else:
+            self.mission_q.put((prio, (wp_x, wp_y, wp_z)))
     
 
     def drop_cb(self, drop_coord):
