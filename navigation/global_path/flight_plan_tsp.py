@@ -1,28 +1,27 @@
-import matplotlib.pyplot as plt
 import utm
 import numpy as np
-from python_tsp.exact import solve_tsp_dynamic_programming
 from python_tsp.distances import euclidean_distance_matrix
+from python_tsp.exact import solve_tsp_dynamic_programming
 from shapely.geometry import LineString, Point, Polygon
-from queue import PriorityQueue
+import matplotlib.pyplot as plt
 
 # FLIGHT PLAN PARAMETERS: minimum altitude and 'normal' altitude in meters AGL
-class Flight_Zone():
+class FlightPlan():
     def __init__(self, bound_coords: list, home: tuple, min_alt=25, avg_alt=30):
-        self.min_alt = min_alt # meters
+        self.min_alt = min_alt 
         self.avg_alt = avg_alt
 
         self.ref_pt = utm.from_latlon(home[0], home[1])
         self.zone_num = self.ref_pt[2]
         self.zone_let = self.ref_pt[3]
 
-        self.bd_pts = self.sort_counterclockwise(list(map(self.GPS_to_ENU, bound_coords)))
+        self.bd_pts = self.sort_counterclockwise(list(map(self.GPS_to_local, bound_coords)))
         self.bd_pts.append(self.bd_pts[0])
 
         self.x_dim, self.y_dim = self.get_dims()
 
     # convert gps to relative xy points using a reference utm coordinate
-    def GPS_to_ENU(self, gps: tuple) -> tuple:
+    def GPS_to_local(self, gps: tuple) -> tuple:
         utm_xy = utm.from_latlon(gps[0], gps[1])
         x = utm_xy[0] - self.ref_pt[0]
         y = utm_xy[1] - self.ref_pt[1]
@@ -33,17 +32,17 @@ class Flight_Zone():
             return (x, y)
     
     # convert relative xy back to gps
-    def ENU_to_GPS(self, enu: tuple) -> tuple:
-        utm_x = enu[0] + self.ref_pt[0]
-        utm_y = enu[1] + self.ref_pt[1]
+    def local_to_GPS(self, local: tuple) -> tuple:
+        utm_x = local[0] + self.ref_pt[0]
+        utm_y = local[1] + self.ref_pt[1]
         gps = utm.to_latlon(utm_x, utm_y, self.zone_num, self.zone_let)
         
-        if len(enu) == 3:
-            return (gps[0], gps[1], enu[2]) 
+        if len(local) == 3:
+            return (gps[0], gps[1], local[2]) 
         else:
             return gps 
 
-    # return extreme utm coordinates
+    # return dimensions of boundary polygon
     def get_dims(self) -> tuple:
         min_x = self.bd_pts[0][0]
         max_x = self.bd_pts[0][0]
@@ -63,7 +62,7 @@ class Flight_Zone():
         if len(drop_bds) == 0:
             return []
 
-        drop_bd_pts = [np.array(self.GPS_to_ENU(gps)) for gps in drop_bds]
+        drop_bd_pts = [np.array(self.GPS_to_local(gps)) for gps in drop_bds]
         delt1 = drop_bd_pts[0] - drop_bd_pts[len(drop_bds)-1]
         delt2 = delt1
 
@@ -96,7 +95,7 @@ class Flight_Zone():
         fig, ax1 = plt.subplots(
             figsize=(10 * abs(self.x_dim/scale), 10 * abs(self.y_dim/scale))
         )
-        ax1.set_title('Flight Zone')
+        ax1.set_title('Flight Plan')
         ax1.set_xlabel('(meters)')
         ax1.set_ylabel('(meters)')
         #ax1.set_xlim(-10, self.x_dim + 10)
@@ -161,7 +160,7 @@ class Flight_Zone():
 
         # convert gps waypoints to xy
         waypts = [(0, 0, 0)]
-        for gps in wps: waypts.append(self.GPS_to_ENU(gps))
+        for gps in wps: waypts.append(self.GPS_to_local(gps))
         waypts.extend(drop_pts)
 
         # get optimal order from tsp
@@ -205,7 +204,7 @@ class Flight_Zone():
                           path.boundary.geoms[1].y - temp_bd_pts[k][1])   # Vector 2
                     xp = v1[0]*v2[1] - v1[1]*v2[0]
 
-                    # offset path from bound point depedning on cross product, add to global path
+                    # offset path from bound point depebding on cross product, add to global path
                     if xp <= 0: 
                         bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] + 10, self.avg_alt)
                     elif xp > 0: 
@@ -251,7 +250,7 @@ if __name__ == '__main__':
     home = (38.316376, -76.556096) 
     min_alt = 25
     avg_alt = 30
-    test_map = Flight_Zone(bound_coords, home, min_alt, avg_alt)
+    test_map = FlightPlan(bound_coords, home, min_alt, avg_alt)
 
     wps = [ #LLA, example wps at 30 meters AGL
         ( 38.31652512851874,   -76.553698306299, 30), 

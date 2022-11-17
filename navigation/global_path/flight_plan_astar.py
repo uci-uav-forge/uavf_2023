@@ -5,7 +5,7 @@ import numpy as np
 from astar import astar
 
 
-class Flight_Zone():
+class FlightPlan():
     def __init__(self, bound_coords: list):
         min_x, max_x, min_y, max_y, \
         self.zone_num, self.zone_let = self.get_box(bound_coords)
@@ -83,7 +83,7 @@ class Flight_Zone():
         fig, ax1 = plt.subplots(
             figsize=(10 * abs(self.x_dim/scale), 10 * abs(self.y_dim/scale))
         )
-        ax1.set_title('Flight Zone')
+        ax1.set_title('Flight Plan')
         ax1.set_xlabel('(meters)')
         ax1.set_ylabel('(meters)')
         ax1.set_xlim(-10, self.x_dim + 10)
@@ -231,7 +231,7 @@ if __name__ == '__main__':
         (38.314208221753645, -76.54400447836372),
         (38.31461655840247, -76.54516814545798)
     ]
-    test_map = Flight_Zone(bound_coords)
+    test_map = FlightPlan(bound_coords)
 
     start = (38.316376, -76.556096)    
     wps = [

@@ -1,5 +1,6 @@
 from queue import Queue, PriorityQueue
 import time
+
 import rospy
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry

@@ -4,14 +4,15 @@ from multiprocess.managers import BaseManager
 import numpy as np
 import time
 import json
+
 import rospy
 from sensor_msgs.msg import NavSatFix
 
 from py_gnc_functions import *
 from PrintColours import *
 import sys
-sys.path.insert(0, '/home/herpderk/uav_catkin_ws/src/uavf_2023/navigation/algorithms/global_path')
-from flight_plan_tsp import Flight_Zone
+sys.path.append("..")
+from global_path.flight_plan_tsp import FlightPlan
 
 
 def init_mission(mission_q): 
@@ -21,8 +22,9 @@ def init_mission(mission_q):
     avg_spd = 15 # m/s
     drop_spd = 3 # m/s
 
-    home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
-    home = (home_fix.latitude, home_fix.longitude)
+    #home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
+    #home = (home_fix.latitude, home_fix.longitude)
+    home = (-35.36267168, 149.16737061)
 
     # read mission objectives from json file
     data = json.load(open('objectives.json'))
@@ -33,7 +35,7 @@ def init_mission(mission_q):
     alts = [wp[2] for wp in wps]
     avg_alt = np.average(alts) 
     
-    test_map = Flight_Zone(bound_coords, home, drop_alt, avg_alt)
+    test_map = FlightPlan(bound_coords, home, drop_alt, avg_alt)
     global_path = test_map.gen_globalpath(wps, drop_bds)
 
     # initialize priority queue
@@ -117,8 +119,7 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
     
 
 if __name__ == '__main__':
-    # initialize ROS node and get home position
-    rospy.init_node("drone_GNC", anonymous=True)
+    #rospy.init_node("drone_GNC", anonymous=True)
 
     mission_q = PriorityQueue()
     # init mission
