@@ -22,9 +22,8 @@ def init_mission(mission_q):
     avg_spd = 15 # m/s
     drop_spd = 3 # m/s
 
-    #home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
-    #home = (home_fix.latitude, home_fix.longitude)
-    home = (-35.36267168, 149.16737061)
+    home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
+    home = (home_fix.latitude, home_fix.longitude)
 
     # read mission objectives from json file
     data = json.load(open('objectives.json'))
