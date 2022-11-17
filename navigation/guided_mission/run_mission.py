@@ -109,7 +109,7 @@ if __name__ == '__main__':
     # init mission
     global_path, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt = init_mission(mission_q)
 
-    # init priority assigner with mission and dropzone wp
+    # init priority assigner with mission queue and dropzone wp
     mission_q_assigner = PriorityAssigner(mission_q, global_path[len(global_path) - 1])
 
     # run control loop
