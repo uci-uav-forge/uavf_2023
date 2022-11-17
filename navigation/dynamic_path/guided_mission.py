@@ -40,7 +40,7 @@ def init_mission(mission_q):
     for i in range(1, len(global_path)): 
         mission_q.put((int(i), global_path[i]))
     # add home position at the end, always goes last, home= 2,000,000,000
-    mission_q.put((int(2000000000), (0, 0, avg_alt)))
+    mission_q.put((int(2000000000), (0.0, 0.0, avg_alt)))
 
     return global_path, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt
 
@@ -109,8 +109,9 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
         mission_q.get()
     
     # correct heading
-    drone.set_heading(0)
-    time.sleep(5)
+    drone.set_destination(
+        x=0, y=0, z=0, psi=hdg)
+    time.sleep(10)
     # land at home position
     drone.land()
     
