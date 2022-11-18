@@ -2,7 +2,9 @@
 /train/
 /fonts/
 /logs/
+/trained_model/
 /__pycache__/
 myfonts.txt
 fonts.txt
 trained_model.h5
+model.onnx
