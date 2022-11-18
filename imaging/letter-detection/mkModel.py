@@ -42,7 +42,4 @@ model.compile(optimizer=tf.optimizers.Adam(),
 model.fit(ds_train, epochs=1)
 
 model.save("./trained_model")
-# onnx_model_name = 'fish-resnet50.onnx'
-
-# onnx_model = keras2onnx.convert_keras(model, model.name)
-# onnx.save_model(onnx_model, onnx_model_name)
+# Run to save model as onnx:  python -m tf2onnx.convert --saved-model trained_model --output model.onnx
