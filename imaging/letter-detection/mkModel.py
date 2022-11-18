@@ -39,6 +39,10 @@ model.compile(optimizer=tf.optimizers.Adam(),
                 
 # log_dir = "logs/fit/slModel0_18"
 # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-model.fit(ds_train, epochs=20)
-model.save("./trained_model")
+model.fit(ds_train, epochs=1)
 
+model.save("./trained_model")
+# onnx_model_name = 'fish-resnet50.onnx'
+
+# onnx_model = keras2onnx.convert_keras(model, model.name)
+# onnx.save_model(onnx_model, onnx_model_name)
