@@ -33,10 +33,19 @@ def train_read_image(image_file, label):
     image = tf.image.decode_image(image, channels=1, dtype=tf.float32)  #channel=1 means grayscale
     return image, label
 
+# def test_read_image(image_file, label):
+#     image = tf.io.read_file(test_directory + image_file)
+#     image = tf.image.decode_image(image, channels=1, dtype=tf.float32)  #channel=1 means grayscale
+#     return image, label
+noise_stddev = 0.01
 def test_read_image(image_file, label):
     image = tf.io.read_file(test_directory + image_file)
     image = tf.image.decode_image(image, channels=1, dtype=tf.float32)  #channel=1 means grayscale
-    return image, label
+    #noise = tf.random.normal(shape=tf.shape(image), mean=0.0, stddev=(50)/(255), dtype=tf.float32)
+    noise = tf.random.normal(shape=tf.shape(image), mean=0.0, stddev=noise_stddev, dtype=tf.float32)
+    noise_img = image + noise
+    noise_img = tf.clip_by_value(noise_img, 0.0, 1.0)
+    return noise_img, label
 
 def augment (image, label):
     image = tf.image.random_brightness(image, max_delta=0.05)

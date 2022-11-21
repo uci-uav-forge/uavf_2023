@@ -40,19 +40,25 @@ model = keras.Sequential([
 #   def __call__(self, step):
 #      return self.initial_learning_rate / (step + 1)
 #      return return_value.numpy()
-epochs = 20
-learning_rate = 0.01
-decay_rate = 0.5
+epochs = 15
+initial_learning_rate = 0.01
+decay_steps = 30
+alpha = 0
+decay_rate = 0.1
 
-def exp_decay(epoch):
-    lr_new = learning_rate * np.exp(-decay_rate*epoch)
-    return lr_new
+def cos_decay(step):
+    step = min(step, decay_steps)
+    cosine_decay = 0.5 * (1 + np.cos(np.pi * step / decay_steps))
+    decayed = (1 - alpha) * cosine_decay + alpha
+    return initial_learning_rate * decayed
+    #lr_new = learning_rate * np.exp(-decay_rate*epoch)
+    #return lr_new
 
 # learning schedule callback
-lr_rate = LearningRateScheduler(exp_decay)
+lr_rate = LearningRateScheduler(cos_decay)
 
 
-model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
+model.compile(optimizer=tf.optimizers.Adam(learning_rate=initial_learning_rate),
                 loss=[keras.losses.SparseCategoricalCrossentropy()], 
                 metrics="accuracy")
 
@@ -66,8 +72,9 @@ model.compile(optimizer=tf.optimizers.Adam(learning_rate=learning_rate),
 #         if logs is None or "learning_rate" in logs:
 #             return
 #         logs["learning_rate"] = self.model.optimizer.lr
-log_dir = "logs/fit/slModel0_18"
+log_dir = "logs/fit/slModel0_25"
 tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+model.summary()
 model.fit(ds_train, epochs=epochs, shuffle=True, callbacks=[lr_rate, tensorboard_callback])
 
 print("Evaluate: ")
