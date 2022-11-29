@@ -58,7 +58,7 @@ class FlightPlan():
         return round(max_x - min_x), round(max_y - min_y)
     
 
-    def process_dropzone(self, drop_bds):
+    def process_dropzone(self, drop_bds: list) -> list:
         if len(drop_bds) == 0:
             return []
 
@@ -123,7 +123,7 @@ class FlightPlan():
         plt.show()
 
 
-    def sort_counterclockwise(self, points, centre = None):
+    def sort_counterclockwise(self, points: list, centre = None) -> list:
         if centre:
             centre_x, centre_y = centre
         else:
@@ -134,7 +134,7 @@ class FlightPlan():
         return counterclockwise_points
 
 
-    def run_tsp(self, waypts):
+    def run_tsp(self, waypts: list) -> tuple:
         # remove altitude column from waypts
         waypt_arr = np.empty([len(waypts), len(waypts[0])])
         for i in range(len(waypts)): 

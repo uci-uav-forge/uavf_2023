@@ -24,7 +24,6 @@ def init_mission(mission_q):
 
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
     home = (home_fix.latitude, home_fix.longitude)
-
     # read mission objectives from json file
     data = json.load(open('objectives.json'))
     bound_coords = [tuple(coord) for coord in data['boundary coordinates']] 
@@ -118,7 +117,7 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
     
 
 if __name__ == '__main__':
-    #rospy.init_node("drone_GNC", anonymous=True)
+    rospy.init_node("drone_GNC", anonymous=True)
 
     mission_q = PriorityQueue()
     # init mission
