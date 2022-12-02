@@ -50,15 +50,18 @@ maxsize = 640
 # convert all these coordinates to pixels
 ulx, uly = latlontopixels(ullat, ullon, zoom)
 
+downscale = 5
+
 # calculate total pixel dimensions of final image
 dx, dy = 5312, 2988
+
+dx /= downscale
+dy /= downscale
 
 print(dx,dy,maxsize)
 
 # calculate rows and columns
 cols, rows = int(ceil(dx/maxsize)), int(ceil(dy/maxsize))
-
-
 
 # calculate pixel dimensions of each small image
 bottom = 120
@@ -91,8 +94,12 @@ for x in range(cols):
         f=urllib.request.urlopen(url)
         im=Image.open(BytesIO(f.read()))
         final.paste(im, (int(x*largura), int(y*altura)))
+final = final.resize((int(dx*downscale), int(dy*downscale)))
+
 final.show()
 final.save('fieldgrab.png')
+
+
 
 ##TODO: Grab area of field that is appropriate to area GoPro captures
 # Capture height info??
