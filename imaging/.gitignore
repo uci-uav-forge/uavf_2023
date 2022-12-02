@@ -2,3 +2,9 @@ output
 *.zip
 *.mp4
 __pycache__
+bin
+etc
+include
+lib
+lib64
+share
