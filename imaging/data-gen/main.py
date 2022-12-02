@@ -3,8 +3,7 @@ import os
 import json
 import random
 
-def create_shape_dataset(video_file_name:str, shapes_directory:str, shape_resolution: int = 36, max_shapes_per_image: int = 3, num_images:int = 5000):
-    vid = cv2.VideoCapture(video_file_name)
+def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int = 36, max_shapes_per_image: int = 3, num_images:int = 5000):
     shapes = dict(
         (name.split(".")[0], cv2.imread(f'{shapes_directory}/{name}')) 
         for name in os.listdir(shapes_directory)
@@ -21,7 +20,7 @@ def create_shape_dataset(video_file_name:str, shapes_directory:str, shape_resolu
     annotations = []
     images = []
     for i in range(num_images):
-        ret, frame = vid.read()
+        frame = get_frame() 
         height, width = frame.shape[:2]
         # shape: (height, width, 3) e.g. (2988, 5312, 3)
         for test_idx in range(random.randint(0,max_shapes_per_image)):
@@ -79,7 +78,14 @@ def create_shape_dataset(video_file_name:str, shapes_directory:str, shape_resolu
     }
     with open("output/coco.json", "x") as f:
         json.dump(coco_metadata, f)
-    # After the loop release the cap object
-    vid.release()
 
-create_shape_dataset("no-targets-cut.mp4", "shapes", 36, 3, 10)
+'''
+vid = cv2.VideoCapture("no-targets-cut.mp4")
+grab_frame = lambda: vid.read()[1]
+'''
+
+img = cv2.imread("fieldgrab.png")
+grab_frame = lambda: img.copy()
+
+
+create_shape_dataset(img, "shapes", 36, 3, 10)

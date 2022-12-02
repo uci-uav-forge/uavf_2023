@@ -35,9 +35,9 @@ upperleft = '38.3163534, -76.551114'
 #
 #
 
-zoom = 22   # be careful not to get too many images!
+zoom = 21   # be careful not to get too many images!
 
-apiKey = "api key"
+apiKey = "AIzaSyAFGIV_0GGE_5bazHMtZf6QfA0NQyhxfLU"
 
 ############################################
 
@@ -66,6 +66,11 @@ largura = int(ceil(dx/cols))
 altura = int(ceil(dy/rows))
 alturaplus = altura + bottom
 
+
+# plugging this into the haversine distance formula (https://replit.com/@ThomasNeill2/CrimsonGoodChapters)
+# at a zoom value of 21 this should yield a delta x of approximately 300m - 
+# which is close to the width of what the drone takes.
+print("delta lat: ", pixelstolatlon(ulx,uly,zoom), pixelstolatlon(ulx + largura*cols,uly,zoom))
 
 final = Image.new("RGB", (int(dx), int(dy)))
 for x in range(cols):
