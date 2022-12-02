@@ -1,9 +1,10 @@
 import cv2
 import numpy as np
-img = cv2.imread("shapes/triangle.png")
+img = cv2.imread("shapes/rectangle.png")
 img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 # cv.imshow("before transform",img)
 width, height = img.shape[:2]
+print(width,height)
 theta = -np.pi/4
 
 # image_corners = np.array([
@@ -21,7 +22,7 @@ def get_rotated_image(img: cv2.Mat, theta: float):
     '''
     Theta is the rotation direction, clockwise, in radians
     '''
-    width, height = img.shape[:2]
+    height, width = img.shape[:2]
     translate_to_center_matrix = np.array([
         [1,0,-width/2],
         [0,1,-height/2],
@@ -36,25 +37,30 @@ def get_rotated_image(img: cv2.Mat, theta: float):
         dtype=np.float32
     )
 
+    new_w = np.ceil(width*np.abs(np.cos(theta))+height*np.abs(np.sin(theta))).astype(int)
+    new_h = np.ceil(height*np.abs(np.cos(theta))+width*np.abs(np.sin(theta))).astype(int)
+
     undo_translate_to_center_matrix = np.array([
-        [1,0,width],
-        [0,1,height],
+        [1,0,new_w/2],
+        [0,1,new_h/2],
         [0,0,1]
     ])
 
     return cv2.warpPerspective(
     src=img, 
     M=undo_translate_to_center_matrix@rotation_matrix@translate_to_center_matrix,
-    dsize=(width*2,height*2)
+    dsize=(new_w,new_h)
 )
 
-def get_shape_bbox(img: cv2.Mat):
+def get_shape_bbox(img: cv2.Mat, show_box=False):
     '''
     img: cv2 Mat with shape (width,height). Can't have a third channel, has to be grayscale
 
     Gets the bounding box for a shape on a completely black background (all background values are 0 exactly)
     Runtime is proportional to the number of pixels in the image (width*height).
     Returns a tuple (x_min, y_min, x_max, y_max)
+
+    If show_box is True, this will use cv.imshow to display the bounding box on the image. It will use cv.waitKey(0) to wait for a keypress before dismissing the image display window.
 
     '''
     width,height = img.shape[:2]
@@ -78,9 +84,13 @@ def get_shape_bbox(img: cv2.Mat):
                     break
             y_max = max(row, y_max)
             y_min = min(row, y_min)
-    
-    cv2.imshow("debug view of rotation",cv2.rectangle(img, (x_min, y_min),(x_max, y_max), (255,0,0)))
-    cv2.waitKey(0)
+            
+    if show_box:
+        with_rectangle = img.copy()
+        cv2.rectangle(with_rectangle, (y_min, x_min),(y_max, x_max), (255,0,0))
+        
+        cv2.imshow("debug view of rotation",with_rectangle)
+        cv2.waitKey(0)
     
     return (x_min, y_min, x_max, y_max)
 

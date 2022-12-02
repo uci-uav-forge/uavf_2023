@@ -1,11 +1,16 @@
-import cv2
 import os
 import json
 import random
+import cv2
+import numpy as np
+from  image_rotation import get_rotated_image, get_shape_bbox
 
 def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int = 36, max_shapes_per_image: int = 3, num_images:int = 5000):
     shapes = dict(
-        (name.split(".")[0], cv2.imread(f'{shapes_directory}/{name}')) 
+        (
+            name.split(".")[0], 
+            cv2.cvtColor(cv2.imread(f'{shapes_directory}/{name}'),cv2.COLOR_BGR2GRAY)
+        ) 
         for name in os.listdir(shapes_directory)
     )
     categories = [
@@ -19,36 +24,41 @@ def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int 
         os.mkdir("output")
     annotations = []
     images = []
-    for i in range(num_images):
-        frame = get_frame() 
+    for image_idx in range(num_images):
+        ret, frame = vid.read()
         height, width = frame.shape[:2]
         # shape: (height, width, 3) e.g. (2988, 5312, 3)
-        for test_idx in range(random.randint(0,max_shapes_per_image)):
+        for shape_idx in range(random.randint(0,max_shapes_per_image)):
             shape_name, category_num = random.choice(list(zip(shapes.keys(), range(len(shapes)))))
-            shape_true_h, shape_true_w = shapes[shape_name].shape[:2]
-            shape_resize_w = shape_resolution
-            shape = cv2.resize(shapes[shape_name], (shape_resize_w, int(shape_resize_w*shape_true_h/shape_true_w)))
-            shape_h, shape_w = shape.shape[:2]
+            shape_source_h, shape_source_w = shapes[shape_name].shape[:2]
+            shape_resize_w = shape_resolution # the shape source image's width and height
+            shape_to_draw = get_rotated_image(
+                img=cv2.resize(shapes[shape_name], (shape_resize_w, int(shape_resize_w*shape_source_h/shape_source_w))),
+                theta=np.random.random()*np.pi*2
+            )
+            bbox = get_shape_bbox(shape_to_draw)
+
+            shape_h, shape_w = bbox[3]-bbox[1], bbox[2]-bbox[0]
             color = (random.randint(0,255),random.randint(0,255),random.randint(0,255))
             x_offset = random.randint(0,width-shape_w)
             y_offset = random.randint(0, height-shape_h)
-            for y in range(shape_h):
-                for x in range(shape_w):
-                    if shape[y][x][2] == 255:
+            for y in range(1,shape_h):
+                for x in range(1,shape_w):
+                    if shape_to_draw[bbox[0]+x][bbox[1]+y] > 0 :
                         frame[y+y_offset][x+x_offset] = color
             annotations.append({
-                "id": i+5000*(test_idx+1),
-                "image_id": i,
+                "id": image_idx*max_shapes_per_image+shape_idx,
+                "image_id": image_idx,
                 "category_id": category_num,
                 "bbox": [(x_offset),(y_offset),shape_w,shape_h],
                 "area": shape_w*shape_h,
                 "segmentation": [],
                 "iscrowd": 0
             })
-        output_file_name = f"./output/shape{i}.png"
+        output_file_name = f"./output/image{image_idx}.png"
         cv2.imwrite(output_file_name, frame)
         images.append({
-            "id": i,
+            "id": image_idx,
             "license": 1,
             "file_name": output_file_name,
             "height": height,
