@@ -25,7 +25,7 @@ def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int 
     annotations = []
     images = []
     for image_idx in range(num_images):
-        ret, frame = vid.read()
+        frame=get_frame()
         height, width = frame.shape[:2]
         # shape: (height, width, 3) e.g. (2988, 5312, 3)
         for shape_idx in range(random.randint(0,max_shapes_per_image)):
@@ -98,4 +98,4 @@ img = cv2.imread("fieldgrab.png")
 grab_frame = lambda: img.copy()
 
 
-create_shape_dataset(img, "shapes", 36, 3, 10)
+create_shape_dataset(grab_frame, "shapes", 36, 3, 10)
