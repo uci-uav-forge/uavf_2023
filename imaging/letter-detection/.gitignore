@@ -5,3 +5,4 @@
 /__pycache__/
 fonts.txt
 trained_model.h5
+trained_model.onnx
