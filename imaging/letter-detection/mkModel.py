@@ -7,12 +7,12 @@ import keras
 
 model = keras.Sequential([
     keras.layers.Conv2D(32, (5, 5), input_shape = (128,128,1), activation = 'relu'),
-    keras.layers.Conv2D(64, (5, 5), activation = 'relu'),
-    keras.layers.MaxPooling2D(pool_size = (2,2)),
-    keras.layers.Conv2D(128, (5, 5), activation = 'relu'),
-    keras.layers.MaxPooling2D(pool_size = (2,2)),
-    # keras.layers.Conv2D(256, (5, 5), activation = 'relu'),
+    # keras.layers.Conv2D(64, (5, 5), activation = 'relu'),
     # keras.layers.MaxPooling2D(pool_size = (2,2)),
+    # keras.layers.Conv2D(128, (5, 5), activation = 'relu'),
+    # keras.layers.MaxPooling2D(pool_size = (2,2)),
+    # keras.layers.Conv2D(256, (5, 5), activation = 'relu'),
+    keras.layers.MaxPooling2D(pool_size = (2,2)),
     keras.layers.Flatten(),
     keras.layers.Dense(64),
     keras.layers.Dense(35, activation = 'softmax')
@@ -38,6 +38,6 @@ model.compile(optimizer=tf.optimizers.Adam(),
                 
 # log_dir = "logs/fit/slModel0_18"
 # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
-model.fit(ds_train, epochs=15)
+model.fit(ds_train, epochs=1)
 
 model.save("./trained_model.h5")
