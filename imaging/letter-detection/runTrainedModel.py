@@ -18,7 +18,7 @@ test_file_paths = test_df['file'].values
 test_labels = test_df[' label'].values
 ds_test = tf.data.Dataset.from_tensor_slices((test_file_paths, test_labels))
 ds_test = ds_test.map(test_read_image).batch(2)
-model = tf.keras.models.load_model('trained_model.h5')
+model = tf.keras.models.load_model('trained_model')
 model.summary()
 # model.evaluate(ds_test)
 
