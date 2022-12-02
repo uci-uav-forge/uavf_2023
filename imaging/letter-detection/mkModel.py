@@ -40,4 +40,4 @@ model.compile(optimizer=tf.optimizers.Adam(),
 # tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 model.fit(ds_train, epochs=1)
 
-model.save("./trained_model.h5")
+model.save("./trained_model")
