@@ -71,7 +71,7 @@ alturaplus = altura + bottom
 
 
 # plugging this into the haversine distance formula (https://replit.com/@ThomasNeill2/CrimsonGoodChapters)
-# at a zoom value of 21 this should yield a delta x of approximately 300m - 
+# at a zoom value of 21 this should yield a delta x of approximately 60m - 
 # which is close to the width of what the drone takes.
 print("delta lat: ", pixelstolatlon(ulx,uly,zoom), pixelstolatlon(ulx + largura*cols,uly,zoom))
 
@@ -100,7 +100,3 @@ final.show()
 final.save('fieldgrab.png')
 
 
-
-##TODO: Grab area of field that is appropriate to area GoPro captures
-# Capture height info??
-# Integrate with shape recognition datagen.
