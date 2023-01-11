@@ -4,7 +4,6 @@ img = cv2.imread("shapes/rectangle.png")
 img = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 # cv.imshow("before transform",img)
 width, height = img.shape[:2]
-print(width,height)
 theta = -np.pi/4
 
 # image_corners = np.array([
