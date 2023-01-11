@@ -5,7 +5,17 @@ import cv2
 import numpy as np
 from  image_rotation import get_rotated_image, get_shape_bbox
 
-def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int = 36, max_shapes_per_image: int = 3, num_images:int = 5000):
+def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int = 36, max_shapes_per_image: int = 3, num_images:int = 100):
+    '''
+    get_frame is a function that returns an image (cv2 mat).
+
+    shapes_directory contains the images of the shapes to apply to the background.
+
+    shape_resolution is how big each shape will be drawn on the background, in pixels
+
+    max_shapes_per_image is how many shapes are on each image, max. It will choose a number between 0 and this parameter for each output image.
+    num_images is how many images to output
+    '''
     shapes = dict(
         (
             name.split(".")[0], 
@@ -89,13 +99,14 @@ def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int 
     with open("output/coco.json", "x") as f:
         json.dump(coco_metadata, f)
 
-'''
-vid = cv2.VideoCapture("no-targets-cut.mp4")
-grab_frame = lambda: vid.read()[1]
-'''
 
-img = cv2.imread("fieldgrab.png")
-grab_frame = lambda: img.copy()
+if __name__=="__main__":
+    '''
+    vid = cv2.VideoCapture("no-targets-cut.mp4")
+    grab_frame = lambda: vid.read()[1]
+    '''
+    img = cv2.imread("fieldgrab.png")
+    grab_frame = lambda: img.copy()
 
 
-create_shape_dataset(grab_frame, "shapes", 36, 3, 10)
+    create_shape_dataset(grab_frame, "shapes", 36, 3, 10)
