@@ -1,20 +1,36 @@
 import os
 import json
 import random
+from typing import Callable
+
 import cv2
 import numpy as np
 from  image_rotation import get_rotated_image, get_shape_bbox
 
-def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int = 36, max_shapes_per_image: int = 3, num_images:int = 100):
+def create_shape_dataset(get_frame: Callable[[], cv2.Mat], 
+                         shapes_directory:str, 
+                         shape_resolution: int = 36, 
+                         max_shapes_per_image: int = 3, 
+                         num_images:int = 100,
+                         blur_radius=3):
     '''
-    get_frame is a function that returns an image (cv2 mat).
+    creates a directory called "output" adjacent to wherever this is run from and fills it with output images.
 
-    shapes_directory contains the images of the shapes to apply to the background.
+    ARGUMENTS:
 
-    shape_resolution is how big each shape will be drawn on the background, in pixels
+    `get_frame` is a function that returns an image (cv2 mat). This could just return the same image every time, a random image from a directory, or a frame from a video. The implementation doesn't matter as long as the return type is consistent.
 
-    max_shapes_per_image is how many shapes are on each image, max. It will choose a number between 0 and this parameter for each output image.
-    num_images is how many images to output
+    `shapes_directory` contains the images of the shapes to apply to the background.
+
+    `shape_resolution` is how big each shape will be drawn on the background, in pixels
+
+    `max_shapes_per_image` is how many shapes are on each image, max. It will choose a number between 0 and this parameter for each output image.
+    
+    `num_images` is how many images to output
+
+    `blur_radius` is the size of the gaussian kernel. The default is 3, which means a 3x3 kernel.
+
+
     '''
     shapes = dict(
         (
@@ -56,6 +72,7 @@ def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int 
                 for x in range(1,shape_w):
                     if shape_to_draw[bbox[0]+x][bbox[1]+y] > 0 :
                         frame[y+y_offset][x+x_offset] = color
+            frame=cv2.blur(frame, (blur_radius, blur_radius))
             annotations.append({
                 "id": image_idx*max_shapes_per_image+shape_idx,
                 "image_id": image_idx,
@@ -67,6 +84,7 @@ def create_shape_dataset(get_frame, shapes_directory:str, shape_resolution: int 
             })
         output_file_name = f"./output/image{image_idx}.png"
         cv2.imwrite(output_file_name, frame)
+        print(f"Finished {image_idx}/{num_images}")
         images.append({
             "id": image_idx,
             "license": 1,
@@ -109,4 +127,10 @@ if __name__=="__main__":
     grab_frame = lambda: img.copy()
 
 
-    create_shape_dataset(grab_frame, "shapes", 36, 3, 10)
+    create_shape_dataset(
+        get_frame=grab_frame, 
+        shapes_directory="shapes", 
+        shape_resolution=36, 
+        max_shapes_per_image=3, 
+        num_images=10
+        )
