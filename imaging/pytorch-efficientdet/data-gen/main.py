@@ -55,7 +55,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
         os.mkdir("output/test")
     image_idx=0
     annotations_file = open("./output/annotations.csv","w")
-    annotations_file.writelines(["image,xmin,ymin,xmax,ymax"])
+    annotations_file.writelines(["image,label,xmin,ymin,xmax,ymax"])
     for num_in_split, split_dir_name in [(data_split[0]*num_images, "train"),(data_split[1]*num_images, "validation"), (data_split[2]*num_images, "test")]:
         annotations = []
         images = []
@@ -84,7 +84,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                         if shape_to_draw[bbox[0]+x][bbox[1]+y] > 0 :
                             frame[y+y_offset][x+x_offset] = color
                 frame=cv2.blur(frame, (blur_radius, blur_radius))
-                annotations_file.writelines(["\n",",".join(map(str,[output_file_name,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
+                annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
                 # annotations.append({
                 #     "id": image_idx*max_shapes_per_image+shape_idx,
                 #     "image_id": image_idx,

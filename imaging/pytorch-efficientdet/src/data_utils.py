@@ -31,7 +31,10 @@ class CarsDatasetAdaptor:
         pascal_bboxes = self.annotations_df[self.annotations_df.image == image_name][
             ["xmin", "ymin", "xmax", "ymax"]
         ].values
-        class_labels = np.ones(len(pascal_bboxes))
+        # class_labels = np.ones(len(pascal_bboxes))
+        # print("Working:", class_labels)
+        class_labels = self.annotations_df[self.annotations_df.image == image_name]['label']
+        # print("Not working:",class_labels_2.values.astype(np.float64))
 
         return image, pascal_bboxes, class_labels, index
     

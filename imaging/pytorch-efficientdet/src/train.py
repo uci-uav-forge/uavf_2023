@@ -7,7 +7,7 @@ from data_utils import CarsDatasetAdaptor, EfficientDetDataModule
 
 
 
-dataset_path = Path('/home/holden/code/effdet-notebook/data-gen/output')
+dataset_path = Path('../data-gen/output')
 import pandas as pd
 
 df = pd.read_csv(dataset_path/'annotations.csv')
@@ -22,7 +22,7 @@ dm = EfficientDetDataModule(train_dataset_adaptor=cars_train_ds,
 from model import EfficientDetModel
 
 model = EfficientDetModel(
-    num_classes=1,
+    num_classes=13,
     img_size=512,
     model_architecture="tf_efficientnetv2_b0"
     )
