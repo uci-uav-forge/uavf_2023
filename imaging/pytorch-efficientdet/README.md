@@ -16,3 +16,5 @@ src
     train.py...
 
 ```
+
+to run with our data, run main.py in data-gen and then run train.py in src.
