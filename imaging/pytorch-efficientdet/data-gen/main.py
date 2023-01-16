@@ -83,52 +83,11 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                     for x in range(1,shape_w):
                         if shape_to_draw[bbox[0]+x][bbox[1]+y] > 0 :
                             frame[y+y_offset][x+x_offset] = color
-                frame=cv2.blur(frame, (blur_radius, blur_radius))
                 annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
-                # annotations.append({
-                #     "id": image_idx*max_shapes_per_image+shape_idx,
-                #     "image_id": image_idx,
-                #     "category_id": category_num,
-                #     "bbox": [(x_offset),(y_offset),shape_w,shape_h],
-                #     "area": shape_w*shape_h,
-                #     "segmentation": [],
-                #     "iscrowd": 0
-                # })
+            frame=cv2.blur(frame, (blur_radius, blur_radius))
             cv2.imwrite(f"./output/{split_dir_name}/{output_file_name}", frame)
-            print(f"Finished {image_idx}/{num_images}")
-            # images.append({
-            #     "id": image_idx,
-            #     "license": 1,
-            #     "file_name": output_file_name,
-            #     "height": height,
-            #     "width": width,
-            #     "date_captured":"2022-11-10T12:00:00+00:00"
-            # })
-            # cv2.imshow('frame', cv2.resize(frame, (1600, 900)))
-            # if cv2.waitKey(0) == ord('q'):
-            #     break
-
-        # after generating images, write metadata to coco.json
-        # coco_metadata = {
-        #     "images": images,
-        #     "annotations": annotations,
-        #     "categories": categories,
-        #     "info": {
-        #         "year": "2022",
-        #         "version": 1,
-        #         "description": f"UAV Forge shapes dataset with {shape_resolution} pixels per shape, {max_shapes_per_image} shapes per image max, and {num_images} images total.",
-        #         "contributor": "Eric Pedley"
-        #     },
-        #     "licenses": [
-        #         {
-        #             "id": 1,
-        #             "url": "https://opensource.org/licenses/MIT",
-        #             "name": "MIT"
-        #         }
-        #     ]
-        # }
-        # with open(f"output/{split_dir_name}/coco.json", "x") as f:
-        #     json.dump(coco_metadata, f)
+            print("\r[{0}{1}] {2} ({3}%)".format("="*int(image_idx/num_images*20), " "*(20-int(image_idx/num_images*20)), f"Finished {image_idx}/{num_images}", int(image_idx/num_images*100)), end="")
+            # print(f"Finished {image_idx}/{num_images}")
     annotations_file.close()
 
 if __name__=="__main__":
@@ -137,7 +96,12 @@ if __name__=="__main__":
     grab_frame = lambda: vid.read()[1]
     '''
     img = cv2.imread("fieldgrab.png")
-    grab_frame = lambda: img.copy()
+    def grab_frame(frame_size: int = 512):
+        # return img.copy()
+        h,w = img.shape[:2]
+        origin_x = random.randint(0,w-frame_size)
+        origin_y = random.randint(0,h-frame_size)
+        return img[origin_y:origin_y+frame_size,origin_x:origin_x+frame_size].copy()
 
 
     create_shape_dataset(
@@ -145,5 +109,6 @@ if __name__=="__main__":
         shapes_directory="shapes", 
         shape_resolution=36, 
         max_shapes_per_image=3, 
-        num_images=1000
+        blur_radius=5,
+        num_images=10000
     )

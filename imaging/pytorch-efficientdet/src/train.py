@@ -28,7 +28,7 @@ model = EfficientDetModel(
     )
 from pytorch_lightning import Trainer
 trainer = Trainer(
-        gpus=[0], max_epochs=5, num_sanity_val_steps=1,
+        gpus=[0,1], max_epochs=5, num_sanity_val_steps=1,
     )
 
 trainer.fit(model, dm)
