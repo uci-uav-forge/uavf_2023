@@ -14,7 +14,8 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                          max_shapes_per_image: int = 3, 
                          num_images:int = 100,
                          blur_radius=3,
-                         data_split=[1,0,0]):
+                         data_split=[1,0,0],
+                         output_dir="output"):
     '''
     creates a directory called "output" adjacent to wherever this is run from and fills it with output images.
 
@@ -54,11 +55,9 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
         os.mkdir("output/validation")
         os.mkdir("output/test")
     image_idx=0
-    annotations_file = open("./output/annotations.csv","w")
+    annotations_file = open(f"./{output_dir}/annotations.csv","w")
     annotations_file.writelines(["image,label,xmin,ymin,xmax,ymax"])
     for num_in_split, split_dir_name in [(data_split[0]*num_images, "train"),(data_split[1]*num_images, "validation"), (data_split[2]*num_images, "test")]:
-        annotations = []
-        images = []
         for _ in range(math.ceil(num_in_split)):
             image_idx+=1
             frame=get_frame()
@@ -85,7 +84,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                             frame[y+y_offset][x+x_offset] = color
                 annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
             frame=cv2.blur(frame, (blur_radius, blur_radius))
-            cv2.imwrite(f"./output/{split_dir_name}/{output_file_name}", frame)
+            cv2.imwrite(f"./{output_dir}/{split_dir_name}/{output_file_name}", frame)
             print("\r[{0}{1}] {2} ({3}%)".format("="*int(image_idx/num_images*20), " "*(20-int(image_idx/num_images*20)), f"Finished {image_idx}/{num_images}", int(image_idx/num_images*100)), end="")
             # print(f"Finished {image_idx}/{num_images}")
     annotations_file.close()
@@ -110,5 +109,6 @@ if __name__=="__main__":
         shape_resolution=36, 
         max_shapes_per_image=3, 
         blur_radius=5,
-        num_images=10000
+        num_images=10000,
+        output_dir="output2"
     )
