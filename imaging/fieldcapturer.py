@@ -3,7 +3,7 @@ Takes picture of the field below the drone and returns tiles from the picture wh
 are tagged with metadata including pixel offest and drone position.
 '''
 
-from typing import NamedTuple, Any, List
+from typing import NamedTuple, Any
 from open_gopro import GoPro, Params
 import cv2
 
@@ -13,12 +13,18 @@ class DroneStatus(NamedTuple):
     coords: Any
 
 class FieldCapturer:
+
     def __init__(self):
         self.photo_counter = 0
-
         self.gp = GoPro()
         self.gp.__enter__()
-        # Configure settings to prepare for photo
+        self.configureGpSettings()
+
+    
+    def configureGpSettings(self):
+        """
+        Configure GoPro settings to take photo.
+        """
         if self.gp.is_encoding:
             self.gp.ble_command.set_shutter(Params.Toggle.DISABLE)
         self.gp.ble_setting.video_performance_mode.set(Params.PerformanceMode.MAX_PERFORMANCE)
@@ -27,6 +33,7 @@ class FieldCapturer:
         self.gp.ble_command.set_turbo_mode(False)
         assert self.gp.ble_command.load_preset_group(Params.PresetGroup.PHOTO).is_ok
         
+
     def capture(self) -> Any:
         filename = f"photo{self.photo_counter}.jpg"
         self.photo_counter += 1

@@ -4,6 +4,8 @@ import time
 VID_CAP_PORT = 1
 SLEEP_TIME = 2
 
+
+
 def saveImages():
     cam = cv2.VideoCapture(VID_CAP_PORT)
     cv2.namedWindow("gopro stream")

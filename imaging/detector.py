@@ -4,7 +4,6 @@ and runs it on tile input.
 '''
 
 from typing import *
-import fieldcapturer
 
 class Target(NamedTuple):
     color: Any
