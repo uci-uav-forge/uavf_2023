@@ -1,3 +1,14 @@
+Realsense + ROS Wrapper Installation
+    - Connect USB devices to WSL
+        https://learn.microsoft.com/en-us/windows/wsl/connect-usb
+        
+    - Linux Distribution for RealSense SDK: 
+        https://github.com/IntelRealSense/librealsense/blob/development/doc/distribution_linux.md
+
+    - Ubuntu 20.0.4 ROS1 Wrapper:
+        https://github.com/IntelRealSense/realsense-ros/blob/ros1-legacy/README.md#installation-instructions
+
+
 Pip installing pcl for python does not work at the moment. Instead, we'll use a conda environment with python 3.6. 
 
 1. Follow this link to install conda:
