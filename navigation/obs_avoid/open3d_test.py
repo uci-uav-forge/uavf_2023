@@ -9,6 +9,25 @@ import time
 import matplotlib.pyplot as plt
 
 
+def find_centroids(num_of_clusters: int, points: np.ndarray, labels: np.ndarray) -> np.ndarray:
+    '''will return an array containing all centroids [[x1,y1,z1], [x2,y2,z2], ...]'''
+
+    cluster_arr = np.empty((num_of_clusters, len(points), 3), dtype=float)
+    sums = np.empty((num_of_clusters, 3), dtype=float)
+    counter = np.empty(num_of_clusters, dtype=float)
+
+    for i in range(len(points)):
+        for j in range(num_of_clusters):
+            if labels[i] == j:
+                counter[j] += 1 # update counter
+                cluster_arr[j][counter[j]] = points[i]
+                sums[j] += points[i]
+    
+    # now calculate averages:
+    print(cluster_arr)
+    return sums / counter[:, None]
+
+
 # visualization
 dataset = o3d.data.PLYPointCloud()
 pcd = o3d.io.read_point_cloud(dataset.path)
@@ -57,7 +76,6 @@ o3d.visualization.draw_geometries([cl],
                                     up=[-0.0694, -0.9768, 0.2024])
     
 
-
 # DBSCAN clustering
 st = time.time()
 with o3d.utility.VerbosityContextManager(
@@ -66,6 +84,7 @@ with o3d.utility.VerbosityContextManager(
         cl.cluster_dbscan(eps=0.2, min_points=10, print_progress=False))
 cluster_time = time.time() - st
 print("cluster computing time: " + str(cluster_time))
+
 
 print(labels)
 max_label = labels.max()
@@ -78,6 +97,7 @@ o3d.visualization.draw_geometries([cl],
                                   front=[-0.4999, -0.1659, -0.8499],
                                   lookat=[2.1813, 2.0619, 2.0999],
                                   up=[0.1204, -0.9852, 0.1215])
+
 
 
 # bounding volumes
