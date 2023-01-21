@@ -15,7 +15,8 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                          num_images:int = 100,
                          blur_radius=3,
                          data_split=[1,0,0],
-                         output_dir="output"):
+                         output_dir="output",
+                         noise_scale=10):
     '''
     creates a directory called "output" adjacent to wherever this is run from and fills it with output images.
 
@@ -34,6 +35,8 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
     `blur_radius` is the size of the gaussian kernel. The default is 3, which means a 3x3 kernel.
 
     `data_split` is a 3-tuple describing the proportions of train, validation, and test data generated respectively.
+
+    `noise_scale` is the standard deviation for the gaussian noise
     '''
     shapes = dict(
         (
@@ -64,7 +67,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
             height, width = frame.shape[:2]
             # shape: (height, width, 3) e.g. (2988, 5312, 3)
             output_file_name = f"image{image_idx}.png"
-            for shape_idx in range(random.randint(0,max_shapes_per_image)):
+            for _shape_idx in range(random.randint(0,max_shapes_per_image)):
                 shape_name, category_num = random.choice(list(zip(shapes.keys(), range(len(shapes)))))
                 shape_source_h, shape_source_w = shapes[shape_name].shape[:2]
                 shape_resize_w = shape_resolution # the shape source image's width and height
@@ -73,7 +76,6 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                     theta=np.random.random()*np.pi*2
                 )
                 bbox = get_shape_bbox(shape_to_draw)
-
                 shape_h, shape_w = bbox[3]-bbox[1], bbox[2]-bbox[0]
                 color = (random.randint(0,255),random.randint(0,255),random.randint(0,255))
                 x_offset = random.randint(0,width-shape_w)
@@ -81,7 +83,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                 for y in range(1,shape_h):
                     for x in range(1,shape_w):
                         if shape_to_draw[bbox[0]+x][bbox[1]+y] > 0 :
-                            frame[y+y_offset][x+x_offset] = color
+                            frame[y+y_offset][x+x_offset] = color+np.random.normal(loc=0,scale=noise_scale,size=3)
                 annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
             frame=cv2.blur(frame, (blur_radius, blur_radius))
             cv2.imwrite(f"./{output_dir}/{split_dir_name}/{output_file_name}", frame)
@@ -109,6 +111,7 @@ if __name__=="__main__":
         shape_resolution=36, 
         max_shapes_per_image=3, 
         blur_radius=5,
-        num_images=10000,
-        output_dir="output2"
+        num_images=10,
+        output_dir="output",
+        noise_scale=5
     )
