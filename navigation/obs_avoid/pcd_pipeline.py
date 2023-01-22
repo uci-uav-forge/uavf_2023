@@ -63,7 +63,8 @@ pcd = o3d.io.read_point_cloud(dataset.path)'''
     TEST_CODE = '''
 centroids, dims = process_pcd(pcd)'''
 
-    times = timeit.repeat(setup = SETUP_CODE, stmt = TEST_CODE, repeat=500, number=1)
+    times = timeit.repeat(setup = SETUP_CODE, stmt = TEST_CODE, repeat=1000, number=1)
+    print('Best case pcd processing time: {}'.format(np.min(times)))
     print('Average pcd processing time: {}'.format(np.average(times)))
 
     
