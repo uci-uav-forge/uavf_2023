@@ -6,7 +6,6 @@
 import open3d as o3d
 import numpy as np
 import time
-import matplotlib.pyplot as plt
 
 
 def segment_clusters(num_cluster: int, points: np.ndarray, labels: np.ndarray) -> tuple:
