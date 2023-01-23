@@ -15,7 +15,7 @@ def _get_text_scale(letter: str, max_w: int, max_h:int, thickness: int):
             return 1
     search_space_size=100
     scales = np.linspace(0,10,search_space_size)
-    scale_idx = bisect.bisect_right(scales,0,0,search_space_size, key=bisection_key)
+    scale_idx = bisect.bisect(list(map(bisection_key,scales)),0,0,search_space_size)
     optimal_scale = scales[scale_idx-1]
     size, _ = cv2.getTextSize(letter,0,optimal_scale,thickness)
     return optimal_scale, size
@@ -66,8 +66,10 @@ def get_shape_text_area(shape_name: str):
     
 
 if __name__=="__main__":
-    print(get_shape_text_area("circle"))
-    # img = np.ones((1000,1000)) * 255
+    # print(get_shape_text_area("circle"))
+    img = np.ones((1000,1000)) * 255
+    img = cv2.resize(img, (200,100))
+    print(img.shape)
     # letter="A"
     # bbox = [(100,100),(130,130)]
     # drawText(img, letter, bbox, 3)

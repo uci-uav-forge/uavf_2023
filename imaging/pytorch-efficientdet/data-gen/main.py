@@ -10,7 +10,7 @@ from text_rendering import drawText, get_shape_text_area
 
 def create_shape_dataset(get_frame: Callable[[], cv2.Mat], 
                          shapes_directory:str, 
-                         shape_resolution: int = 36, 
+                         shape_resolution_fn: Callable[[],int] = lambda: 36, 
                          max_shapes_per_image: int = 3, 
                          num_images:int = 100,
                          blur_radius=3,
@@ -26,7 +26,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
 
     `shapes_directory` contains the images of the shapes to apply to the background.
 
-    `shape_resolution` is how big each shape will be drawn on the background, in pixels
+    `shape_resolution` is the width that shapes will be drawn at, in pixels
 
     `max_shapes_per_image` is how many shapes are on each image, max. It will choose a number between 0 and this parameter for each output image.
     
@@ -57,7 +57,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
             shape_name, category_num = random.choice(list(zip(shapes.keys(), range(len(shapes)))))
 
             shape_source_h, shape_source_w = shapes[shape_name].shape[:2]
-            shape_resize_w = shape_resolution # the shape source image's width and height
+            shape_resize_w = shape_resolution_fn() # the shape source image's width and height
             
             resized_shape = cv2.resize(shapes[shape_name], (shape_resize_w, int(shape_resize_w*shape_source_h/shape_source_w)))
             letter = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
@@ -67,7 +67,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                 letter=letter, 
                 bounding_box=text_bbox,
                 color=(0,255,0),
-                thickness=1
+                thickness=max(1,shape_resize_w//20)
                 )
             shape_to_draw = get_rotated_image(
                 img=resized_shape,
@@ -115,25 +115,34 @@ if __name__=="__main__":
     vid = cv2.VideoCapture("no-targets-cut.mp4")
     grab_frame = lambda: vid.read()[1]
     '''
-    img = cv2.imread("fieldgrab.png")
-    def generate_frame_function(img: cv2.Mat, frame_size:int = 512):
+    field_img = cv2.imread("backgrounds/fieldgrab.png")
+    airport_1 = cv2.imread("backgrounds/airport_1.png")
+    airport_2 = cv2.imread("backgrounds/airport_2.png")
+    def generate_frame_function(frame_size:int = 512):
         '''
         Returns a function that returns a random window of `img` of size `frame_size`x`frame_size`.
         '''
         def grab_frame():
+            img=random.choice([field_img,airport_1,airport_2])
+            original_h,original_w = img.shape[:2]
+            h = random.randint(frame_size, original_h)
+            img=cv2.resize(img, (int(original_w/original_h*h), h))
+
             h,w = img.shape[:2]
             origin_x = random.randint(0,w-frame_size)
             origin_y = random.randint(0,h-frame_size)
             return img[origin_y:origin_y+frame_size,origin_x:origin_x+frame_size].copy()
         return grab_frame
+    
 
     create_shape_dataset(
-        get_frame=generate_frame_function(img), 
+        get_frame=generate_frame_function(), 
         shapes_directory="shapes", 
-        shape_resolution=50, 
-        max_shapes_per_image=3, 
+        shape_resolution_fn=lambda: int(np.random.normal(40,5)), 
+        max_shapes_per_image=5, 
         blur_radius=3,
-        num_images=10,
+        num_images=10_000,
         output_dir="output",
+        data_split=[0.99,0,0.01],
         noise_scale=1
     )
