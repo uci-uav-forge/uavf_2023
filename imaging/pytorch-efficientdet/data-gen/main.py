@@ -1,12 +1,12 @@
 import math
 import os
-import json
 import random
 from typing import Callable
 
 import cv2
 import numpy as np
 from  image_rotation import get_rotated_image, get_shape_bbox
+from text_rendering import drawText, get_shape_text_area
 
 def create_shape_dataset(get_frame: Callable[[], cv2.Mat], 
                          shapes_directory:str, 
@@ -41,55 +41,74 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
     shapes = dict(
         (
             name.split(".")[0], 
-            cv2.cvtColor(cv2.imread(f'{shapes_directory}/{name}'),cv2.COLOR_BGR2GRAY)
+            cv2.imread(f'{shapes_directory}/{name}')
         ) 
         for name in os.listdir(shapes_directory)
     )
-    categories = [
-        {
-            "id": i,
-            "name": name,
-            "supercategory": "none"
-        } for i,name in enumerate(shapes.keys())
-    ]
     if "output" not in os.listdir():
         os.mkdir("output")
         os.mkdir("output/train")
         os.mkdir("output/validation")
         os.mkdir("output/test")
     image_idx=0
-    annotations_file = open(f"./{output_dir}/annotations.csv","w")
-    annotations_file.writelines(["image,label,xmin,ymin,xmax,ymax"])
+    def add_shapes(frame, annotations_file):
+        height, width = frame.shape[:2]
+        for _shape_idx in range(random.randint(0,max_shapes_per_image)):
+            shape_name, category_num = random.choice(list(zip(shapes.keys(), range(len(shapes)))))
+
+            shape_source_h, shape_source_w = shapes[shape_name].shape[:2]
+            shape_resize_w = shape_resolution # the shape source image's width and height
+            
+            resized_shape = cv2.resize(shapes[shape_name], (shape_resize_w, int(shape_resize_w*shape_source_h/shape_source_w)))
+            letter = random.choice("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+            text_bbox = [[int(dim*shape_resize_w/shape_source_w) for dim in point] for point in get_shape_text_area(shape_name)]
+            drawText(
+                img=resized_shape, 
+                letter=letter, 
+                bounding_box=text_bbox,
+                color=(0,255,0),
+                thickness=1
+                )
+            shape_to_draw = get_rotated_image(
+                img=resized_shape,
+                theta=np.random.random()*np.pi*2
+            )
+            bbox = get_shape_bbox(shape_to_draw)
+            shape_h, shape_w = bbox[3]-bbox[1], bbox[2]-bbox[0]
+            
+            shape_color = (random.randint(0,255),random.randint(0,255),random.randint(0,255))
+            text_color=(random.randint(0,255),random.randint(0,255),random.randint(0,255))
+
+            x_offset = random.randint(0,width-shape_w)
+            y_offset = random.randint(0, height-shape_h)
+            # cv2.imshow("preview",shape_to_draw)
+            # print(shape_color, text_color)
+            # cv2.waitKey(0)
+            for y in range(1,shape_h):
+                for x in range(1,shape_w):
+                    pixel_color = shape_to_draw[bbox[0]+x][bbox[1]+y]
+                    if pixel_color[1]>0:
+                        gaussian_noise = np.random.normal(loc=0,scale=noise_scale,size=3)
+                        frame[y+y_offset][x+x_offset] = text_color+gaussian_noise
+                    elif pixel_color[2]>0 or pixel_color[0]>0:
+                        gaussian_noise = np.random.normal(loc=0,scale=noise_scale,size=3)
+                        frame[y+y_offset][x+x_offset] = shape_color+gaussian_noise
+            annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
+
     for num_in_split, split_dir_name in [(data_split[0]*num_images, "train"),(data_split[1]*num_images, "validation"), (data_split[2]*num_images, "test")]:
+        annotations_file = open(f"./{output_dir}/{split_dir_name}annotations.csv","w")
+        annotations_file.writelines(["image,label,xmin,ymin,xmax,ymax"])
         for _ in range(math.ceil(num_in_split)):
             image_idx+=1
             frame=get_frame()
-            height, width = frame.shape[:2]
             # shape: (height, width, 3) e.g. (2988, 5312, 3)
             output_file_name = f"image{image_idx}.png"
-            for _shape_idx in range(random.randint(0,max_shapes_per_image)):
-                shape_name, category_num = random.choice(list(zip(shapes.keys(), range(len(shapes)))))
-                shape_source_h, shape_source_w = shapes[shape_name].shape[:2]
-                shape_resize_w = shape_resolution # the shape source image's width and height
-                shape_to_draw = get_rotated_image(
-                    img=cv2.resize(shapes[shape_name], (shape_resize_w, int(shape_resize_w*shape_source_h/shape_source_w))),
-                    theta=np.random.random()*np.pi*2
-                )
-                bbox = get_shape_bbox(shape_to_draw)
-                shape_h, shape_w = bbox[3]-bbox[1], bbox[2]-bbox[0]
-                color = (random.randint(0,255),random.randint(0,255),random.randint(0,255))
-                x_offset = random.randint(0,width-shape_w)
-                y_offset = random.randint(0, height-shape_h)
-                for y in range(1,shape_h):
-                    for x in range(1,shape_w):
-                        if shape_to_draw[bbox[0]+x][bbox[1]+y] > 0 :
-                            frame[y+y_offset][x+x_offset] = color+np.random.normal(loc=0,scale=noise_scale,size=3)
-                annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
-            frame=cv2.blur(frame, (blur_radius, blur_radius))
+            add_shapes(frame, annotations_file)
+            if blur_radius>0:
+                frame=cv2.blur(frame, (blur_radius, blur_radius))
             cv2.imwrite(f"./{output_dir}/{split_dir_name}/{output_file_name}", frame)
             print("\r[{0}{1}] {2} ({3}%)".format("="*int(image_idx/num_images*20), " "*(20-int(image_idx/num_images*20)), f"Finished {image_idx}/{num_images}", int(image_idx/num_images*100)), end="")
-            # print(f"Finished {image_idx}/{num_images}")
-    annotations_file.close()
+        annotations_file.close()
 
 if __name__=="__main__":
     '''
@@ -97,21 +116,24 @@ if __name__=="__main__":
     grab_frame = lambda: vid.read()[1]
     '''
     img = cv2.imread("fieldgrab.png")
-    def grab_frame(frame_size: int = 512):
-        # return img.copy()
-        h,w = img.shape[:2]
-        origin_x = random.randint(0,w-frame_size)
-        origin_y = random.randint(0,h-frame_size)
-        return img[origin_y:origin_y+frame_size,origin_x:origin_x+frame_size].copy()
-
+    def generate_frame_function(img: cv2.Mat, frame_size:int = 512):
+        '''
+        Returns a function that returns a random window of `img` of size `frame_size`x`frame_size`.
+        '''
+        def grab_frame():
+            h,w = img.shape[:2]
+            origin_x = random.randint(0,w-frame_size)
+            origin_y = random.randint(0,h-frame_size)
+            return img[origin_y:origin_y+frame_size,origin_x:origin_x+frame_size].copy()
+        return grab_frame
 
     create_shape_dataset(
-        get_frame=grab_frame, 
+        get_frame=generate_frame_function(img), 
         shapes_directory="shapes", 
-        shape_resolution=36, 
+        shape_resolution=50, 
         max_shapes_per_image=3, 
-        blur_radius=5,
+        blur_radius=3,
         num_images=10,
         output_dir="output",
-        noise_scale=5
+        noise_scale=1
     )

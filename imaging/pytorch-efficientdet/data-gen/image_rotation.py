@@ -53,7 +53,7 @@ def get_rotated_image(img: cv2.Mat, theta: float):
 
 def get_shape_bbox(img: cv2.Mat, show_box=False):
     '''
-    img: cv2 Mat with shape (width,height). Can't have a third channel, has to be grayscale
+    img: cv2 Mat with shape (width,height, channels)
 
     Gets the bounding box for a shape on a completely black background (all background values are 0 exactly)
     Runtime is proportional to the number of pixels in the image (width*height).
@@ -70,14 +70,14 @@ def get_shape_bbox(img: cv2.Mat, show_box=False):
     for row in range(height):
         found_shape=False
         for col in range(width):
-            if img[col][row]>0:
+            if any(img[col][row]>0):
                 x_min = min(col, x_min)
                 x_max = max(col, x_max)
                 found_shape=True
                 break
         if found_shape:
             for col in reversed(range(width)):
-                if img[col][row]>0:
+                if any(img[col][row]>0):
                     x_min = min(col, x_min)
                     x_max = max(col, x_max)
                     break
