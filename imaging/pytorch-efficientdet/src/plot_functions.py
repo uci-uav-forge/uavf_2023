@@ -11,11 +11,12 @@ def get_rectangle_edges_from_pascal_bbox(bbox):
     return bottom_left, width, height
 
 def draw_pascal_voc_bboxes(
-    plot_ax,
+    plot_ax: plt,
     bboxes,
+    labels,
     get_rectangle_corners_fn=get_rectangle_edges_from_pascal_bbox,
 ):
-    for bbox in bboxes:
+    for bbox, label in zip(bboxes, labels):
         bottom_left, width, height = get_rectangle_corners_fn(bbox)
 
         rect_1 = patches.Rectangle(
@@ -35,6 +36,13 @@ def draw_pascal_voc_bboxes(
             fill=False,
         )
 
+        plot_ax.text(x=bottom_left[0]+width//2, 
+                     y=bottom_left[1]+height//2,
+                    s=label, 
+                    color="white", 
+                    backgroundcolor="black",
+                    horizontalalignment="center",
+                    verticalalignment="center")
         # Add the patch to the Axes
         plot_ax.add_patch(rect_1)
         plot_ax.add_patch(rect_2)
@@ -54,6 +62,8 @@ def compare_bboxes_for_image(
     image,
     predicted_bboxes,
     actual_bboxes,
+    predicted_labels,
+    actual_labels,
     draw_bboxes_fn=draw_pascal_voc_bboxes,
     figsize=(20, 20),
 ):
@@ -63,7 +73,7 @@ def compare_bboxes_for_image(
     ax2.imshow(image)
     ax2.set_title("Actual")
 
-    draw_bboxes_fn(ax1, predicted_bboxes)
-    draw_bboxes_fn(ax2, actual_bboxes)
+    draw_bboxes_fn(ax1, predicted_bboxes, predicted_labels)
+    draw_bboxes_fn(ax2, actual_bboxes, actual_labels)
 
     plt.show()
