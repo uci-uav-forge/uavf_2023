@@ -43,7 +43,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
             name.split(".")[0], 
             cv2.imread(f'{shapes_directory}/{name}')
         ) 
-        for name in os.listdir(shapes_directory)
+        for name in sorted(os.listdir(shapes_directory))
     )
     if "output" not in os.listdir():
         os.mkdir("output")
