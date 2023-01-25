@@ -37,7 +37,7 @@ class gnc_api:
             rospy.loginfo(CBLUE2 + "Using {} namespace".format(self.ns) + CEND)
 
         self.local_pos_pub = rospy.Publisher(
-            name="{}mavros/setpoint_position/local".format(self.ns),
+            name="{}mavros/setpoint_local/local".format(self.ns),
             data_class=PoseStamped,
             queue_size=1,
         )
