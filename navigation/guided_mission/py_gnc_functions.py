@@ -2,9 +2,9 @@
 from PrintColours import *
 import rospy
 from math import atan2, pow, sqrt, degrees, radians, sin, cos
-from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
+from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion, Vector3
 from nav_msgs.msg import Odometry
-from mavros_msgs.msg import State
+from mavros_msgs.msg import State, PositionTarget
 from mavros_msgs.srv import CommandTOL, CommandTOLRequest
 from mavros_msgs.srv import CommandLong, CommandLongRequest
 from mavros_msgs.srv import CommandBool, CommandBoolRequest
@@ -24,6 +24,7 @@ class gnc_api:
         self.correction_vector_g = Pose()
         self.local_offset_pose_g = Point()
         self.waypoint_g = PoseStamped()
+        self.position_target = PositionTarget()
 
         self.current_heading_g = 0.0
         self.local_offset_g = 0.0
@@ -37,7 +38,7 @@ class gnc_api:
             rospy.loginfo(CBLUE2 + "Using {} namespace".format(self.ns) + CEND)
 
         self.local_pos_pub = rospy.Publisher(
-            name="{}mavros/setpoint_local/local".format(self.ns),
+            name="{}mavros/setpoint_raw/local".format(self.ns),
             data_class=PoseStamped,
             queue_size=1,
         )
@@ -317,6 +318,34 @@ class gnc_api:
         self.waypoint_g.pose.position = Point(x, y, z)
 
         self.local_pos_pub.publish(self.waypoint_g)
+
+    def set_dest_and_speed(self, x, y, z, psi, speed_mps):
+        self.set_heading(psi)
+
+        theta = radians((self.correction_heading_g + self.local_offset_g - 90))
+
+        Xlocal = x * cos(theta) - y * sin(theta)
+        Ylocal = x * sin(theta) + y * cos(theta)
+        Zlocal = z
+
+        x = Xlocal + self.correction_vector_g.position.x + self.local_offset_pose_g.x
+
+        y = Ylocal + self.correction_vector_g.position.y + self.local_offset_pose_g.y
+
+        z = Zlocal + self.correction_vector_g.position.z + self.local_offset_pose_g.z
+
+        rospy.loginfo(
+            "Destination set to x:{} y:{} z:{} origin frame".format(x, y, z))
+
+        self.position_target.position = Point(x, y, z)
+
+        position_mag = sqrt(x ** 2 + y ** 2 + z ** 2)
+        unit_pos_vector = [x / position_mag, y / position_mag, z / position_mag]
+
+        self.position_target.velocity = Vector3(speed_mps * unit_pos_vector[0], speed_mps * unit_pos_vector[1], speed_mps * unit_pos_vector[2])
+        
+        self.local_pos_pub.publish(self.position_target)
+
 
     def arm(self):
         """Arms the drone for takeoff.
