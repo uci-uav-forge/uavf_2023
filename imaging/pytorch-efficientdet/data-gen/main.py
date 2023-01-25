@@ -13,7 +13,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                          shape_resolution_fn: Callable[[],int] = lambda: 36, 
                          max_shapes_per_image: int = 3, 
                          num_images:int = 100,
-                         blur_radius=3,
+                         blur_radius_fn=lambda: 3,
                          data_split=[1,0,0],
                          output_dir="output",
                          noise_scale=10):
@@ -43,8 +43,9 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
             name.split(".")[0], 
             cv2.imread(f'{shapes_directory}/{name}')
         ) 
-        for name in sorted(os.listdir(shapes_directory))
+        for name in os.listdir(shapes_directory)
     )
+    shape_names_and_categories = list(zip(sorted(shapes.keys()), range(1,len(shapes)+1)))
     if "output" not in os.listdir():
         os.mkdir("output")
         os.mkdir("output/train")
@@ -54,7 +55,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
     def add_shapes(frame, annotations_file):
         height, width = frame.shape[:2]
         for _shape_idx in range(random.randint(0,max_shapes_per_image)):
-            shape_name, category_num = random.choice(list(zip(shapes.keys(), range(len(shapes)))))
+            shape_name, category_num = random.choice(shape_names_and_categories)
 
             shape_source_h, shape_source_w = shapes[shape_name].shape[:2]
             shape_resize_w = shape_resolution_fn() # the shape source image's width and height
@@ -104,6 +105,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
             # shape: (height, width, 3) e.g. (2988, 5312, 3)
             output_file_name = f"image{image_idx}.png"
             add_shapes(frame, annotations_file)
+            blur_radius =blur_radius_fn()
             if blur_radius>0:
                 frame=cv2.blur(frame, (blur_radius, blur_radius))
             cv2.imwrite(f"./{output_dir}/{split_dir_name}/{output_file_name}", frame)
@@ -138,11 +140,11 @@ if __name__=="__main__":
     create_shape_dataset(
         get_frame=generate_frame_function(), 
         shapes_directory="shapes", 
-        shape_resolution_fn=lambda: int(np.random.normal(40,5)), 
+        shape_resolution_fn=lambda: int(np.random.normal(30,5)), 
         max_shapes_per_image=5, 
-        blur_radius=3,
+        blur_radius_fn=lambda: np.random.randint(3,6),
         num_images=10_000,
         output_dir="output",
-        data_split=[0.99,0,0.01],
+        data_split=[0.85,0.1,0.05],
         noise_scale=1
     )
