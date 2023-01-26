@@ -30,7 +30,7 @@ if __name__ == '__main__':
             img_size=512,
             model_architecture="efficientnet_b0" # this is the name of the backbone. For some reason it doesn't work with the corresponding efficientdet name.
             )
-        model_file='efficientnet_b0_pytorch_50epoch_2.pt'
+        model_file='efficientnet_b0_pytorch_25epoch.pt'
         model.load_state_dict(torch.load(model_file))
         model.eval()
         model.to(device="cuda")

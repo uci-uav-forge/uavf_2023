@@ -32,10 +32,9 @@ if __name__ == '__main__':
         img_size=512,
         model_architecture=backbone_name # this is the name of the backbone. For some reason it doesn't work with the corresponding efficientdet name.
         )
-    print(model.hparams_initial)
-    quit()
+
     logger = TensorBoardLogger("tb_logs", name="UAV Forge Shape Detection")
-    num_epochs = 50
+    num_epochs = 25
     trainer = Trainer(
             logger=logger,
             strategy="ddp_find_unused_parameters_false",
@@ -43,4 +42,4 @@ if __name__ == '__main__':
         )
     # to upload logs: tensorboard dev upload --logdir tb_logs
     trainer.fit(model, dm)
-    # torch.save(model.state_dict(), f'{backbone_name}_pytorch_{num_epochs}epoch_2.pt')
+    torch.save(model.state_dict(), f'{backbone_name}_pytorch_{num_epochs}epoch.pt')

@@ -120,15 +120,15 @@ if __name__=="__main__":
     vid = cv2.VideoCapture("no-targets-cut.mp4")
     grab_frame = lambda: vid.read()[1]
     '''
-    field_img = cv2.imread("backgrounds/fieldgrab.png")
-    airport_1 = cv2.imread("backgrounds/airport_1.png")
-    airport_2 = cv2.imread("backgrounds/airport_2.png")
+    background_images = []
+    for file in os.listdir("backgrounds"):
+        background_images.append(cv2.imread(f"backgrounds/{file}"))
     def generate_frame_function(frame_size:int = 512):
         '''
         Returns a function that returns a random window of `img` of size `frame_size`x`frame_size`.
         '''
         def grab_frame():
-            img=random.choice([field_img,airport_1,airport_2])
+            img=random.choice(background_images)
             original_h,original_w = img.shape[:2]
             h = random.randint(frame_size, original_h)
             img=cv2.resize(img, (int(original_w/original_h*h), h))
@@ -143,11 +143,11 @@ if __name__=="__main__":
     create_shape_dataset(
         get_frame=generate_frame_function(), 
         shapes_directory="shapes", 
-        shape_resolution_fn=lambda: int(np.random.normal(30,5)), 
-        max_shapes_per_image=5, 
-        blur_radius_fn=lambda: np.random.randint(3,6),
+        shape_resolution_fn=lambda: max(10,int(np.random.normal(30,7))), 
+        max_shapes_per_image=7, 
+        blur_radius_fn=lambda: np.random.randint(3,8),
         num_images=10_000,
         output_dir="output",
         data_split=[0.85,0.1,0.05],
-        noise_scale=1
+        noise_scale=2
     )
