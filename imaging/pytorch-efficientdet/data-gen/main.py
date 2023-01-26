@@ -1,6 +1,7 @@
 import math
 import os
 import random
+import json
 from typing import Callable
 
 import cv2
@@ -46,6 +47,8 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
         for name in os.listdir(shapes_directory)
     )
     shape_names_and_categories = list(zip(sorted(shapes.keys()), range(1,len(shapes)+1)))
+    with open("shape_name_labels.json","w") as f:
+        json.dump(shape_names_and_categories,f)
     if "output" not in os.listdir():
         os.mkdir("output")
         os.mkdir("output/train")

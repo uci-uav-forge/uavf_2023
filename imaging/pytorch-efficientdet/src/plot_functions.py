@@ -14,9 +14,11 @@ def draw_pascal_voc_bboxes(
     plot_ax: plt,
     bboxes,
     labels,
+    confidences=None,
     get_rectangle_corners_fn=get_rectangle_edges_from_pascal_bbox,
+    labels_dict=None
 ):
-    for bbox, label in zip(bboxes, labels):
+    for bbox, label, i in zip(bboxes, labels, range(len(labels))):
         bottom_left, width, height = get_rectangle_corners_fn(bbox)
 
         rect_1 = patches.Rectangle(
@@ -35,9 +37,13 @@ def draw_pascal_voc_bboxes(
             edgecolor="white",
             fill=False,
         )
+        if labels_dict is not None:
+            label=labels_dict[int(label)]
+        if confidences is not None:
+            label=f"{label} ({confidences[i]:.1%})"
 
         plot_ax.text(x=bottom_left[0]+width//2, 
-                     y=bottom_left[1]+height//2,
+                     y=bottom_left[1]+height-10,
                     s=label, 
                     color="white", 
                     backgroundcolor="black",
@@ -48,13 +54,13 @@ def draw_pascal_voc_bboxes(
         plot_ax.add_patch(rect_2)
 
 def show_image(
-    image, bboxes=None, draw_bboxes_fn=draw_pascal_voc_bboxes, figsize=(10, 10)
+    image, bboxes=None, labels=None, confidences=None,draw_bboxes_fn=draw_pascal_voc_bboxes, figsize=(10, 10), labels_dict=None
 ):
     fig, ax = plt.subplots(1, figsize=figsize)
     ax.imshow(image)
 
     if bboxes is not None:
-        draw_bboxes_fn(ax, bboxes)
+        draw_bboxes_fn(ax, bboxes, labels, confidences=confidences,labels_dict=labels_dict)
 
     plt.show()
 
@@ -64,8 +70,10 @@ def compare_bboxes_for_image(
     actual_bboxes,
     predicted_labels,
     actual_labels,
+    confidences=None,
     draw_bboxes_fn=draw_pascal_voc_bboxes,
     figsize=(20, 20),
+    labels_dict=None
 ):
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=figsize)
     ax1.imshow(image)
@@ -73,7 +81,7 @@ def compare_bboxes_for_image(
     ax2.imshow(image)
     ax2.set_title("Actual")
 
-    draw_bboxes_fn(ax1, predicted_bboxes, predicted_labels)
-    draw_bboxes_fn(ax2, actual_bboxes, actual_labels)
+    draw_bboxes_fn(ax1, predicted_bboxes, predicted_labels, confidences, labels_dict=labels_dict)
+    draw_bboxes_fn(ax2, actual_bboxes, actual_labels, labels_dict=labels_dict)
 
     plt.show()
