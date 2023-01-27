@@ -16,7 +16,7 @@ import PIL
 
 from plot_functions import show_image
 
-class CarsDatasetAdaptor:
+class ShapeDatasetAdaptor:
     def __init__(self, images_dir_path, annotations_dataframe):
         self.images_dir_path = Path(images_dir_path)
         self.annotations_df = annotations_dataframe

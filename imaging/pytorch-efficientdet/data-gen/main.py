@@ -1,6 +1,7 @@
 import math
 import os
 import random
+import json
 from typing import Callable
 
 import cv2
@@ -13,7 +14,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                          shape_resolution_fn: Callable[[],int] = lambda: 36, 
                          max_shapes_per_image: int = 3, 
                          num_images:int = 100,
-                         blur_radius=3,
+                         blur_radius_fn=lambda: 3,
                          data_split=[1,0,0],
                          output_dir="output",
                          noise_scale=10):
@@ -45,6 +46,9 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
         ) 
         for name in os.listdir(shapes_directory)
     )
+    shape_names_and_categories = list(zip(sorted(shapes.keys()), range(1,len(shapes)+1)))
+    with open("shape_name_labels.json","w") as f:
+        json.dump(shape_names_and_categories,f)
     if "output" not in os.listdir():
         os.mkdir("output")
         os.mkdir("output/train")
@@ -54,7 +58,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
     def add_shapes(frame, annotations_file):
         height, width = frame.shape[:2]
         for _shape_idx in range(random.randint(0,max_shapes_per_image)):
-            shape_name, category_num = random.choice(list(zip(shapes.keys(), range(len(shapes)))))
+            shape_name, category_num = random.choice(shape_names_and_categories)
 
             shape_source_h, shape_source_w = shapes[shape_name].shape[:2]
             shape_resize_w = shape_resolution_fn() # the shape source image's width and height
@@ -104,6 +108,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
             # shape: (height, width, 3) e.g. (2988, 5312, 3)
             output_file_name = f"image{image_idx}.png"
             add_shapes(frame, annotations_file)
+            blur_radius =blur_radius_fn()
             if blur_radius>0:
                 frame=cv2.blur(frame, (blur_radius, blur_radius))
             cv2.imwrite(f"./{output_dir}/{split_dir_name}/{output_file_name}", frame)
@@ -115,15 +120,15 @@ if __name__=="__main__":
     vid = cv2.VideoCapture("no-targets-cut.mp4")
     grab_frame = lambda: vid.read()[1]
     '''
-    field_img = cv2.imread("backgrounds/fieldgrab.png")
-    airport_1 = cv2.imread("backgrounds/airport_1.png")
-    airport_2 = cv2.imread("backgrounds/airport_2.png")
+    background_images = []
+    for file in os.listdir("backgrounds"):
+        background_images.append(cv2.imread(f"backgrounds/{file}"))
     def generate_frame_function(frame_size:int = 512):
         '''
         Returns a function that returns a random window of `img` of size `frame_size`x`frame_size`.
         '''
         def grab_frame():
-            img=random.choice([field_img,airport_1,airport_2])
+            img=random.choice(background_images)
             original_h,original_w = img.shape[:2]
             h = random.randint(frame_size, original_h)
             img=cv2.resize(img, (int(original_w/original_h*h), h))
@@ -138,11 +143,11 @@ if __name__=="__main__":
     create_shape_dataset(
         get_frame=generate_frame_function(), 
         shapes_directory="shapes", 
-        shape_resolution_fn=lambda: int(np.random.normal(40,5)), 
-        max_shapes_per_image=5, 
-        blur_radius=3,
+        shape_resolution_fn=lambda: max(10,int(np.random.normal(30,7))), 
+        max_shapes_per_image=7, 
+        blur_radius_fn=lambda: np.random.randint(3,8),
         num_images=10_000,
         output_dir="output",
-        data_split=[0.99,0,0.01],
-        noise_scale=1
+        data_split=[0.85,0.1,0.05],
+        noise_scale=2
     )
