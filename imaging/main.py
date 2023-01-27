@@ -1,14 +1,16 @@
-from fieldcapturer import FieldCapturer
-from geolocator import Geolocator
-from targetaggregator import TargetAggregator
-from shapeInference.shape_inference import ShapeInference
-from utils.target import Target
+# from fieldcapturer import FieldCapturer
+# from geolocator import Geolocator
+# from targetaggregator import TargetAggregator
+# from shapeInference.shape_inference import ShapeInference
+# from utils.target import Target
 
-from ..navigation.guided_mission.run_mission import Localizer
+import sys
+sys.path.append("..")
+from navigation.guided_mission.run_mission import Localizer
 
 import time
 import cv2 as cv
-import os 
+import os
 
 
 class Pipeline:
@@ -17,6 +19,7 @@ class Pipeline:
     VID_CAP_PORT = 1
     SLEEP_TIME = 10
 
+    """
     def __init__(self, 
     fieldCapturer: FieldCapturer, 
     geolocator: Geolocator, # Geolocation
@@ -28,6 +31,10 @@ class Pipeline:
         self.target_aggregator = targetAggreg
         self.cam = cv.VideoCapture(self.VID_CAP_PORT)
         self.shapeInference = shapeInference
+        self.localizer = Localizer()
+    """
+
+    def __init__(self):
         self.localizer = Localizer()
 
     
@@ -64,6 +71,7 @@ class Pipeline:
             current_location = self.getCurrentLocation()
             self.logGeolocation(save_counter, img, current_location)
 
+            """
             self.shapeInference.makePrediction(img)
             bounding_boxes = self.shapeInference.getBoundingBoxes() # Multiple bboxes per shape currently
 
@@ -76,7 +84,10 @@ class Pipeline:
                 x_start, x_end = bbox[1], bbox[3]
                 cropped_image = img[y_start:y_end, x_start:x_end]
                 cv.imshow("Annotated image", cropped_image.astype(np.uint8))
+            """
 
-            time.sleep(self.SLEEP_TIME) # loop
+            time.sleep(self.SLEEP_TIME) # loop delay
 
-        
+if __name__ == "__main__":
+    imagingPipeline = Pipeline()
+    imagingPipeline.run()
