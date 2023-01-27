@@ -9,6 +9,9 @@ import pandas as pd
 from model import EfficientDetModel
 from pprint import pprint
 
+from time import perf_counter
+
+
 if __name__ == '__main__':
     metric  = mean_ap.MeanAveragePrecision(class_metrics=True)
 
@@ -21,19 +24,19 @@ if __name__ == '__main__':
     num_samples = len(test_ds.images)
     batch_size = 4
     num_batches = math.ceil(num_samples/batch_size)
-
+    backbone_name="efficientnet_lite0"
+    model = EfficientDetModel(
+        num_classes=13,
+        img_size=512,
+        model_architecture=backbone_name # this is the name of the backbone. For some reason it doesn't work with the corresponding efficientdet name.
+        )
+    model_file=f'{backbone_name}_pytorch_25epoch.pt'
+    model.load_state_dict(torch.load(model_file))
+    model.eval()
+    model.to(device="cuda")
+    start_time = perf_counter()
     for batch_idx in range(num_batches):
         img_labels_list = [test_ds.get_image_and_labels_by_idx(i) for i in range(batch_idx*batch_size,min(num_samples,(batch_idx+1)*batch_size))]
-
-        model = EfficientDetModel(
-            num_classes=13,
-            img_size=512,
-            model_architecture="efficientnet_b0" # this is the name of the backbone. For some reason it doesn't work with the corresponding efficientdet name.
-            )
-        model_file='efficientnet_b0_pytorch_25epoch.pt'
-        model.load_state_dict(torch.load(model_file))
-        model.eval()
-        model.to(device="cuda")
 
         images = [x[0] for x in img_labels_list]
         actual_labels = [x[2].values for x in img_labels_list]
@@ -56,5 +59,9 @@ if __name__ == '__main__':
                 for labels, boxes in zip(actual_labels, actual_boxes)
             ],
         )
-        print(f"Finished {batch_idx}/{num_batches} batches")
+        print("\r[{0}{1}] {2} ({3}%)".format("="*int(batch_idx/num_batches*20), " "*(20-int(batch_idx/num_batches*20)), f"Finished {batch_idx}/{num_batches}", int(batch_idx/num_batches*100)), end="")
+    end_time=perf_counter()
     pprint(metric.compute())
+    total_time = end_time-start_time
+    print(f"Time taken: {total_time:.3f} seconds")
+    print(f"Per image: {total_time/num_samples:.3f} seconds")

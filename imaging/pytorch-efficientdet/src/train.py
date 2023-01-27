@@ -26,14 +26,14 @@ if __name__ == '__main__':
             num_workers=4,
             batch_size=4)
 
-    backbone_name = "efficientnet_b0"
+    backbone_name = "efficientnet_lite0"
     model = EfficientDetModel(
         num_classes=13,
         img_size=512,
         model_architecture=backbone_name # this is the name of the backbone. For some reason it doesn't work with the corresponding efficientdet name.
         )
 
-    logger = TensorBoardLogger("tb_logs", name="UAV Forge Shape Detection")
+    logger = TensorBoardLogger("tb_logs", name="UAV Forge Shape Detection Lite Model")
     num_epochs = 25
     trainer = Trainer(
             logger=logger,
