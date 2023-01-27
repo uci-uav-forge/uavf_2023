@@ -4,8 +4,11 @@ from targetaggregator import TargetAggregator
 from shapeInference.shape_inference import ShapeInference
 from utils.target import Target
 
+from ..navigation.guided_mission.run_mission import Localizer
+
 import time
 import cv2 as cv
+import os 
 
 
 class Pipeline:
@@ -23,26 +26,38 @@ class Pipeline:
         self.field_capturer = fieldCapturer
         self.geolocator = geolocator
         self.target_aggregator = targetAggreg
-        self.cam = cv2.VideoCapture(self.VID_CAP_PORT)
+        self.cam = cv.VideoCapture(self.VID_CAP_PORT)
         self.shapeInference = shapeInference
+        self.localizer = Localizer()
 
     
     def getCurrentLocation(self):
         """
         Return the current local location of the UAV.
         """
-        pass
+        return self.localizer.get_current_location()
 
 
     def run(self):
         """
         Main run loop for the Imaging pipeline.
         """
+        save_counter = 0
         while True:
             ret, img = self.cam.read()
             if not ret: raise Exception("Failed to grab frame")
 
+            # save image to file
+            path = 'savedGeoloc/images'
+            img_name = "img{}.png".format(save_counter)
+            cv.imwrite(os.path.join(path, img_name), img)
+
+            # save location to file
             current_location = self.getCurrentLocation()
+            f = open("savedGeoloc/locations.txt", "a")
+            f.write("Save counter: {} | location: {}\n".format(save_counter, current_location))
+            f.close()
+
             self.shapeInference.makePrediction(img)
             bounding_boxes = self.shapeInference.getBoundingBoxes() # Multiple bboxes per shape currently
 
