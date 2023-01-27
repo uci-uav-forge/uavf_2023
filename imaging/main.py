@@ -37,6 +37,21 @@ class Pipeline:
         """
         return self.localizer.get_current_location()
 
+    
+    def logGeolocation(self, counter: int, img, loc):
+        """
+        Save image and corresponding location in the savedGeoloc directory. 
+        The image number corresponds to the save counter in savedGeoloc/locations.txt
+        """
+        # save image
+        img_name = "img{}.png".format(counter)
+        cv.imwrite(os.path.join('savedGeoloc/images', img_name), img)
+
+        # save location
+        f = open("savedGeoloc/locations.txt", "a")
+        f.write("Save counter: {} | location: {}\n".format(counter, loc))
+        f.close()
+
 
     def run(self):
         """
@@ -46,17 +61,8 @@ class Pipeline:
         while True:
             ret, img = self.cam.read()
             if not ret: raise Exception("Failed to grab frame")
-
-            # save image to file
-            path = 'savedGeoloc/images'
-            img_name = "img{}.png".format(save_counter)
-            cv.imwrite(os.path.join(path, img_name), img)
-
-            # save location to file
             current_location = self.getCurrentLocation()
-            f = open("savedGeoloc/locations.txt", "a")
-            f.write("Save counter: {} | location: {}\n".format(save_counter, current_location))
-            f.close()
+            self.logGeolocation(save_counter, img, current_location)
 
             self.shapeInference.makePrediction(img)
             bounding_boxes = self.shapeInference.getBoundingBoxes() # Multiple bboxes per shape currently
