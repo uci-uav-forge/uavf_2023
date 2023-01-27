@@ -7,7 +7,7 @@
 import sys
 sys.path.append("..")
 from navigation.guided_mission.run_mission import Localizer
-
+import letter_detection.LetterDetector
 import time
 import cv2 as cv
 import os
@@ -36,6 +36,7 @@ class Pipeline:
 
     def __init__(self):
         self.localizer = Localizer()
+        self.letter_detector = letter_detection.LetterDetector("trained_model.h5")
 
     
     def getCurrentLocation(self):
@@ -84,8 +85,13 @@ class Pipeline:
                 x_start, x_end = bbox[1], bbox[3]
                 cropped_image = img[y_start:y_end, x_start:x_end]
                 cv.imshow("Annotated image", cropped_image.astype(np.uint8))
-            """
 
+            """
+            """
+            prediction = self.letter_detector.predict(cropped_image)
+            print(prediction)
+            
+            """
             time.sleep(self.SLEEP_TIME) # loop delay
 
 if __name__ == "__main__":
