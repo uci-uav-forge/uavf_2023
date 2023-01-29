@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import bisect
-from functools import cache
+from functools import lru_cache as cache
 from itertools import product
 
 @cache

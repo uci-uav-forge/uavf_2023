@@ -14,7 +14,7 @@ from albumentations.pytorch.transforms import ToTensorV2
 from pathlib import Path
 import PIL
 
-from plot_functions import show_image
+from .plot_functions import show_image
 
 class ShapeDatasetAdaptor:
     def __init__(self, images_dir_path, annotations_dataframe):

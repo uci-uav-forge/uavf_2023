@@ -12,7 +12,7 @@ from effdet.config.model_config import efficientdet_model_param_dict
 from effdet import get_efficientdet_config, EfficientDet, DetBenchTrain
 from effdet.efficientdet import HeadNet
 from effdet.config.model_config import efficientdet_model_param_dict
-from data_utils import get_valid_transforms
+from .data_utils import get_valid_transforms
 
 def create_model(num_classes=1, image_size=512, architecture="tf_efficientnetv2_b0"):
     efficientdet_model_param_dict[architecture] = dict(
