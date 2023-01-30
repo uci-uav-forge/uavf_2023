@@ -85,6 +85,8 @@ class Pipeline:
         f.close()
 
     def loop(self):
+        # if you need to profile use this: https://stackoverflow.com/a/62382967/14587004
+
         # ret, img = self.cam.read()
         # if not ret: raise Exception("Failed to grab frame")
         # current_location = self.getCurrentLocation()
