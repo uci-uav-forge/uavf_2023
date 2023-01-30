@@ -46,7 +46,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
         ) 
         for name in os.listdir(shapes_directory)
     )
-    shape_names_and_categories = list(zip(sorted(shapes.keys()), range(1,len(shapes)+1)))
+    shape_names_and_categories = dict(zip(range(1,len(shapes)+1), sorted(shapes.keys())))
     with open("shape_name_labels.json","w") as f:
         json.dump(shape_names_and_categories,f)
     if "output" not in os.listdir():
