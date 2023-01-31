@@ -17,6 +17,7 @@ import numpy as np
 from PIL import Image
 import json
 import tensorflow as tf
+import time
 import itertools
 
 class Pipeline:
@@ -130,6 +131,7 @@ class Pipeline:
             just_letter_images.append(
                 np.pad(box_crop,pad_width=((0,128-box_h),(0,128-box_w)))
             )
+            cv.imwrite(f"{str(image)}.png", just_letter_images[-1])
         return np.array(just_letter_images)
 
     def loop(self):
@@ -150,7 +152,7 @@ class Pipeline:
         # `map(list,...` makes sure the correct `predict` type overload (List[PIL.Image]) is being called since it tries using an identity function for ndarray[PIL.Image]
 
         offset_corrected_bboxes = []
-        split_indices =  list()
+        letter_labels = []
         for batch in map(list,np.split(
             ary=pil_images, 
             indices_or_sections=range(batch_size, len(pil_images),batch_size),
@@ -172,12 +174,17 @@ class Pipeline:
 
             result = self.letter_detector.predict(just_letter_images) # if this is slow try batching across multiple images. Maybe keep a queue of bbox crop sections and predict on the batch when a threshold is reached?
             letter_predictions = [self.letter_detector.labels[np.argmax(row)] for row in result]
-
-            print(list(zip(shape_predictions,letter_predictions)))
+            letter_labels.extend(letter_predictions)
 
             for box_x0, box_y0, box_x1, box_y1 in bboxes[tile_index]:
                 offset_corrected_bboxes.append([box_x0+x_offset,box_y0+y_offset, box_x1+x_offset, box_y1+y_offset])
-        plot_fns.show_image_cv(img, offset_corrected_bboxes,list(itertools.chain(*labels)),list(itertools.chain(*confidences)),labels_dict=self.labels_to_names_dict,file_name="processed_img.png",font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
+        plot_fns.show_image_cv(
+            img, 
+            offset_corrected_bboxes,
+            [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*labels))],
+            list(itertools.chain(*confidences)),
+            file_name="processed_img.png",
+            font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
 
         #     print(tile_index, result)
 
@@ -194,7 +201,10 @@ class Pipeline:
 
 def main():
     imagingPipeline = Pipeline()
+    start=time.perf_counter()
     imagingPipeline.loop()
+    end=time.perf_counter()
+    print(f"elapsed loop time: {end-start:.5f}")
 
 if __name__ == "__main__":
     main()

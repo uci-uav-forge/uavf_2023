@@ -68,12 +68,12 @@ def show_image(
         plt.show()
 
 def show_image_cv(
-    image: cv.Mat, bboxes=None, labels=None, confidences=None, labels_dict=None, file_name=None, font_scale=2, thickness=1,box_color=(255,255,255), text_color=(255,255,255)
+    image: cv.Mat, bboxes=None, labels=None, confidences=None, file_name=None, font_scale=2, thickness=1,box_color=(255,255,255), text_color=(255,255,255)
 ):
     for bbox, label, confidence in zip(bboxes, labels, confidences):
         x0, y0, x1, y1 = map(int,bbox)
         image=cv.rectangle(image, (x0, y0), (x1, y1),color=box_color,thickness=thickness)
-        cv.putText(image, f"{labels_dict[int(label)]}, {confidence:.1%}", (x0,y0),cv.FONT_HERSHEY_PLAIN,font_scale,text_color,thickness)
+        cv.putText(image, f"{label} ({confidence:.1%})", (x0,y0),cv.FONT_HERSHEY_PLAIN,font_scale,text_color,thickness)
     if file_name is not None:
         cv.imwrite(file_name, image)
     else:
