@@ -131,9 +131,7 @@ class Pipeline:
             just_letter_images.append(
                 np.pad(box_crop,pad_width=((0,128-box_h),(0,128-box_w)))
             )
-            cv.imwrite(f"{str(image)}.png", just_letter_images[-1])
         return np.array(just_letter_images)
-
     def loop(self):
         # if you need to profile use this: https://stackoverflow.com/a/62382967/14587004
 
@@ -146,13 +144,13 @@ class Pipeline:
         all_tiles, tile_offsets_x_y =self._split_to_tiles(img)
 
         pil_images = [Image.fromarray(tile) for tile in all_tiles]
-        batch_size = 1
+        batch_size = 8
 
-        bboxes, labels, confidences = [], [], [] # bboxes are xyxy
-        # `map(list,...` makes sure the correct `predict` type overload (List[PIL.Image]) is being called since it tries using an identity function for ndarray[PIL.Image]
+        bboxes, labels, confidences = [], [], [] 
 
         offset_corrected_bboxes = []
         letter_labels = []
+        # `map(list,...` in this loop makes sure the correct `predict` type overload is being called.
         for batch in map(list,np.split(
             ary=pil_images, 
             indices_or_sections=range(batch_size, len(pil_images),batch_size),
@@ -163,28 +161,31 @@ class Pipeline:
             bboxes.extend(b)
             labels.extend(l)
             confidences.extend(c)
+        
+        letter_image_buffer=None
         for tile_index in range(len(bboxes)):
             if len(bboxes[tile_index])<=0:
                 continue
-            shape_predictions = [self.labels_to_names_dict[int(x)] for x in labels[tile_index]]
 
             y_offset,x_offset = tile_offsets_x_y[tile_index]
 
             just_letter_images = self._get_letter_crops(pil_images[tile_index], bboxes[tile_index])
-
-            result = self.letter_detector.predict(just_letter_images) # if this is slow try batching across multiple images. Maybe keep a queue of bbox crop sections and predict on the batch when a threshold is reached?
-            letter_predictions = [self.letter_detector.labels[np.argmax(row)] for row in result]
-            letter_labels.extend(letter_predictions)
+            if letter_image_buffer is None:
+                letter_image_buffer = just_letter_images
+            else:
+                letter_image_buffer=np.concatenate([letter_image_buffer,just_letter_images],axis=0)
 
             for box_x0, box_y0, box_x1, box_y1 in bboxes[tile_index]:
                 offset_corrected_bboxes.append([box_x0+x_offset,box_y0+y_offset, box_x1+x_offset, box_y1+y_offset])
-        plot_fns.show_image_cv(
-            img, 
-            offset_corrected_bboxes,
-            [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*labels))],
-            list(itertools.chain(*confidences)),
-            file_name="processed_img.png",
-            font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
+        letter_results = self.letter_detector.predict(letter_image_buffer)
+        letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
+        # plot_fns.show_image_cv(
+        #     img, 
+        #     offset_corrected_bboxes,
+        #     [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*labels))],
+        #     list(itertools.chain(*confidences)),
+        #     file_name="processed_img.png",
+        #     font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
 
         #     print(tile_index, result)
 
@@ -208,3 +209,14 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+'''
+Run commands:
+
+For this one, remember to add @profile on the functions you want to profile, and make sure you did
+pip install line_profiler
+first
+
+kernprof -l -v main.py
+
+'''
