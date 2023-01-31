@@ -54,7 +54,7 @@ def avoidObstacle(objects): #objects should be a list of obstacles
     for obj in objects:
       drone_dist = distance(obj.get_position()) #use  radial distance function 
       beta = math.atan(obj.get_position()[0]/obj.get_position()[1]) - math.radians(cur_heading)
-      path_dist = drone_dist * math.sin(beta) #take absolute value here
+      path_dist = abs(drone_dist * math.sin(beta)) #take absolute value here
       if (path_dist < obj.get_radius() + path_distance) or (drone_dist < drone_distance + obj.get_radius()): #safety distance from path 
         avoidObstacle = True
         break
