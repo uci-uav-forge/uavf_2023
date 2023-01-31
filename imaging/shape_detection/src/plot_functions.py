@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from matplotlib import patches
+import cv2 as cv
 
 def get_rectangle_edges_from_pascal_bbox(bbox):
     xmin_top_left, ymin_top_left, xmax_bottom_right, ymax_bottom_right = bbox
@@ -54,15 +55,31 @@ def draw_pascal_voc_bboxes(
         plot_ax.add_patch(rect_2)
 
 def show_image(
-    image, bboxes=None, labels=None, confidences=None,draw_bboxes_fn=draw_pascal_voc_bboxes, figsize=(10, 10), labels_dict=None
+    image, bboxes=None, labels=None, confidences=None,draw_bboxes_fn=draw_pascal_voc_bboxes, figsize=(10, 10), labels_dict=None, file_name=None
 ):
     fig, ax = plt.subplots(1, figsize=figsize)
     ax.imshow(image)
 
     if bboxes is not None:
         draw_bboxes_fn(ax, bboxes, labels, confidences=confidences,labels_dict=labels_dict)
+    if file_name is not None:
+        plt.savefig(file_name)
+    else:
+        plt.show()
 
-    plt.show()
+def show_image_cv(
+    image: cv.Mat, bboxes=None, labels=None, confidences=None, labels_dict=None, file_name=None, font_scale=2, thickness=1,box_color=(255,255,255), text_color=(255,255,255)
+):
+    for bbox, label, confidence in zip(bboxes, labels, confidences):
+        x0, y0, x1, y1 = map(int,bbox)
+        image=cv.rectangle(image, (x0, y0), (x1, y1),color=box_color,thickness=thickness)
+        cv.putText(image, f"{labels_dict[int(label)]}, {confidence:.1%}", (x0,y0),cv.FONT_HERSHEY_PLAIN,font_scale,text_color,thickness)
+    if file_name is not None:
+        cv.imwrite(file_name, image)
+    else:
+        plt.imshow(image)
+        plt.show()
+    
 
 def compare_bboxes_for_image(
     image,
