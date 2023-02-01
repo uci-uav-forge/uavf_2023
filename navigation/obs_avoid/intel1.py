@@ -1,7 +1,7 @@
 # testing streaming intel D455 camera
 import pyrealsense2 as rs
 import open3d as o3d
-from matplotlib import pyplot as plt
+#from matplotlib import pyplot as plt
 import numpy as np
 
 def main():
@@ -19,12 +19,18 @@ def main():
     #o3d.visualization.draw_geometries([pic])
 
     # show the two different aspects of the picture (demonstration only, will remove)
-    show_in_matplotlib(pic)
+    #show_in_matplotlib(pic)
 
 
     # convert to point cloud
     intrinsic = o3d.camera.PinholeCameraIntrinsic(o3d.camera.PinholeCameraIntrinsicParameters.PrimeSenseDefault)
-    pcl = convert_depth_frame_to_pointcloud(depth_image=pic.depth, camera_intrinsics=intrinsic)
+    np_tensor = intrinsic.intrinsic_matrix
+    intrinsic_tensor = o3d.core.Tensor(np_tensor)
+    print('DATA TYPE OF COLOR:')
+    pcd = o3d.t.geometry.PointCloud.create_from_depth_image(pic.depth, intrinsic_tensor)
+    o3d.visualization.draw_geometries([pcd.to_legacy()])
+    #new_depth = o3d.geometry.create_point_cloud_from_depth_image(o3d.geometry.Image(raw_depth), intrinsic)
+    '''
 
 
     print('TYPES')
@@ -34,7 +40,7 @@ def main():
     o3d.geometry.create_point_cloud_from_depth_image(pic.depth, intrinsic)
 
     o3d.visualization.draw_geometries([pcd], zoom=0.5)
-
+'''
 
 
 def show_in_matplotlib(picture: o3d.cpu.pybind.t.geometry.RGBDImage):
