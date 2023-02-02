@@ -51,7 +51,7 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
     drone = gnc_api()
     drone.wait4connect()
     drone.set_mode_px4('OFFBOARD')
-    #drone.wait4start_px4()
+    drone.wait4start_px4()
 
     # drone takeoff
     drone.initialize_local_frame()
