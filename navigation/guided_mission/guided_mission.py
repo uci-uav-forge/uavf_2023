@@ -25,7 +25,7 @@ def init_mission(mission_q):
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
     home = (home_fix.latitude, home_fix.longitude)
     # read mission objectives from json file
-    data = json.load(open('objectives.json'))
+    data = json.load(open('px4_objectives.json'))
     bound_coords = [tuple(coord) for coord in data['boundary coordinates']] 
     wps = [tuple(wp) for wp in data['waypoints']]
     drop_bds = [tuple(bd) for bd in data['drop zone bounds']]
@@ -50,7 +50,8 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
     rate = rospy.Rate(10)
     drone = gnc_api()
     drone.wait4connect()
-    drone.wait4start()
+    drone.set_mode_px4('OFFBOARD')
+    #drone.wait4start_px4()
 
     # drone takeoff
     drone.initialize_local_frame()
