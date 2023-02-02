@@ -4,28 +4,26 @@ import numpy as np
 import json 
 
 
-def init_visualizer():
-    vis = o3d.visualization.Visualizer()
-    vis.create_window()
-    vis.add_geometry(source)
-    vis.add_geometry(target)
-    threshold = 0.05
-    icp_iteration = 100
-    save_image = False
+class O3d_Visualizer():
+    def __init__(self) -> None:
+        self.source_pcd = o3d.geometry.PointCloud()
+        self.vis = o3d.visualization.Visualizer()
+        
+        self.vis.create_window()
+        #self.vis.add_geometry(self.source_pcd)
+        self.threshold = 0.05
+        self.save_image = False
 
-    for i in range(icp_iteration):
-        reg_p2l = o3d.pipelines.registration.registration_icp(
-            source, target, threshold, np.identity(4),
-            o3d.pipelines.registration.TransformationEstimationPointToPlane(),
-            o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration=1))
-        source.transform(reg_p2l.transformation)
-        vis.update_geometry(source)
-        vis.poll_events()
-        vis.update_renderer()
-        if save_image:
-            vis.capture_screen_image("temp_%04d.jpg" % i)
-    vis.destroy_window()
-    o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Info)
+
+    def update_vis(self, pcd) -> None:
+        self.vis.remove_geometry(self.source_pcd)
+        self.source_pcd = pcd.to_legacy()
+        self.vis.add_geometry(self.source_pcd)
+        
+        self.vis.poll_events()
+        self.vis.update_renderer()
+        if self.save_image:
+            self.vis.capture_screen_image("temp_%04d.jpg" % i)
 
 
 # Get camera intrinsic 
@@ -43,29 +41,38 @@ def get_intrinsic(res_width, res_height, frame_rate):
     return intr
 
 
-def o3d_stream(intr):
+def o3d_stream(intr, o3d_vis) -> None:    
     pinhole_intr = o3d.camera.PinholeCameraIntrinsic(
         intr.width, intr.height, intr.fx, intr.fy, intr.ppx, intr.ppy)
-    intr_tensor = o3d.core.Tensor(
-        pinhole_intr.intrinsic_matrix)
     
-    with open('o3d_rs_config.json') as cf:
+    intr_tensor = o3d.core.Tensor(pinhole_intr.intrinsic_matrix)
+    
+    with open('o3d_rs_cfg.json') as cf:
         rs_cfg = o3d.t.io.RealSenseSensorConfig(json.load(cf))
-    cam = o3d.t.io.RealSenseSensor(sensor_config=rs_cfg)
+    cam = o3d.t.io.RealSenseSensor()
+    cam.init_sensor(sensor_config=rs_cfg, sensor_index=0)
     cam.start_capture(True)     # camera stream
 
-    while(True):
-        frame = cam.capture_frame(wait=True, align_depth_to_color=True)
-        # Use frame's depth and intrinsic tensor to generate a point cloud
-        pcd = o3d.t.geometry.PointCloud.create_from_depth_image(
-            frame.depth, intr_tensor)
-        o3d.visualization.draw_geometries([pcd.to_legacy()])
+    try: 
+        while True:
+            frame = cam.capture_frame(wait=True, align_depth_to_color=True)
+            depth_pcd = o3d.t.geometry.PointCloud.create_from_depth_image(frame.depth, intr_tensor)
+            o3d_vis.update_vis(depth_pcd)
+    except KeyboardInterrupt:
+        o3d_vis.vis.destroy_window()
+        o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Info)
 
 
 if __name__=='__main__':
-    width = 424
-    height = 240
-    frame_rate = 15
+    #o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
+
+    width = 1280
+    height = 720
+    frame_rate = 30
 
     intr = get_intrinsic(width, height, frame_rate)
     print(intr)
+    
+    o3d_vis = O3d_Visualizer()
+
+    o3d_stream(intr, o3d_vis)
