@@ -202,26 +202,6 @@ class gnc_api:
             else:
                 rospy.logerr(CRED2 + "Error startting mission" + CEND)
                 return -1
-    
-    def wait4start_px4(self):
-        """This function will hold the program until the user signals the FCU to mode enter OFFBOARD mode. This is typically done from a switch on the safety pilot's remote or from the Ground Control Station.
-
-        Returns:
-                0 (int): Mission started successfully.
-                -1 (int): Failed to start mission.
-        """
-        rospy.loginfo(CYELLOW2 + CBLINK +
-                      "Waiting for user to set mode to OFFBOARD" + CEND)
-        while not rospy.is_shutdown() and self.current_state_g.mode != "OFFBOARD": 
-            rospy.sleep(0.01)
-        else:
-            if self.current_state_g.mode == "OFFBOARD":
-                rospy.loginfo(
-                    CGREEN2 + "Mode set to OFFBOARD. Starting Mission..." + CEND)
-                return 0
-            else:
-                rospy.logerr(CRED2 + "Error starting mission" + CEND)
-                return -1
 
     def set_mode(self, mode):
         """This function changes the mode of the drone to a user specified mode. This takes the mode as a string. Ex. set_mode("GUIDED").
