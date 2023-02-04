@@ -8,7 +8,7 @@ For PX4:
 		https://docs.px4.io/main/en/companion_computer/pixhawk_companion.html
 	
 	Run irl drone MAVROS node:
-		roslaunch mavros px4.launch fcu_url:="roslaunch mavros px4.launch fcu_url:="/dev/ttyPixhawk"
+		roslaunch mavros px4.launch fcu_url:="/dev/ttyPixhawk"
 	
 	Run QGroundControl:
 		$ ./QGroundControl.AppImage

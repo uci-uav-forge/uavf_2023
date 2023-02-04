@@ -2,6 +2,7 @@
 from PrintColours import *
 import rospy
 from math import atan2, pow, sqrt, degrees, radians, sin, cos
+from std_msgs.msg import Float64
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 from nav_msgs.msg import Odometry
 from mavros_msgs.msg import State
@@ -24,6 +25,7 @@ class gnc_api:
         self.correction_vector_g = Pose()
         self.local_offset_pose_g = Point()
         self.waypoint_g = PoseStamped()
+        self.current_compass_hdg = Float64()
 
         self.current_heading_g = 0.0
         self.local_offset_g = 0.0
@@ -40,6 +42,13 @@ class gnc_api:
             name="{}mavros/setpoint_position/local".format(self.ns),
             data_class=PoseStamped,
             queue_size=1,
+        )
+
+        self.compass_sub = rospy.Subscriber (
+            name="{}mavros/global_position/compass_hdg".format(self.ns),
+            data_class=Float64,
+            queue_size=1,
+            callback=self.compass_cb,
         )
 
         self.currentPos = rospy.Subscriber(
@@ -87,8 +96,10 @@ class gnc_api:
         )
         rospy.loginfo(CBOLD + CGREEN2 + "Initialization Complete." + CEND)
 
+
     def state_cb(self, message):
         self.current_state_g = message
+
 
     def pose_cb(self, msg):
         """Gets the raw pose of the drone and processes it for use in control.
@@ -111,6 +122,11 @@ class gnc_api:
 
         self.current_heading_g = degrees(psi) - self.local_offset_g
 
+
+    def compass_cb(self, msg):
+        self.current_compass_hdg = msg
+
+    
     def enu_2_local(self):
         x, y, z = (
             self.current_pose_g.pose.pose.position.x,
@@ -132,6 +148,11 @@ class gnc_api:
 
         return current_pos_local
 
+    
+    def get_current_compass_hdg(self):\
+        return self.current_compass_hdg.data
+
+    
     def get_current_heading(self):
         """Returns the current heading of the drone.
 
@@ -140,6 +161,7 @@ class gnc_api:
         """
         return self.current_heading_g
 
+
     def get_current_location(self):
         """Returns the current position of the drone.
 
@@ -147,6 +169,7 @@ class gnc_api:
             Position (geometry_msgs.Point()): Returns position of type geometry_msgs.Point().
         """
         return self.enu_2_local()
+
 
     def land(self):
         """The function changes the mode of the drone to LAND.
@@ -165,6 +188,7 @@ class gnc_api:
             rospy.logerr(CRED2 + "Landing failed" + CEND)
             return -1
 
+
     def wait4connect(self):
         """Wait for connect is a function that will hold the program until communication with the FCU is established.
 
@@ -182,6 +206,7 @@ class gnc_api:
             else:
                 rospy.logerr(CRED2 + "Error connecting to drone's FCU" + CEND)
                 return -1
+
 
     def wait4start(self):
         """This function will hold the program until the user signals the FCU to mode enter GUIDED mode. This is typically done from a switch on the safety pilot's remote or from the Ground Control Station.
@@ -203,6 +228,7 @@ class gnc_api:
                 rospy.logerr(CRED2 + "Error startting mission" + CEND)
                 return -1
 
+
     def set_mode(self, mode):
         """This function changes the mode of the drone to a user specified mode. This takes the mode as a string. Ex. set_mode("GUIDED").
 
@@ -222,6 +248,7 @@ class gnc_api:
             rospy.logerr(CRED2 + "SetMode has failed" + CEND)
             return -1
     
+
     def set_mode_px4(self, mode):
         """This function changes the mode of the drone to a user specified mode. This takes the mode as a string. Ex. set_mode("GUIDED").
 
@@ -241,6 +268,7 @@ class gnc_api:
         else:
             rospy.logerr(CRED2 + "SetMode has failed" + CEND)
             return -1
+
 
     def set_speed(self, speed_mps):
         """This function is used to change the speed of the vehicle in guided mode. It takes the speed in meters per second as a float as the input.
@@ -276,6 +304,7 @@ class gnc_api:
                 CRED2 + "Speed set result was {}".format(str(response.result)) + CEND)
             return -1
 
+
     def set_heading(self, heading):
         """This function is used to specify the drone's heading in the local reference frame. Psi is a counter clockwise rotation following the drone's reference frame defined by the x axis through the right side of the drone with the y axis through the front of the drone.
 
@@ -308,6 +337,7 @@ class gnc_api:
 
         self.waypoint_g.pose.orientation = Quaternion(qx, qy, qz, qw)
 
+
     def set_destination(self, x, y, z, psi):
         """This function is used to command the drone to fly to a waypoint. These waypoints should be specified in the local reference frame. This is typically defined from the location the drone is launched. Psi is counter clockwise rotation following the drone's reference frame defined by the x axis through the right side of the drone with the y axis through the front of the drone.
 
@@ -338,6 +368,7 @@ class gnc_api:
 
         self.local_pos_pub.publish(self.waypoint_g)
 
+
     def arm(self):
         """Arms the drone for takeoff.
 
@@ -354,7 +385,7 @@ class gnc_api:
         rospy.loginfo(CBLUE2 + "Arming Drone" + CEND)
 
         arm_request = CommandBoolRequest(True)
-
+        response = self.arming_client(arm_request)
         while not rospy.is_shutdown() and not self.current_state_g.armed:
             rospy.sleep(0.1)
             response = self.arming_client(arm_request)
@@ -366,6 +397,7 @@ class gnc_api:
             else:
                 rospy.logerr(CRED2 + "Arming failed" + CEND)
                 return -1
+
 
     def takeoff(self, takeoff_alt):
         """The takeoff function will arm the drone and put the drone in a hover above the initial position.
@@ -388,8 +420,10 @@ class gnc_api:
             rospy.logerr(CRED2 + "Takeoff failed" + CEND)
             return -1
 
+
     def initialize_local_frame(self):
         """This function will create a local reference frame based on the starting location of the drone. This is typically done right before takeoff. This reference frame is what all of the the set destination commands will be in reference to."""
+        '''
         self.local_offset_g = 0.0
 
         for i in range(30):
@@ -404,7 +438,8 @@ class gnc_api:
 
             psi = atan2((2 * (q0 * q3 + q1 * q2)),
                         (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
-
+            psi = 0
+            
             self.local_offset_g += degrees(psi)
             self.local_offset_pose_g.x += self.current_pose_g.pose.pose.position.x
             self.local_offset_pose_g.y += self.current_pose_g.pose.pose.position.y
@@ -414,12 +449,15 @@ class gnc_api:
         self.local_offset_pose_g.y /= 30.0
         self.local_offset_pose_g.z /= 30.0
         self.local_offset_g /= 30.0
+        '''
+        self.local_offset_g=90
 
         rospy.loginfo(CBLUE2 + "Coordinate offset set" + CEND)
         rospy.loginfo(
             CGREEN2 + "The X-Axis is facing: {}".format(self.local_offset_g) + CEND)
 
-    def check_waypoint_reached(self, pos_tol=3, head_tol=3):
+
+    def check_waypoint_reached(self, pos_tol=3, head_tol=0.1):
         """This function checks if the waypoint is reached within given tolerance and returns an int of 1 or 0. This function can be used to check when to request the next waypoint in the mission.
 
         Args:

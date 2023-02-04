@@ -18,17 +18,18 @@ from global_path.flight_plan_tsp import FlightPlan
 
 def init_mission(mission_q, use_px4=False): 
     # mission parameters in SI units
-    takeoff_alt = 30 # m
+    takeoff_alt = 10 # m
     drop_alt = 25 # m
-    avg_spd = 15 # m/s
+    avg_spd = 5 # m/s
     drop_spd = 3 # m/s
 
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
     home = (home_fix.latitude, home_fix.longitude)
+    home = (33.642608, -117.824574)
     
     # read mission objectives from json file
     if use_px4 == True:
-        data = json.load(open('px4_objectives.json'))
+        data = json.load(open('px4_objectives_flight_day.json'))
     else:
         data = json.load(open('objectives.json'))
     
@@ -40,7 +41,7 @@ def init_mission(mission_q, use_px4=False):
     avg_alt = np.average(alts) 
     
     test_map = FlightPlan(bound_coords, home, drop_alt, avg_alt)
-    global_path = test_map.gen_globalpath(wps, drop_bds)
+    global_path = test_map.gen_globalpath(wps, drop_bds, want_visual=False)
 
     # initialize priority queue
     for i in range(1, len(global_path)): 
@@ -56,32 +57,29 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
     rate = rospy.Rate(10)
     drone = gnc_api()
     drone.wait4connect()
-    
     if use_px4 == True:
         drone.set_mode_px4('OFFBOARD')
     else:
         drone.wait4start()
 
-    # drone takeoff
+    # align drone heading with north
     drone.initialize_local_frame()
-
     if use_px4 == True:
         drone.arm()
     else:
         drone.takeoff(takeoff_alt)
-    
+        
     drone.set_destination(
         x=0, y=0, z=takeoff_alt, psi=0)
     while not drone.check_waypoint_reached():
         pass
     
-    prev_wp = (0, 0, 0)
     # outer loop: check if there are more waypoints to travel to
     while mission_q.qsize():
         # get next waypoint
         curr_wp = mission_q.queue[0][1]
         # calc desired heading
-        curr_pos = drone.enu_2_local()
+        curr_pos = drone.get_current_location()
         hdg = -90 + np.degrees(
             np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x))
 
@@ -91,6 +89,7 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
             drone.set_speed(drop_spd)
         else:
             drone.set_speed(avg_spd)
+        #drone.set_heading(hdg)
         drone.set_destination(
             x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg)
 

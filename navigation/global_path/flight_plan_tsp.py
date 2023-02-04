@@ -154,7 +154,7 @@ class FlightPlan():
         return order, dist
 
 
-    def gen_globalpath(self, wps: list, drop_bds=[]) -> list:
+    def gen_globalpath(self, wps: list, drop_bds=[], want_visual=True) -> list:
         # waypoints to cross the dropzone
         drop_pts = self.process_dropzone(drop_bds)
 
@@ -218,7 +218,10 @@ class FlightPlan():
         # rerun tsp, reorgqnize global path including boundary offsets
         order, dist = self.run_tsp(pt_order)
         global_path = [pt_order[i] for i in order]
-        self.draw_map(waypt_order, global_path)
+        
+        if want_visual:
+            self.draw_map(waypt_order, global_path)
+
         return global_path
 
 
