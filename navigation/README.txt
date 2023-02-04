@@ -1,5 +1,11 @@
 For PX4: 
-
+	Set up telemetry on companion computer (plug in cube to usb port):
+		(do the udev rule stuff)
+		https://docs.px4.io/main/en/companion_computer/pixhawk_companion.html
+	
+	Run irl drone MAVROS node:
+		roslaunch mavros px4.launch fcu_url:="roslaunch mavros px4.launch fcu_url:="/dev/ttyPixhawk"
+	
 	Run QGroundControl:
 		$ ./QGroundControl.AppImage
 	
@@ -7,7 +13,7 @@ For PX4:
 		cd into PX4-Autopilot
 		$ sudo make px4_sitl_default gazebo
 		
-	To launch MAVROS node:
+	To launch simulation MAVROS node:
 		$ roslaunch mavros px4.launch fcu_url:="udp://:14540@127.0.0.1:14557"
 
 	To rebuild catkin workspace:
