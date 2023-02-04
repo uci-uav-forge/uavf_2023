@@ -14,7 +14,9 @@ def drone_checks():
     print('LOCAL POSITION TEST: ' + str(drone.get_current_location()))
     print('ARMING TEST: ')
     drone.arm()
-    drone.land()
+    #drone.set_destination(
+    #    x=0, y=0, z=3, psi=0)
+    #drone.land()
 
 
 if __name__ == '__main__':
