@@ -10,7 +10,7 @@ def drone_checks():
     drone.set_mode_px4('OFFBOARD')
 
     print('LOCAL HEADING TEST: ' + str(drone.get_current_heading()))
-    print('COMPASS HEADING TEST: ' + str(drone.get_current_compass_hdg()))
+    #print('COMPASS HEADING TEST: ' + str(drone.get_current_compass_hdg()))
     print('LOCAL POSITION TEST: ' + str(drone.get_current_location()))
     print('ARMING TEST: ')
     drone.arm()
