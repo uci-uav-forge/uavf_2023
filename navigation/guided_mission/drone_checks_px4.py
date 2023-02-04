@@ -16,6 +16,9 @@ def drone_checks():
     drone.arm()
     drone.set_destination(
         x=0, y=0, z=10, psi=0)
+    
+    while not drone.check_waypoint_reached():
+        pass
     drone.land()
 
 
