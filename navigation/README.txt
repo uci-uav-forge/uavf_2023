@@ -1,3 +1,7 @@
+To SSH into Jetson Nano (test quad):
+	IP address 172.20.10.2 on Omar's Iphone hotspot
+	
+
 For PX4: 
 	Set up telemetry on companion computer (plug in cube to usb port):
 		(do the udev rule stuff)
