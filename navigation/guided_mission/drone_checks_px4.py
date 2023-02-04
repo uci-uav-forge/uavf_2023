@@ -18,6 +18,7 @@ def drone_checks():
         x=0, y=0, z=10, psi=0)
     
     while not drone.check_waypoint_reached():
+        print('drone has not satisfied waypoint!')
         pass
     drone.land()
 
