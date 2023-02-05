@@ -35,13 +35,13 @@ def color_quantization(image, k):
     retwlocation, labelwlocation, centerwlocation = cv2.kmeans(reshapeimgarray, k, None, criteria, 10, cv2.KMEANS_RANDOM_CENTERS)
 
     centerwlocation = np.uint8(centerwlocation)
-    centroid_mask = np.copy(centerwlocation)
-    centroid_mask = np.delete(centroid_mask,-1,1)
-   # print(centroid_mask)
+  #  centroid_mask = np.copy(centerwlocation)
+  #  centroid_mask = np.delete(centroid_mask,-1,1)
+    #collecting the three channels for centroid mask
 
     result = centerwlocation[labelwlocation.flatten()]
     result = result.reshape(onecolmnarry)
-    result = np.delete(result,-1,1)
+    result = np.delete(result,-1,1)  #deleting the radius channel that was temporary added to the img array
 #    result = np.delete(result,-1,1)   #if we used 5 dimensions include this to return the array back to 3 channels
 
     result = result.reshape(image.shape)
@@ -98,69 +98,53 @@ def color_rknn_classify(colordatafile,centroidlst, lettermsk, shapemsk):
   centroid_value = np.delete(centroid_value,-1,1)
   xdata = []
   ylabel = []
-  kradius = 100
+  kradius = 10
   for colorlabel in shadesofcolordata:
     for shadevalue in shadesofcolordata[colorlabel]:
 #      xdata.append([shadevalue['R'],shadevalue['G'],shadevalue['B']])
       xdata.append([shadevalue['H'],shadevalue['S'],shadevalue['V']])
-#      xdata.append([shadevalue['H'],shadevalue['V']])
       ylabel.append(colorlabel)
 
  # print(xdata)
   hv_centroid = []
   for rgbvalue in centroid_value:
     h,s,v = colorsys.rgb_to_hsv(rgbvalue[0]/255, rgbvalue[1]/255, rgbvalue[2]/255)
-    print(h,s,v)
+  #  print(h,s,v)
     color_hsv = [round(h*179), round(s*255), round(v*255)]
-    print(color_hsv)
-   # color_hsv = [round(h*179), round(v*255)]
-    print(color_hsv)
+  #  print(color_hsv)
+#    color_hsv = rgbvalue    #rgb testrun
+  #  print(color_hsv)
     hv_centroid.append(color_hsv)
-
-
- # print(centroid_value[0].tolist())
   print(hv_centroid)
-  colorneigh = RadiusNeighborsClassifier(kradius)
+  colorneigh = RadiusNeighborsClassifier(radius = kradius,weights ="distance")
   colorneigh.fit(xdata, ylabel)
- # letter_predict = colorneigh.predict([centroid_value[0].tolist()])
- # shape_predict = colorneigh.predict([centroid_value[1].tolist()])
   letter_predict = colorneigh.predict([hv_centroid[0]])
   shape_predict = colorneigh.predict([hv_centroid[1]])
-  print(letter_predict, shape_predict)
-  colordatafile.close()
+  print('letter:', letter_predict,'shape:', shape_predict)
+ # colordatafile.close()
+
 
 if __name__ == "__main__":
     
 #--------------------------------------------------------------------------------------------------------------
-#    datatestreport = {}     for scoring and report purposes ignore for now
-#    notdetected = {"red":0, "orange":0, "yellow":0, "green":0, "blue":0, "purple":0, "gray":0, "white":0, "black":0, "brown":0}
-#    test = 0
+#    
 #--------------------------------------------------------------------------------------------------------------
 
     files = open("circleblurtestset1.json")  # json with the datatestset of the file location, and letter, shape
     #debugfiles = open("debugcircletestset1.json")
     datasample = json.load(files)
 
-    #checking for accuracy an integer
-    total = len(datasample)
-    score = 0
-    #have an overall for loop
+    #have an overall for loop for testing; for loop will be deleted when implemented in the pipeline
     for eachfilelocation in datasample:
-       # test +=1  IGNORE WAS FOR TESTING
-       # datatestreport[test] = []
-       # datatestreport[test].append(eachfilelocation) 
+
         image = cv2.imread(eachfilelocation)
         #image = cv2.imread("C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-17whitered.jpg")
         cv2.imshow('og', image)
         cv2.waitKey(0)
         rgbimage = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-      # rgbimage = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)
-      #  cv2.imshow('res', rgbimage)
-      #  cv2.waitKey(0)
+
         threemaskimage, centroid = color_quantization(rgbimage,3)
-        print(centroid)
-      #  cv2.imshow('res', threemaskimage)
-      #  cv2.waitKey(0)
+        #image is reconstructed into three colors
         lettermask, shapemask = letter_shape_mask(threemaskimage,centroid)
         #next is classification
         classifiedcolor = color_rknn_classify('sample.json',centroid,lettermask,shapemask)
