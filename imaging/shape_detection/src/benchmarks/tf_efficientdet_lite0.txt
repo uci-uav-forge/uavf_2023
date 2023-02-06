@@ -14,5 +14,5 @@
  'mar_large': tensor(-1.),
  'mar_medium': tensor(0.8661),
  'mar_small': tensor(0.5107)}
-Time taken: 152.064 seconds
-Per image: 0.342 seconds
+Time taken: 14.229 seconds
+Per image: 0.032 seconds
