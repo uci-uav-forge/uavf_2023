@@ -1,0 +1,18 @@
+{'map': tensor(0.5888),
+ 'map_50': tensor(0.6938),
+ 'map_75': tensor(0.6892),
+ 'map_large': tensor(-1.),
+ 'map_medium': tensor(0.8433),
+ 'map_per_class': tensor([0.3890, 0.5379, 0.6303, 0.4542, 0.5826, 0.7030, 0.7069, 0.6354, 0.4771,
+        0.8089, 0.6179, 0.4434, 0.6674]),
+ 'map_small': tensor(0.4564),
+ 'mar_1': tensor(0.5570),
+ 'mar_10': tensor(0.6151),
+ 'mar_100': tensor(0.6151),
+ 'mar_100_per_class': tensor([0.4054, 0.5589, 0.6634, 0.4785, 0.6417, 0.7220, 0.7328, 0.6521, 0.5000,
+        0.8375, 0.6345, 0.4708, 0.6980]),
+ 'mar_large': tensor(-1.),
+ 'mar_medium': tensor(0.8661),
+ 'mar_small': tensor(0.5107)}
+Time taken: 152.064 seconds
+Per image: 0.342 seconds
