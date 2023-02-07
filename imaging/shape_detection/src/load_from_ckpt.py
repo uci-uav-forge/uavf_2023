@@ -1,5 +1,5 @@
 import torch
-from model import EfficientDetModel
+from shape_det_model import EfficientDetModel
 
 backbone_name = "efficientnet_b0"
 checkpoint = torch.load("tb_logs/UAV Forge Shape Detection/version_3/checkpoints/epoch=24-step=23274.ckpt")

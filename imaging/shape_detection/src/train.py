@@ -6,7 +6,7 @@ import torch
 import torch.onnx
 from data_utils import ShapeDatasetAdaptor, EfficientDetDataModule
 import pandas as pd
-from model import EfficientDetModel
+from shape_det_model import EfficientDetModel
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import TensorBoardLogger
 
