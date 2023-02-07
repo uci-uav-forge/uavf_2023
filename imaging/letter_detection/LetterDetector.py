@@ -1,6 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
+
 class LetterDetector:
     def __init__(self, path):
         self.model = tf.keras.models.load_model(path)
@@ -21,7 +22,7 @@ class LetterDetector:
 if __name__ == "__main__":
     model = LetterDetector('../trained_model.h5')
     print(model.model.summary())
-    image = tf.keras.utils.load_img('./test/dataset/data/0.jpg', color_mode = "grayscale")
+    image = tf.keras.utils.load_img('./test/dataset/data/0.jpg', color_mode="grayscale")
     input_arr = tf.keras.utils.img_to_array(image)
     input_arr = np.array([input_arr])
     print(input_arr.shape)
