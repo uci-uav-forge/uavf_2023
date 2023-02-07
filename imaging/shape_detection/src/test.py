@@ -6,7 +6,7 @@ import torch
 import torch.onnx
 from data_utils import ShapeDatasetAdaptor
 import pandas as pd
-from model import EfficientDetModel
+from shape_det_model import EfficientDetModel
 from pprint import pprint
 
 from time import perf_counter
