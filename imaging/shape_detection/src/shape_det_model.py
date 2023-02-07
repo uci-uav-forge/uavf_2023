@@ -1,10 +1,10 @@
 import numpy as np
+import json
 import torch
 from typing import List
 
 from fastcore.dispatch import typedispatch
 from pytorch_lightning import LightningModule
-
 
 from ensemble_boxes import ensemble_boxes_wbf
 
@@ -14,6 +14,7 @@ from effdet.efficientdet import HeadNet
 from effdet.config.model_config import efficientdet_model_param_dict
 from .data_utils import get_valid_transforms
 
+
 def create_model(num_classes=1, image_size=512, architecture="tf_efficientnetv2_b0"):
     efficientdet_model_param_dict[architecture] = dict(
         name=architecture,
@@ -21,11 +22,11 @@ def create_model(num_classes=1, image_size=512, architecture="tf_efficientnetv2_
         backbone_args=dict(drop_path_rate=0.2),
         num_classes=num_classes,
         url='', )
-    
+
     config = get_efficientdet_config(architecture)
     config.update({'num_classes': num_classes})
     config.update({'image_size': (image_size, image_size)})
-    
+
     # print(config)
 
     net = EfficientDet(config, pretrained_backbone=True)
@@ -34,6 +35,40 @@ def create_model(num_classes=1, image_size=512, architecture="tf_efficientnetv2_
         num_outputs=config.num_classes,
     )
     return DetBenchTrain(net, config)
+
+
+def getShapeModel(image_size: int):
+    """
+    Returns the EfficientDet shape model for the Imaging pipeline
+    Args:
+        image_size: Size of image passed into the shape detection model
+
+    Returns: Shape detection model
+    """
+    backbone_name = "efficientnet_lite0"
+    model_file = f"efficientnet_lite0_pytorch_25epoch.pt"
+
+    model = EfficientDetModel(
+        num_classes=13,
+        img_size=image_size,
+        model_architecture=backbone_name
+        # this is the name of the backbone. For some reason it doesn't work with the corresponding efficientdet name.
+    )
+    model.load_state_dict(torch.load(model_file))
+    model.to("cuda")
+    model.eval()
+    return model
+
+
+def getLabelToNameDict():
+    """
+    Returns: Map of shape label to name for the Imaging pipeline
+    """
+    with open("../data-gen/shape_name_labels.json", "r") as f:
+        raw_dict: dict = json.load(f)
+        int_casted_keys = map(int, raw_dict.keys())
+        return dict(zip(int_casted_keys, raw_dict.values()))
+
 
 def run_wbf(predictions, image_size=512, iou_thr=0.44, skip_box_thr=0.43, weights=None):
     bboxes = []
@@ -63,14 +98,14 @@ def run_wbf(predictions, image_size=512, iou_thr=0.44, skip_box_thr=0.43, weight
 
 class EfficientDetModel(LightningModule):
     def __init__(
-        self,
-        num_classes=1,
-        img_size=512,
-        prediction_confidence_threshold=0.2,
-        learning_rate=0.0002,
-        wbf_iou_threshold=0.44,
-        inference_transforms=get_valid_transforms(target_img_size=512),
-        model_architecture='tf_efficientnetv2_l',
+            self,
+            num_classes=1,
+            img_size=512,
+            prediction_confidence_threshold=0.2,
+            learning_rate=0.0002,
+            wbf_iou_threshold=0.44,
+            inference_transforms=get_valid_transforms(target_img_size=512),
+            model_architecture='tf_efficientnetv2_l',
     ):
         super().__init__()
         self.img_size = img_size
@@ -82,14 +117,12 @@ class EfficientDetModel(LightningModule):
         self.wbf_iou_threshold = wbf_iou_threshold
         self.inference_tfms = inference_transforms
 
-
     # @auto_move_data
     def forward(self, images, targets):
         return self.model(images, targets)
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.model.parameters(), lr=self.lr)
-
 
     def training_step(self, batch, batch_idx):
         images, annotations, _, image_ids = batch
@@ -111,7 +144,6 @@ class EfficientDetModel(LightningModule):
                  logger=True)
 
         return losses['loss']
-
 
     @torch.no_grad()
     def validation_step(self, batch, batch_idx):
@@ -141,8 +173,7 @@ class EfficientDetModel(LightningModule):
                  prog_bar=True, logger=True, sync_dist=True)
 
         return {'loss': outputs["loss"], 'batch_predictions': batch_predictions}
-    
-    
+
     @typedispatch
     def predict(self, images: List):
         """
@@ -180,8 +211,8 @@ class EfficientDetModel(LightningModule):
         if images_tensor.ndim == 3:
             images_tensor = images_tensor.unsqueeze(0)
         if (
-            images_tensor.shape[-1] != self.img_size
-            or images_tensor.shape[-2] != self.img_size
+                images_tensor.shape[-1] != self.img_size
+                or images_tensor.shape[-2] != self.img_size
         ):
             raise ValueError(
                 f"Input tensors must be of shape (N, 3, {self.img_size}, {self.img_size})"
@@ -211,7 +242,7 @@ class EfficientDetModel(LightningModule):
         )
 
         return scaled_bboxes, predicted_class_labels, predicted_class_confidences
-    
+
     def _create_dummy_inference_targets(self, num_images):
         dummy_targets = {
             "bbox": [
@@ -226,7 +257,7 @@ class EfficientDetModel(LightningModule):
         }
 
         return dummy_targets
-    
+
     def post_process_detections(self, detections):
         predictions = []
         for i in range(detections.shape[0]):
@@ -257,18 +288,16 @@ class EfficientDetModel(LightningModule):
             if len(bboxes) > 0:
                 scaled_bboxes.append(
                     (
-                        np.array(bboxes)
-                        * [
-                            im_w / self.img_size,
-                            im_h / self.img_size,
-                            im_w / self.img_size,
-                            im_h / self.img_size,
-                        ]
+                            np.array(bboxes)
+                            * [
+                                im_w / self.img_size,
+                                im_h / self.img_size,
+                                im_w / self.img_size,
+                                im_h / self.img_size,
+                            ]
                     ).tolist()
                 )
             else:
                 scaled_bboxes.append(bboxes)
 
         return scaled_bboxes
-
-
