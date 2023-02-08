@@ -163,12 +163,12 @@ class gnc_api:
 
 
     def get_current_location(self):
-        """Returns the current position of the drone.
+        current_pos_local = Point()
+        current_pos_local.x = self.current_pose_g.pose.pose.position.x - self.correction_vector_g.position.x - self.local_offset_pose_g.x
+        current_pos_local.y = self.current_pose_g.pose.pose.position.y - self.correction_vector_g.position.y - self.local_offset_pose_g.y
+        current_pos_local.z = self.current_pose_g.pose.pose.position.z - self.correction_vector_g.position.z - self.local_offset_pose_g.z
 
-        Returns:
-            Position (geometry_msgs.Point()): Returns position of type geometry_msgs.Point().
-        """
-        return self.enu_2_local()
+        return current_pos_local
 
 
     def land(self):
@@ -422,25 +422,12 @@ class gnc_api:
 
 
     def initialize_local_frame(self):
-        """This function will create a local reference frame based on the starting location of the drone. This is typically done right before takeoff. This reference frame is what all of the the set destination commands will be in reference to."""
-        '''
-        self.local_offset_g = 0.0
-
+        """This function will create a local reference frame based on the starting location 
+        of the drone. This is typically done right before takeoff. This reference frame 
+        is what all of the the set destinationcommands will be in reference to.
+        """
         for i in range(30):
             rospy.sleep(0.1)
-
-            q0, q1, q2, q3 = (
-                self.current_pose_g.pose.pose.orientation.w,
-                self.current_pose_g.pose.pose.orientation.x,
-                self.current_pose_g.pose.pose.orientation.y,
-                self.current_pose_g.pose.pose.orientation.z,
-            )
-
-            psi = atan2((2 * (q0 * q3 + q1 * q2)),
-                        (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
-            psi = 0
-            
-            self.local_offset_g += degrees(psi)
             self.local_offset_pose_g.x += self.current_pose_g.pose.pose.position.x
             self.local_offset_pose_g.y += self.current_pose_g.pose.pose.position.y
             self.local_offset_pose_g.z += self.current_pose_g.pose.pose.position.z
@@ -448,13 +435,11 @@ class gnc_api:
         self.local_offset_pose_g.x /= 30.0
         self.local_offset_pose_g.y /= 30.0
         self.local_offset_pose_g.z /= 30.0
-        self.local_offset_g /= 30.0
-        '''
-        self.local_offset_g=90
+        self.local_offset_g = 90
 
         rospy.loginfo(CBLUE2 + "Coordinate offset set" + CEND)
-        rospy.loginfo(
-            CGREEN2 + "The X-Axis is facing: {}".format(self.local_offset_g) + CEND)
+        #rospy.loginfo(
+        #    CGREEN2 + "The X-Axis is facing: {}".format(self.local_offset_g) + CEND)
 
 
     def check_waypoint_reached(self, pos_tol=3, head_tol=3):

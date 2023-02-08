@@ -154,7 +154,7 @@ class FlightPlan():
         return order, dist
 
 
-    def gen_globalpath(self, wps: list, drop_bds=[], want_visual=True) -> list:
+    def gen_globalpath(self, wps: list, drop_bds=[], want_tsp=True) -> list:
         # waypoints to cross the dropzone
         drop_pts = self.process_dropzone(drop_bds)
 
@@ -164,14 +164,17 @@ class FlightPlan():
         waypts.extend(drop_pts)
 
         # get optimal order from tsp
-        order, dist = self.run_tsp(waypts)
-
-        # pt_order: global path, waypt_order: order of "official" waypoints
-        # temp_bd_pts: stores intersections between bounds and paths
+        if want_tsp:
+            order, dist = self.run_tsp(waypts)
+            # pt_order: global path, waypt_order: order of "official" waypoints
+            # temp_bd_pts: stores intersections between bounds and paths
+        else:
+            order = range(len(waypts))
+        
         pt_order = [waypts[order[0]]]
         waypt_order = [waypts[order[0]]]
         temp_bd_pts = [pt for pt in self.bd_pts]
-        
+
         polygon = Polygon(self.bd_pts)
         polygon_ext = LineString(list(polygon.exterior.coords))
 
@@ -204,7 +207,7 @@ class FlightPlan():
                           path.boundary.geoms[1].y - temp_bd_pts[k][1])   # Vector 2
                     xp = v1[0]*v2[1] - v1[1]*v2[0]
 
-                    # offset path from bound point depebding on cross product, add to global path
+                    # offset path from bound point depending on cross product, add to global path
                     if xp <= 0: 
                         bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] + 10, self.avg_alt)
                     elif xp > 0: 
@@ -216,11 +219,23 @@ class FlightPlan():
             waypt_order.append(waypts[order[i+1]])
         
         # rerun tsp, reorgqnize global path including boundary offsets
-        order, dist = self.run_tsp(pt_order)
-        global_path = [pt_order[i] for i in order]
+        if want_tsp:
+            order, dist = self.run_tsp(pt_order)
+            global_path = [pt_order[i] for i in order]
+        else:
+            global_path = pt_order
         
-        if want_visual:
-            self.draw_map(waypt_order, global_path)
+        print()
+        print('Would you like to visualize the route? (Need GUI access) (y/n)')
+        while True:
+            choice = str(input())
+            if choice == 'y':
+                self.draw_map(waypt_order, global_path)
+                break
+            elif choice == 'n':
+                break
+            else:
+                print('Not a valid option. Please try again.')
 
         return global_path
 

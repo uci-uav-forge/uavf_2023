@@ -3,6 +3,7 @@ from queue import PriorityQueue
 import numpy as np
 import time
 import json
+import os
 
 import rospy
 from sensor_msgs.msg import NavSatFix
@@ -16,7 +17,7 @@ sys.path.append("..")
 from global_path.flight_plan_tsp import FlightPlan
 
 
-def init_mission(mission_q, use_px4=False): 
+def init_mission(mission_q): 
     # mission parameters in SI units
     takeoff_alt = 10 # m
     drop_alt = 25 # m
@@ -25,13 +26,18 @@ def init_mission(mission_q, use_px4=False):
 
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
     home = (home_fix.latitude, home_fix.longitude)
-    home = (33.642608, -117.824574)
+    #home = (33.642608, -117.824574) # gps coordinate on arc field
     
     # read mission objectives from json file
-    if use_px4 == True:
-        data = json.load(open('px4_objectives_flight_day.json'))
-    else:
-        data = json.load(open('objectives.json'))
+    print()
+    print('List of mission objective files: ')
+    print()
+    [print(file) for file in os.listdir('mission_objectives')]
+    print()
+    print('Input the mission objectives you want to load: ')
+
+    filename = str(input())
+    data = json.load(open('mission_objectives/' + filename))
     
     bound_coords = [tuple(coord) for coord in data['boundary coordinates']] 
     wps = [tuple(wp) for wp in data['waypoints']]
@@ -39,9 +45,22 @@ def init_mission(mission_q, use_px4=False):
     
     alts = [wp[2] for wp in wps]
     avg_alt = np.average(alts) 
-    
     test_map = FlightPlan(bound_coords, home, drop_alt, avg_alt)
-    global_path = test_map.gen_globalpath(wps, drop_bds, want_visual=False)
+    
+    print()
+    print('Would you like to reorganize the waypoints into the most efficient order? (y/n)')
+    while True:
+        choice = str(input())
+        if choice == 'y':
+            print('Generating most efficient path...')
+            tsp = True
+            break
+        elif choice == 'n':
+            tsp = False
+            break
+        else:
+            print('Not a valid option. Please try again.')
+    global_path = test_map.gen_globalpath(wps, drop_bds, tsp)
 
     # initialize priority queue
     for i in range(1, len(global_path)): 
@@ -54,7 +73,7 @@ def init_mission(mission_q, use_px4=False):
 
 def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt, use_px4=False):
     # init drone api
-    rate = rospy.Rate(10)
+    rate = rospy.Rate(20)
     drone = gnc_api()
     drone.wait4connect()
     if use_px4 == True:
@@ -117,16 +136,14 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
 
             else:
                 curr_pos = drone.get_current_location()
-                print('current position: ' + str((curr_pos.x, curr_pos.y)))
+                print('current position: ' + str((curr_pos.x, curr_pos.y, curr_pos.z)))
             rate.sleep()
 
         mission_q.get()
     
-    # correct heading
+    # go to home position and land
     drone.set_destination(
-        x=0, y=0, z=0, psi=hdg)
-    time.sleep(10)
-    # land at home position
+        x=0, y=0, z=0, psi=0)
     drone.land()
 
 
@@ -229,7 +246,7 @@ if __name__ == '__main__':
     use_px4 = True
 
     # init mission
-    global_path, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt = init_mission(mission_q, use_px4)
+    global_path, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt = init_mission(mission_q)
 
     # init priority assigner with mission queue and dropzone wp
     mission_q_assigner = PriorityAssigner(mission_q, global_path[len(global_path) - 1])
