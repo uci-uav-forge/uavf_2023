@@ -6,7 +6,7 @@ from typing import Callable
 
 import cv2
 import numpy as np
-from  image_rotation import get_rotated_image, get_shape_bbox
+from image_rotation import get_rotated_image, get_shape_bbox
 from text_rendering import drawText, get_shape_text_area
 
 def create_shape_dataset(get_frame: Callable[[], cv2.Mat], 
@@ -46,9 +46,9 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
         ) 
         for name in os.listdir(shapes_directory)
     )
-    shape_names_and_categories = dict(zip(range(1,len(shapes)+1), sorted(shapes.keys())))
+    shape_names_and_categories = list(zip(range(1,len(shapes)+1), sorted(shapes.keys())))
     with open("shape_name_labels.json","w") as f:
-        json.dump(shape_names_and_categories,f)
+        json.dump(dict(shape_names_and_categories),f)
     if "output" not in os.listdir():
         os.mkdir("output")
         os.mkdir("output/train")
@@ -58,7 +58,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
     def add_shapes(frame, annotations_file):
         height, width = frame.shape[:2]
         for _shape_idx in range(random.randint(0,max_shapes_per_image)):
-            shape_name, category_num = random.choice(shape_names_and_categories)
+            category_num, shape_name= random.choice(shape_names_and_categories)
 
             shape_source_h, shape_source_w = shapes[shape_name].shape[:2]
             shape_resize_w = shape_resolution_fn() # the shape source image's width and height
@@ -129,8 +129,8 @@ if __name__=="__main__":
         '''
         def grab_frame():
             img=random.choice(background_images)
-            original_h,original_w = img.shape[:2]
-            h = random.randint(frame_size, original_h)
+            original_h,original_w = img.shape[:2]                
+            h = max(frame_size,random.randint(min(frame_size, original_h), max(frame_size,original_h)))
             img=cv2.resize(img, (int(original_w/original_h*h), h))
 
             h,w = img.shape[:2]
