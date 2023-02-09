@@ -1,0 +1,1030 @@
+{
+    "0": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-1orangered.jpg",
+        {
+            "letter": "red",
+            "shape": "orange"
+        },
+        1
+    ],
+    "1": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-2redorange.jpg",
+        {
+            "letter": "orange",
+            "shape": "red"
+        },
+        2
+    ],
+    "2": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-3yellowred.jpg",
+        {
+            "letter": "red",
+            "shape": "yellow"
+        },
+        [
+            [
+                "orange"
+            ],
+            [
+                "yellow"
+            ]
+        ]
+    ],
+    "3": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-4redyellow.jpg",
+        {
+            "letter": "yellow",
+            "shape": "red"
+        },
+        [
+            [
+                "orange"
+            ],
+            [
+                "red"
+            ]
+        ]
+    ],
+    "4": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-5greenred.jpg",
+        {
+            "letter": "red",
+            "shape": "green"
+        },
+        [
+            [
+                "brown"
+            ],
+            [
+                "green"
+            ]
+        ]
+    ],
+    "5": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-6redgreen.jpg",
+        {
+            "letter": "green",
+            "shape": "red"
+        },
+        3
+    ],
+    "6": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-7bluered.jpg",
+        {
+            "letter": "red",
+            "shape": "blue"
+        },
+        4
+    ],
+    "7": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-8redblue.jpg",
+        {
+            "letter": "blue",
+            "shape": "red"
+        },
+        [
+            [
+                "purple"
+            ],
+            [
+                "red"
+            ]
+        ]
+    ],
+    "8": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-9purplered.jpg",
+        {
+            "letter": "red",
+            "shape": "purple"
+        },
+        5
+    ],
+    "9": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-10redpurple.jpg",
+        {
+            "letter": "purple",
+            "shape": "red"
+        },
+        6
+    ],
+    "10": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-11grayred.jpg",
+        {
+            "letter": "red",
+            "shape": "gray"
+        },
+        7
+    ],
+    "11": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-12redgray.jpg",
+        {
+            "letter": "gray",
+            "shape": "red"
+        },
+        [
+            [
+                "red"
+            ],
+            [
+                "red"
+            ]
+        ]
+    ],
+    "12": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-13brownred.jpg",
+        {
+            "letter": "red",
+            "shape": "brown"
+        },
+        [
+            [
+                "red"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "13": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-14redbrown.jpg",
+        {
+            "letter": "brown",
+            "shape": "red"
+        },
+        [
+            [
+                "red"
+            ],
+            [
+                "red"
+            ]
+        ]
+    ],
+    "14": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-15blackred.jpg",
+        {
+            "letter": "red",
+            "shape": "black"
+        },
+        8
+    ],
+    "15": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-16redblack.jpg",
+        {
+            "letter": "black",
+            "shape": "red"
+        },
+        9
+    ],
+    "16": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-17whitered.jpg",
+        {
+            "letter": "red",
+            "shape": "white"
+        },
+        [
+            [
+                "orange"
+            ],
+            [
+                "white"
+            ]
+        ]
+    ],
+    "17": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-18redwhite.jpg",
+        {
+            "letter": "white",
+            "shape": "red"
+        },
+        [
+            [
+                "brown"
+            ],
+            [
+                "red"
+            ]
+        ]
+    ],
+    "18": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-19yelloworange.jpg",
+        {
+            "letter": "orange",
+            "shape": "yellow"
+        },
+        10
+    ],
+    "19": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-20orangeyellow.jpg",
+        {
+            "letter": "yellow",
+            "shape": "orange"
+        },
+        11
+    ],
+    "20": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-21greenorange.jpg",
+        {
+            "letter": "orange",
+            "shape": "green"
+        },
+        [
+            [
+                "brown"
+            ],
+            [
+                "green"
+            ]
+        ]
+    ],
+    "21": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-22orangegreen.jpg",
+        {
+            "letter": "green",
+            "shape": "orange"
+        },
+        12
+    ],
+    "22": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-23blueorange.jpg",
+        {
+            "letter": "orange",
+            "shape": "blue"
+        },
+        [
+            [
+                "blue"
+            ],
+            [
+                "purple"
+            ]
+        ]
+    ],
+    "23": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-24orangeblue.jpg",
+        {
+            "letter": "blue",
+            "shape": "orange"
+        },
+        [
+            [
+                "purple"
+            ],
+            [
+                "orange"
+            ]
+        ]
+    ],
+    "24": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-25purpleorange.jpg",
+        {
+            "letter": "orange",
+            "shape": "purple"
+        },
+        [
+            [
+                "red"
+            ],
+            [
+                "purple"
+            ]
+        ]
+    ],
+    "25": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-26orangepurple.jpg",
+        {
+            "letter": "purple",
+            "shape": "orange"
+        },
+        13
+    ],
+    "26": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-27grayorange.jpg",
+        {
+            "letter": "orange",
+            "shape": "gray"
+        },
+        [
+            [
+                "brown"
+            ],
+            [
+                "gray"
+            ]
+        ]
+    ],
+    "27": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-28orangegray.jpg",
+        {
+            "letter": "gray",
+            "shape": "orange"
+        },
+        [
+            [
+                "orange"
+            ],
+            [
+                "brown"
+            ]
+        ]
+    ],
+    "28": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-29brownorange.jpg",
+        {
+            "letter": "orange",
+            "shape": "brown"
+        },
+        [
+            [
+                "brown"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "29": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-30orangebrown.jpg",
+        {
+            "letter": "brown",
+            "shape": "orange"
+        },
+        14
+    ],
+    "30": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-31blackorange.jpg",
+        {
+            "letter": "orange",
+            "shape": "black"
+        },
+        [
+            [
+                "brown"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "31": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-32orangeblack.jpg",
+        {
+            "letter": "black",
+            "shape": "orange"
+        },
+        15
+    ],
+    "32": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-33whiteorange.jpg",
+        {
+            "letter": "orange",
+            "shape": "white"
+        },
+        16
+    ],
+    "33": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-34orangewhite.jpg",
+        {
+            "letter": "white",
+            "shape": "orange"
+        },
+        17
+    ],
+    "34": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-35greenyellow.jpg",
+        {
+            "letter": "yellow",
+            "shape": "green"
+        },
+        18
+    ],
+    "35": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-36yellowgreen.jpg",
+        {
+            "letter": "green",
+            "shape": "yellow"
+        },
+        19
+    ],
+    "36": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-37blueyellow.jpg",
+        {
+            "letter": "yellow",
+            "shape": "blue"
+        },
+        [
+            [
+                "blue"
+            ],
+            [
+                "brown"
+            ]
+        ]
+    ],
+    "37": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-38yellowblue.jpg",
+        {
+            "letter": "blue",
+            "shape": "yellow"
+        },
+        20
+    ],
+    "38": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-39purpleyellow.jpg",
+        {
+            "letter": "yellow",
+            "shape": "purple"
+        },
+        [
+            [
+                "orange"
+            ],
+            [
+                "purple"
+            ]
+        ]
+    ],
+    "39": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-40yellowpurple.jpg",
+        {
+            "letter": "purple",
+            "shape": "yellow"
+        },
+        21
+    ],
+    "40": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-41grayyellow.jpg",
+        {
+            "letter": "yellow",
+            "shape": "gray"
+        },
+        22
+    ],
+    "41": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-42yellowgray.jpg",
+        {
+            "letter": "gray",
+            "shape": "yellow"
+        },
+        [
+            [
+                "yellow"
+            ],
+            [
+                "brown"
+            ]
+        ]
+    ],
+    "42": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-43brownyellow.jpg",
+        {
+            "letter": "yellow",
+            "shape": "brown"
+        },
+        [
+            [
+                "orange"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "43": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-44yellowbrown.jpg",
+        {
+            "letter": "brown",
+            "shape": "yellow"
+        },
+        23
+    ],
+    "44": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-45blackyellow.jpg",
+        {
+            "letter": "yellow",
+            "shape": "black"
+        },
+        [
+            [
+                "brown"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "45": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-46yellowblack.jpg",
+        {
+            "letter": "black",
+            "shape": "yellow"
+        },
+        24
+    ],
+    "46": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-47whiteyellow.jpg",
+        {
+            "letter": "yellow",
+            "shape": "white"
+        },
+        25
+    ],
+    "47": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-48yellowwhite.jpg",
+        {
+            "letter": "white",
+            "shape": "yellow"
+        },
+        26
+    ],
+    "48": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-49bluegreen.jpg",
+        {
+            "letter": "green",
+            "shape": "blue"
+        },
+        27
+    ],
+    "49": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-50greenblue.jpg",
+        {
+            "letter": "blue",
+            "shape": "green"
+        },
+        28
+    ],
+    "50": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-51purplegreen.jpg",
+        {
+            "letter": "green",
+            "shape": "purple"
+        },
+        29
+    ],
+    "51": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-52greenpurple.jpg",
+        {
+            "letter": "purple",
+            "shape": "green"
+        },
+        30
+    ],
+    "52": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-53graygreen.jpg",
+        {
+            "letter": "green",
+            "shape": "gray"
+        },
+        31
+    ],
+    "53": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-54greengray.jpg",
+        {
+            "letter": "gray",
+            "shape": "green"
+        },
+        [
+            [
+                "green"
+            ],
+            [
+                "green"
+            ]
+        ]
+    ],
+    "54": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-55browngreen.jpg",
+        {
+            "letter": "green",
+            "shape": "brown"
+        },
+        [
+            [
+                "green"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "55": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-56greenbrown.jpg",
+        {
+            "letter": "brown",
+            "shape": "green"
+        },
+        [
+            [
+                "green"
+            ],
+            [
+                "green"
+            ]
+        ]
+    ],
+    "56": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-57blackgreen.jpg",
+        {
+            "letter": "green",
+            "shape": "black"
+        },
+        32
+    ],
+    "57": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-58greenblack.jpg",
+        {
+            "letter": "black",
+            "shape": "green"
+        },
+        33
+    ],
+    "58": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-59whitegreen.jpg",
+        {
+            "letter": "green",
+            "shape": "white"
+        },
+        34
+    ],
+    "59": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-60greenwhite.jpg",
+        {
+            "letter": "white",
+            "shape": "green"
+        },
+        [
+            [
+                "gray"
+            ],
+            [
+                "green"
+            ]
+        ]
+    ],
+    "60": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-61purpleblue.jpg",
+        {
+            "letter": "blue",
+            "shape": "purple"
+        },
+        35
+    ],
+    "61": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-62bluepurple.jpg",
+        {
+            "letter": "purple",
+            "shape": "blue"
+        },
+        36
+    ],
+    "62": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-63grayblue.jpg",
+        {
+            "letter": "blue",
+            "shape": "gray"
+        },
+        37
+    ],
+    "63": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-64bluegray.jpg",
+        {
+            "letter": "gray",
+            "shape": "blue"
+        },
+        [
+            [
+                "blue"
+            ],
+            [
+                "blue"
+            ]
+        ]
+    ],
+    "64": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-65brownblue.jpg",
+        {
+            "letter": "blue",
+            "shape": "brown"
+        },
+        [
+            [
+                "blue"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "65": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-66bluebrown.jpg",
+        {
+            "letter": "brown",
+            "shape": "blue"
+        },
+        [
+            [
+                "black"
+            ],
+            [
+                "blue"
+            ]
+        ]
+    ],
+    "66": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-67blackblue.jpg",
+        {
+            "letter": "blue",
+            "shape": "black"
+        },
+        38
+    ],
+    "67": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-68blueblack.jpg",
+        {
+            "letter": "black",
+            "shape": "blue"
+        },
+        39
+    ],
+    "68": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-69whiteblue.jpg",
+        {
+            "letter": "blue",
+            "shape": "white"
+        },
+        40
+    ],
+    "69": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-70bluewhite.jpg",
+        {
+            "letter": "white",
+            "shape": "blue"
+        },
+        [
+            [
+                "gray"
+            ],
+            [
+                "blue"
+            ]
+        ]
+    ],
+    "70": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-71graypurple.jpg",
+        {
+            "letter": "purple",
+            "shape": "gray"
+        },
+        41
+    ],
+    "71": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-72purplegray.jpg",
+        {
+            "letter": "gray",
+            "shape": "purple"
+        },
+        [
+            [
+                "purple"
+            ],
+            [
+                "purple"
+            ]
+        ]
+    ],
+    "72": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-73brownpurple.jpg",
+        {
+            "letter": "purple",
+            "shape": "brown"
+        },
+        [
+            [
+                "purple"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "73": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-74purplebrown.jpg",
+        {
+            "letter": "brown",
+            "shape": "purple"
+        },
+        [
+            [
+                "purple"
+            ],
+            [
+                "purple"
+            ]
+        ]
+    ],
+    "74": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-75blackpurple.jpg",
+        {
+            "letter": "purple",
+            "shape": "black"
+        },
+        42
+    ],
+    "75": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-76purpleblack.jpg",
+        {
+            "letter": "black",
+            "shape": "purple"
+        },
+        43
+    ],
+    "76": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-77whitepurple.jpg",
+        {
+            "letter": "purple",
+            "shape": "white"
+        },
+        44
+    ],
+    "77": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-78purplewhite.jpg",
+        {
+            "letter": "white",
+            "shape": "purple"
+        },
+        45
+    ],
+    "78": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-79browngray.jpg",
+        {
+            "letter": "gray",
+            "shape": "brown"
+        },
+        [
+            [
+                "black"
+            ],
+            [
+                "gray"
+            ]
+        ]
+    ],
+    "79": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-80graybrown.jpg",
+        {
+            "letter": "brown",
+            "shape": "gray"
+        },
+        [
+            [
+                "gray"
+            ],
+            [
+                "gray"
+            ]
+        ]
+    ],
+    "80": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-81blackgray.jpg",
+        {
+            "letter": "gray",
+            "shape": "black"
+        },
+        [
+            [
+                "black"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "81": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-82grayblack.jpg",
+        {
+            "letter": "black",
+            "shape": "gray"
+        },
+        46
+    ],
+    "82": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-83whitegray.jpg",
+        {
+            "letter": "gray",
+            "shape": "white"
+        },
+        [
+            [
+                "white"
+            ],
+            [
+                "gray"
+            ]
+        ]
+    ],
+    "83": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-84graywhite.jpg",
+        {
+            "letter": "white",
+            "shape": "gray"
+        },
+        [
+            [
+                "gray"
+            ],
+            [
+                "gray"
+            ]
+        ]
+    ],
+    "84": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-85blackbrown.jpg",
+        {
+            "letter": "brown",
+            "shape": "black"
+        },
+        [
+            [
+                "black"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "85": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-86brownblack.jpg",
+        {
+            "letter": "black",
+            "shape": "brown"
+        },
+        [
+            [
+                "black"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "86": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-87whitebrown.jpg",
+        {
+            "letter": "brown",
+            "shape": "white"
+        },
+        [
+            [
+                "white"
+            ],
+            [
+                "gray"
+            ]
+        ]
+    ],
+    "87": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-88brownwhite.jpg",
+        {
+            "letter": "white",
+            "shape": "brown"
+        },
+        [
+            [
+                "gray"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "88": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-89whiteblack.jpg",
+        {
+            "letter": "black",
+            "shape": "white"
+        },
+        [
+            [
+                "white"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ],
+    "89": [
+        "C:\\Users\\kirva\\Desktop\\forge\\winter2023\\blurtests\\circletestset1\\circleblursample-90blackwhite.jpg",
+        {
+            "letter": "white",
+            "shape": "black"
+        },
+        [
+            [
+                "gray"
+            ],
+            [
+                "black"
+            ]
+        ]
+    ]
+}

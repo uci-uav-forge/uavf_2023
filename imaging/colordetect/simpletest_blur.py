@@ -8,6 +8,7 @@ import json
 import numpy as np
 import cv2
 import shutil
+import colorsys
 
 
 #"next": np.array([159, 50, 70],np.uint8),
@@ -15,17 +16,25 @@ import shutil
 # tuple written as b,g,r
 
 dic_colors = {"red": (0,0,255), "orange": (26,118, 245), \
-                   "yellow": (0,234,255), "green": (0, 255, 0), "blue": (255,0, 0),\
+                   "yellow": (0,255,255), "green": (0, 255, 0), "blue": (255,0, 0),\
                    "purple": (255,8,135), "brown": (38,58,79), "gray": (110,110, 110), \
                    "black": (0, 0, 0), "white": (255, 255, 255),
                    } 
 
 colors = ["red", "orange", "yellow", "green", "blue", "purple", "gray", "brown", "black", "white"]
+hsv_dic_color = {}
+for eachcolor in dic_colors:
+    h,s,v = colorsys.rgb_to_hsv(dic_colors[eachcolor][2]/255,dic_colors[eachcolor][1]/255,dic_colors[eachcolor][0]/255)
+   # print(h,s,v)
+    hsv_dic_color[eachcolor] = [round(h*179),round(s*255),round(v*255)]
+
+
+print(hsv_dic_color)
 
 mydata = {}
 
 testsetname = '\circletestset1\\'
-setname = 'circletestset1'
+setname = 'Ccircletestset1'
 newfolder = '\\blurtests'
 
 
@@ -62,8 +71,9 @@ for x in range(len(colors)):
    #             shutil.move(r'C:\Users\kirva\Desktop\forge\winter2023\testgeneratecode\\' +name,r'C:\Users\kirva\Desktop\forge\winter2023\nonblurtest\circletestset1\\'+ name)
                 tempdic['shape'] = colors[y]
                 tempdic['letter'] = colors[x]
-                print(name,tempdic)
-                mydata[savefilepath+ newfolder + testsetname+ name ] = tempdic
+      #          print(name,tempdic)
+     #           mydata[savefilepath+ newfolder + testsetname+ name ] = tempdic
+                mydata[ name ] = tempdic
                 total +=1
  #               img = cv2.rectangle(image, (20,20), (row-20,col-20), color2, thickness[0])
   #              img = cv2.rectangle(img, (50,50), (row-50,col-50), color1, thickness[1])
@@ -75,9 +85,10 @@ for x in range(len(colors)):
          #       shutil.move(savefilepath + r'\testgeneratecode\\' +name2,savefilepath + newfolder+ testsetname + name2)
                 tempdic2['shape'] = colors[x]
                 tempdic2['letter'] = colors[y]
-                print(name2,tempdic2)
-                mydata[savefilepath+ newfolder + testsetname+ name2 ] = tempdic2
-                print(mydata)
+   #             print(name2,tempdic2)
+   #             mydata[savefilepath+ newfolder + testsetname+ name2 ] = tempdic2
+                mydata[ name2 ] = tempdic2
+    #            print(mydata)
                 total += 1
               #  break
     #break
