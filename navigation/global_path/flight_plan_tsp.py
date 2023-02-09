@@ -166,11 +166,11 @@ class FlightPlan():
         # get optimal order from tsp
         if want_tsp:
             order, dist = self.run_tsp(waypts)
-            # pt_order: global path, waypt_order: order of "official" waypoints
-            # temp_bd_pts: stores intersections between bounds and paths
         else:
             order = range(len(waypts))
-        
+
+        # pt_order: global path, waypt_order: order of "official" waypoints
+        # temp_bd_pts: stores intersections between bounds and paths
         pt_order = [waypts[order[0]]]
         waypt_order = [waypts[order[0]]]
         temp_bd_pts = [pt for pt in self.bd_pts]
@@ -272,8 +272,8 @@ if __name__ == '__main__':
 
     wps = [ #LLA, example wps at 30 meters AGL
         ( 38.31652512851874,   -76.553698306299, 30), 
-        (38.316930096287635,  -76.5504102489997, 30),
         ( 38.31850420404286,  -76.5520175439768, 30),
+        (38.316930096287635,  -76.5504102489997, 30),
         (38.318084991945966, -76.54909120275754, 30),
         (38.317170076120384, -76.54519141386767, 30),
         ( 38.31453025427406,  -76.5446561487259, 30),
@@ -283,4 +283,4 @@ if __name__ == '__main__':
         ( 38.31603925511844, -76.54876332974675, 30)
     ]
 
-    test_map.gen_globalpath(wps, drop_bds)
+    test_map.gen_globalpath(wps, drop_bds, False)
