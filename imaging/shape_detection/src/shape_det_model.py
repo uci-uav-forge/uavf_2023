@@ -11,7 +11,6 @@ from ensemble_boxes import ensemble_boxes_wbf
 from effdet.config.model_config import efficientdet_model_param_dict
 from effdet import get_efficientdet_config, EfficientDet, DetBenchTrain
 from effdet.efficientdet import HeadNet
-from effdet.config.model_config import efficientdet_model_param_dict
 from .data_utils import get_valid_transforms
 
 
@@ -227,7 +226,7 @@ class EfficientDetModel(LightningModule):
         dummy_targets = self._create_dummy_inference_targets(
             num_images=images_tensor.shape[0]
         )
-
+        
         detections = self.model(images_tensor.to(self.device), dummy_targets)[
             "detections"
         ]
