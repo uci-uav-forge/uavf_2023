@@ -5,6 +5,18 @@ from python_tsp.exact import solve_tsp_dynamic_programming
 from shapely.geometry import LineString, Point, Polygon
 import matplotlib.pyplot as plt
 
+
+def total_dist(waypts: list) -> float:
+        dist = 0
+
+        for i in range(len(waypts) - 1):
+            delta_x = waypts[i+1][0] - waypts[i][0]
+            delta_y = waypts[i+1][1] - waypts[i][1]
+            dist += np.sqrt(np.square(delta_x) + np.square(delta_y))
+        
+        return dist
+
+
 # FLIGHT PLAN PARAMETERS: minimum altitude and 'normal' altitude in meters AGL
 class FlightPlan():
     def __init__(self, bound_coords: list, home: tuple, min_alt=25, avg_alt=30):
@@ -169,9 +181,9 @@ class FlightPlan():
         else:
             order = range(len(waypts))
 
-        # pt_order: global path, waypt_order: order of "official" waypoints
+        # global_path: global path, waypt_order: order of "official" waypoints
         # temp_bd_pts: stores intersections between bounds and paths
-        pt_order = [waypts[order[0]]]
+        global_path = [waypts[order[0]]]
         waypt_order = [waypts[order[0]]]
         temp_bd_pts = [pt for pt in self.bd_pts]
 
@@ -179,6 +191,7 @@ class FlightPlan():
         polygon_ext = LineString(list(polygon.exterior.coords))
 
         for i in range(len(waypts) - 1):
+            # straight line between wp1 and wp2
             path = LineString([waypts[order[i]], waypts[order[i+1]]])
             inters = polygon_ext.intersection(path)
             
@@ -202,28 +215,46 @@ class FlightPlan():
                 v1 = (path.boundary.geoms[1].x - path.boundary.geoms[0].x, 
                       path.boundary.geoms[1].y - path.boundary.geoms[0].y)   # Vector 1
 
+                # temp_order: temporary list of waypoints involved in traversing around a potential intersection
+                temp_order = [waypts[order[i]]]
                 for k in ind_range:
                     v2 = (path.boundary.geoms[1].x - temp_bd_pts[k][0], 
                           path.boundary.geoms[1].y - temp_bd_pts[k][1])   # Vector 2
                     xp = v1[0]*v2[1] - v1[1]*v2[0]
 
-                    # offset path from bound point depending on cross product, add to global path
+                    # offset path from bound point depending on cross product, add to temp order
                     if xp <= 0: 
                         bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] + 10, self.avg_alt)
                     elif xp > 0: 
                         bd_around = (temp_bd_pts[k][0], temp_bd_pts[k][1] - 10, self.avg_alt)
-                    pt_order.append(bd_around)
-            
+                    #global_path.append(bd_around)
+                    temp_order.append(bd_around)
+                
+                # generate 2 temp and reversed orders both bounded by wp1 and wp2
+                reverse_order = [temp_order[i] for i in range(len(temp_order)-1, -1, -1)]
+                reverse_order = reverse_order[-1:] + reverse_order[:-1]
+                reverse_order.append(waypts[order[i+1]])
+                temp_order.append(waypts[order[i+1]])
+                # the smaller distance is associated with the correct order
+                dist0 = total_dist(temp_order)
+                dist1 = total_dist(reverse_order)
+                # append to the global path everything but the first elemnt of the new order
+                if dist0 < dist1:
+                    global_path.extend(temp_order[1:])
+                else:
+                    global_path.extend(reverse_order[1:])
+                # clear them for safety
+                temp_order.clear()
+                reverse_order.clear()
+
             # append to global path and order of "official" given waypoints
-            pt_order.append(waypts[order[i+1]])
+            global_path.append(waypts[order[i+1]])
             waypt_order.append(waypts[order[i+1]])
         
-        # rerun tsp, reorgqnize global path including boundary offsets
+        # rerun tsp, reorganize global path including boundary offsets
         if want_tsp:
-            order, dist = self.run_tsp(pt_order)
-            global_path = [pt_order[i] for i in order]
-        else:
-            global_path = pt_order
+            order, dist = self.run_tsp(global_path)
+            global_path = [global_path[i] for i in order]
         
         print()
         print('Would you like to visualize the route? (Need GUI access) (y/n)')
