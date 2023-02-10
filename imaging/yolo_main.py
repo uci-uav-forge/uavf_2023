@@ -9,18 +9,16 @@ from torch import Tensor
 
 from ultralytics.yolo.engine.results import Results
 from ultralytics import YOLO
-sys.path.append("..")
 # from ..navigation.guided_mission.run_mission import Localizer
 import letter_detection.LetterDetector as letter_detection
-import shape_detection.src.plot_functions as plot_fns
+
 import cv2 as cv
 import os
 import numpy as np
-from PIL import Image
 import json
 import tensorflow as tf
 import time
-import itertools
+# import itertools # needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of the loop function
 
 class Pipeline:
 
@@ -118,7 +116,7 @@ class Pipeline:
                 tile_offsets_x_y.append((j*self.tile_resolution,y_offset))
         return (all_tiles, tile_offsets_x_y)
 
-    def _get_letter_crops(self, image: Image, bboxes: 'list[list[float]]'):
+    def _get_letter_crops(self, image, bboxes: 'list[list[float]]'):
         grayscale_image = cv.cvtColor(
             src=np.array(image),
             code=cv.COLOR_RGB2GRAY
@@ -138,7 +136,6 @@ class Pipeline:
             )
             # cv.imwrite(f"{str(image)}.png", just_letter_images[-1])
         return np.array(just_letter_images)
-    
     def loop(self):
         # if you need to profile use this: https://stackoverflow.com/a/62382967/14587004
 
@@ -150,8 +147,7 @@ class Pipeline:
 
         all_tiles, tile_offsets_x_y =self._split_to_tiles(img)
 
-        pil_images = [Image.fromarray(tile) for tile in all_tiles]
-        batch_size = 2
+        batch_size = len(all_tiles)
 
         bboxes, shape_labels, confidences = [], [], [] 
 
@@ -159,8 +155,8 @@ class Pipeline:
         letter_labels = []
         # `map(list,...` in this loop makes sure the correct `predict` type overload is being called.
         for batch in map(list,np.split(
-            ary=pil_images, 
-            indices_or_sections=range(batch_size, len(pil_images),batch_size),
+            ary=all_tiles, 
+            indices_or_sections=range(batch_size, len(all_tiles),batch_size),
             axis=0)
         ):
             predictions: list[Results] = self.shape_model.predict(batch, verbose=False)
@@ -175,7 +171,7 @@ class Pipeline:
                 continue
 
             y_offset,x_offset = tile_offsets_x_y[tile_index]
-            just_letter_images = self._get_letter_crops(pil_images[tile_index], bboxes[tile_index])
+            just_letter_images = self._get_letter_crops(all_tiles[tile_index], bboxes[tile_index])
             if letter_image_buffer is None:
                 letter_image_buffer = just_letter_images
             else:
@@ -185,13 +181,13 @@ class Pipeline:
                 offset_corrected_bboxes.append([box_x0+x_offset,box_y0+y_offset, box_x1+x_offset, box_y1+y_offset])
         letter_results = self.letter_detector.predict(letter_image_buffer)
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
-        plot_fns.show_image_cv(
-            img, 
-            offset_corrected_bboxes,
-            [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*shape_labels))],
-            list(itertools.chain(*confidences)),
-            file_name="processed_img.png",
-            font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
+        # plot_fns.show_image_cv(
+        #     img, 
+        #     offset_corrected_bboxes,
+        #     [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*shape_labels))],
+        #     list(itertools.chain(*confidences)),
+        #     file_name="processed_img.png",
+        #     font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
 
         #     print(tile_index, result)
 
