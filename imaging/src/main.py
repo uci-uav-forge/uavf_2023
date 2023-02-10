@@ -105,7 +105,7 @@ class ImagingPipeline:
         """
         return self.localizer.get_current_location()
 
-    def getImage(self):
+    def captureImage(self):
         """
         Returns: Capture the image with camera, treating the camera as a webcam.
         """
@@ -118,7 +118,7 @@ class ImagingPipeline:
     def loop(self):
         # if you need to profile use this: https://stackoverflow.com/a/62382967/14587004
 
-        img = self.getImage()
+        img = self.captureImage()
         all_tiles, tile_offsets_x_y = self.getImageTiles(img)
         pil_images = [Image.fromarray(tile) for tile in all_tiles]
         batch_size = 8
@@ -143,11 +143,11 @@ class ImagingPipeline:
 
             y_offset, x_offset = tile_offsets_x_y[tile_index]
 
-            just_letter_images = self.getLetterCrops(pil_images[tile_index], bboxes[tile_index])
+            letter_only_images = self.getLetterCrops(pil_images[tile_index], bboxes[tile_index])
             if letter_image_buffer is None:
-                letter_image_buffer = just_letter_images
+                letter_image_buffer = letter_only_images
             else:
-                letter_image_buffer = np.concatenate([letter_image_buffer, just_letter_images], axis=0)
+                letter_image_buffer = np.concatenate([letter_image_buffer, letter_only_images], axis=0)
 
             for box_x0, box_y0, box_x1, box_y1 in bboxes[tile_index]:
                 offset_corrected_bboxes.append(
@@ -172,7 +172,7 @@ class ImagingPipeline:
         """
         while True:
             self.loop()
-            time.sleep(self.SLEEP_TIME)
+            time.sleep(self.SLEEP_TIME)  # must be greater than the time it takes for loop() to complete
 
 
 def main():
@@ -188,11 +188,9 @@ if __name__ == "__main__":
 
 '''
 Run commands:
-
 For this one, remember to add @profile on the functions you want to profile, and make sure you did
 pip install line_profiler
 first
-
 kernprof -l -v main.py
 
 '''
