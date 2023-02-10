@@ -6,4 +6,4 @@ model = YOLO("yolov5n.pt")  # load a pretrained model (recommended for training)
 
 # Train the model
 model.train(data ="forge10k.yaml", epochs=100, imgsz=512)
-model.save("yolov5n_forge10k.pt")
+model.export("yolov5n_forge10k.pt")
