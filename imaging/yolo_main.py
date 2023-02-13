@@ -4,7 +4,6 @@
 # from shapeInference.shape_inference import ShapeInference
 # from utils.target import Target
 
-import sys
 from torch import Tensor
 
 from ultralytics.yolo.engine.results import Results
@@ -18,7 +17,10 @@ import numpy as np
 import json
 import tensorflow as tf
 import time
-# import itertools # needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of the loop function
+
+# needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of the loop function
+# import itertools 
+# import shape_detection.src.plot_functions as plot_fns
 
 class Pipeline:
 
@@ -50,17 +52,12 @@ class Pipeline:
 
         # self.localizer = Localizer()
         self.tile_resolution=512# has to match img_size of the model, which is determined by which one we use.
-        backbone_name="mobilenetv2_120d"
-        # model = shape_model.EfficientDetModel(
-        #     num_classes=13,
-        #     img_size=512,
-        #     model_architecture=backbone_name # this is the name of the backbone. For some reason it doesn't work with the corresponding efficientdet name.
-        #     )
-        # model_file=f"shape_detection/trained_models/mobilenetv2_120d_pytorch_25epoch.pt"
-        # model.load_state_dict(torch.load(model_file))
-        # model.to("cuda")
-        # model.eval()
         self.shape_model = YOLO("yolo/trained_models/v8n.pt")
+
+        # warm up model
+        rand_input = np.random.rand(1, self.tile_resolution, self.tile_resolution,3).astype(np.float32)
+        self.shape_model.predict(list(rand_input), verbose=False)
+        # this looks stupid but is necessary because yolov8 only sets up the model on the first call to predict. See site-packages/ultralytics/yolo/engine/model.py in predict() function, inside the `if not self.predictor` block. I profiled it and the setup_model step takes 80% of the time.
 
         self.letter_detector = letter_detection.LetterDetector("trained_model.h5")
 
@@ -136,6 +133,7 @@ class Pipeline:
             )
             # cv.imwrite(f"{str(image)}.png", just_letter_images[-1])
         return np.array(just_letter_images)
+
     def loop(self):
         # if you need to profile use this: https://stackoverflow.com/a/62382967/14587004
 
@@ -144,6 +142,12 @@ class Pipeline:
         # current_location = self.getCurrentLocation()
         # self.logGeolocation(save_counter, img, current_location)
         img = cv.imread("gopro-image-5k.png")
+
+        h, w = img.shape[:2]
+        h_pad = (self.tile_resolution-divmod(h, self.tile_resolution)[1])
+        w_pad = (self.tile_resolution-divmod(w, self.tile_resolution)[1])
+        img = np.pad(img, pad_width=[(0,h_pad),(0,w_pad),(0,0)],constant_values=0)
+        # zero pads the image so its dimensions are evenly divisible by the tile resolution.
 
         all_tiles, tile_offsets_x_y =self._split_to_tiles(img)
 
@@ -154,12 +158,11 @@ class Pipeline:
         offset_corrected_bboxes = []
         letter_labels = []
         # `map(list,...` in this loop makes sure the correct `predict` type overload is being called.
-        for batch in map(list,np.split(
+        for batch in np.split(
             ary=all_tiles, 
             indices_or_sections=range(batch_size, len(all_tiles),batch_size),
-            axis=0)
-        ):
-            predictions: list[Results] = self.shape_model.predict(batch, verbose=False)
+            axis=0):
+            predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False) # TODO: figure out why predict needs batch as a list. I suspect this is a bug and it should be able to take a numpy array, which would be faster
             prediction_tensors: list[Tensor] = [x.to('cpu').boxes.boxes for x in predictions]
             bboxes.extend([pred[:,:4] for pred in prediction_tensors])
             shape_labels.extend([[int(x) for x in pred[:,5]+1] for pred in prediction_tensors])
