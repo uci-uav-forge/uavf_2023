@@ -4,6 +4,7 @@
 # from shapeInference.shape_inference import ShapeInference
 # from utils.target import Target
 
+from dataclasses import dataclass
 from torch import Tensor
 
 from ultralytics.yolo.engine.results import Results
@@ -23,6 +24,13 @@ import time
 PLOT_RESULT=True
 if PLOT_RESULT:
     import shape_detection.src.plot_functions as plot_fns
+
+@dataclass
+class ShapeResult:
+    shape_label: int
+    confidence: float
+    bbox: np.ndarray # [min_y, min_x, max_y, max_x] relative to global image coordinates
+    tile_index: int
 
 class Pipeline:
 
@@ -97,27 +105,33 @@ class Pipeline:
         f.write("Save counter: {} | location: {}\n".format(counter, loc))
         f.close()
 
-    def merge_bboxes(self, boxes: "list[list[int]]", iou_thresh=0.01):
+    def nms_indices(self, boxes: "list[list[int]]", confidences: "list[float]", iou_thresh=0.01):
         '''
-        Modifies `boxes` in-place to merge boxes and returns indices of the ones that are non-duplicates.
+        Returns indices of the ones that are duplicates.
         '''
-        n = len(boxes)
-        indices = []
-        for i in range(n):
-            for j in range(i+1,n):
-                if self._boxes_overlap(boxes[i], boxes[j]):
-                    x1,y1,x2,y2 = boxes[i]
-                    x3,y3,x4,y4 = boxes[j]
+        correct_bboxes = []
+        duplicate_indices =  set()
+        def area(box):
+            return (box[2]-box[0])*(box[3]-box[1])
+        for i in sorted(range(len(boxes)), key=lambda i: area(boxes[i]), reverse=True):
+            x1, y1, x2, y2 = boxes[i]
+            is_duplicate = False
+            for x3,y3,x4,y4 in correct_bboxes:
+                if not (x3>x2 or x1>x4 or y3>y2 or y1>y4):# if they overlap
+                    # gets the coordinates of the intersection
                     intersection_x1, intersection_x2 = sorted([x1,x2,x3,x4])[1:3]
                     intersection_y1, intersection_y2 = sorted([y1,y2,y3,y4])[1:3]
                     intersection_area = (intersection_x2-intersection_x1)*(intersection_y2-intersection_y1)
                     a1 = (x2-x1)*(y2-y1)
                     a2 = (x4-x3)*(y4-y3)
                     iou = intersection_area/(a1+a2-intersection_area)
-                    if iou > iou_thresh:
-                        boxes[i] = [min(x1,x3),min(y1,y3),max(x2,x4),max(y2,y4)]
-                        indices.append(i)
-        return indices
+                    if iou >= iou_thresh:
+                        is_duplicate=True
+            if not is_duplicate:
+                correct_bboxes.append(np.array([x1,y1,x2,y2]))
+            else:
+                duplicate_indices.add(i)
+        return duplicate_indices
 
     def _split_to_tiles(self, img: cv.Mat):
         h,w = img.shape[:2]
@@ -131,30 +145,21 @@ class Pipeline:
         for v,h in itertools.product(v_indices, h_indices):
             tile = img[v:v+self.tile_resolution, h:h+self.tile_resolution]
             all_tiles.append(tile)
-            tile_offsets_x_y.append((v,h))
+            tile_offsets_x_y.append((h,v))
 
         return (all_tiles, tile_offsets_x_y)
 
-    def _get_letter_crops(self, image, bboxes: 'list[list[float]]'):
-        grayscale_image = cv.cvtColor(
-            src=np.array(image),
-            code=cv.COLOR_RGB2GRAY
-        )
-        just_letter_images=[]
-        for box_x0, box_y0, box_x1, box_y1 in bboxes:
-            box_w=int(box_x1)-int(box_x0)
-            box_h=int(box_y1)-int(box_y0)
-            if box_w>self.tile_resolution or box_h>self.tile_resolution:
-                continue
-            box_crop=grayscale_image[
-                int(box_y0):int(box_y1),
-                int(box_x0):int(box_x1)
-                ]
-            just_letter_images.append(
-                np.pad(box_crop,pad_width=((0,128-box_h),(0,128-box_w)))
-            )
-            # cv.imwrite(f"{str(image)}.png", just_letter_images[-1])
-        return np.array(just_letter_images)
+    def _get_letter_crop(self, img, bbox: 'list[int]'):
+        box_x0, box_y0, box_x1, box_y1 = bbox
+        box_x1 = min(box_x1, box_x0+self.tile_resolution)
+        box_y1 = min(box_y1, box_y0+self.tile_resolution)
+        # if box_w>self.tile_resolution or box_h>self.tile_resolution:
+        #     continue
+        box_crop=img[
+            (box_y0):(box_y1),
+            (box_x0):(box_x1)
+            ]
+        return np.pad(box_crop,pad_width=((0,128-box_crop.shape[0]),(0,128-box_crop.shape[1])))
 
     def loop(self):
         # if you need to profile use this: https://stackoverflow.com/a/62382967/14587004
@@ -164,6 +169,7 @@ class Pipeline:
         # current_location = self.getCurrentLocation()
         # self.logGeolocation(save_counter, img, current_location)
         img = cv.imread("gopro-image-5k.png")
+        grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
         # h, w = img.shape[:2]
         # h_pad = (self.tile_resolution-divmod(h, self.tile_resolution)[1])
@@ -175,7 +181,8 @@ class Pipeline:
 
         batch_size = len(all_tiles)
 
-        bboxes, shape_labels, confidences = [], [], [] 
+        bboxes_per_tile: "list[Tensor]" = []
+        shape_labels, confidences = [], [] 
 
         offset_corrected_bboxes = []
         letter_labels = []
@@ -186,25 +193,39 @@ class Pipeline:
             axis=0):
             predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False) # TODO: figure out why predict needs batch as a list. I suspect this is a bug and it should be able to take a numpy array, which would be faster
             prediction_tensors: list[Tensor] = [x.to('cpu').boxes.boxes for x in predictions]
-            bboxes.extend([pred[:,:4] for pred in prediction_tensors])
+            bboxes_per_tile.extend([pred[:,:4] for pred in prediction_tensors])
             shape_labels.extend([[int(x) for x in pred[:,5]+1] for pred in prediction_tensors])
             confidences.extend([pred[:,4] for pred in prediction_tensors])
 
-        letter_image_buffer=None
-        for tile_index in range(len(bboxes)):
-            if len(bboxes[tile_index])<=0:
+        all_shape_results: list[ShapeResult] = []
+
+        for tile_index in range(len(all_tiles)):
+            for i in range(len(bboxes_per_tile[tile_index])):
+                box = bboxes_per_tile[tile_index][i].int().tolist()
+                if len(box) == 0:
+                    continue
+                box[0] += tile_offsets_x_y[tile_index][0]
+                box[1] += tile_offsets_x_y[tile_index][1]
+                box[2] += tile_offsets_x_y[tile_index][0]
+                box[3] += tile_offsets_x_y[tile_index][1]
+                all_shape_results.append(
+                    ShapeResult(
+                        shape_label=shape_labels[tile_index][i],
+                        confidence=confidences[tile_index][i],
+                        bbox=box,
+                        tile_index=tile_index
+                    )
+                )
+
+        duplicate_indices = self.nms_indices([x.bbox for x in all_shape_results], [x.confidence for x in all_shape_results])
+        letter_image_buffer=[]
+        for i, shape_result in enumerate(all_shape_results):
+            if i in duplicate_indices:
                 continue
-
-            y_offset,x_offset = tile_offsets_x_y[tile_index]
-            just_letter_images = self._get_letter_crops(all_tiles[tile_index], bboxes[tile_index])
-            if letter_image_buffer is None:
-                letter_image_buffer = just_letter_images
-            else:
-                letter_image_buffer=np.concatenate([letter_image_buffer,just_letter_images],axis=0)
-
-            for box_x0, box_y0, box_x1, box_y1 in bboxes[tile_index]:
-                offset_corrected_bboxes.append([box_x0+x_offset,box_y0+y_offset, box_x1+x_offset, box_y1+y_offset])
-        letter_results = self.letter_detector.predict(letter_image_buffer)
+            letter_image_buffer.append(self._get_letter_crop(grayscale_img, box))
+            offset_corrected_bboxes.append(shape_result.bbox)
+        
+        letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
         if PLOT_RESULT:
             plot_fns.show_image_cv(
@@ -215,7 +236,6 @@ class Pipeline:
                 file_name="processed_img.png",
                 font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
 
-        #     print(tile_index, result)
 
 
         # time.sleep(self.SLEEP_TIME)
