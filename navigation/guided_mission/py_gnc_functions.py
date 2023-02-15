@@ -22,8 +22,9 @@ class gnc_api:
         self.current_pose_g = Odometry()
         self.correction_vector_g = Pose()
         self.local_offset_pose_g = Point()
-        # self.waypoint_g = PoseStamped()
         self.position_target = PositionTarget()
+        self.position_target.type_mask = int('010111111000', 2)
+        self.position_target.coordinate_frame = 1
 
         self.current_heading_g = 0.0
         self.local_offset_g = 0.0
