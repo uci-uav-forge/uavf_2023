@@ -1,0 +1,10 @@
+opencv-python
+pillow
+tensorflow
+torch
+fastcore
+pytorch-lightning
+ensemble-boxes
+effdet
+albumentations
+ultralytics
