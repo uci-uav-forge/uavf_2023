@@ -18,7 +18,9 @@ import numpy as np
 import json
 import tensorflow as tf
 import time
-# import itertools # needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of the loop function
+# needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of the loop function
+import itertools 
+import shape_detection.src.plot_functions as plot_fns
 
 class Pipeline:
 
@@ -46,7 +48,7 @@ class Pipeline:
         if gpus: # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
             tf.config.set_logical_device_configuration(
                 gpus[0],
-                [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
+                [tf.config.LogicalDeviceConfiguration(memory_limit=2048)])
 
         # self.localizer = Localizer()
         self.tile_resolution=512# has to match img_size of the model, which is determined by which one we use.
@@ -107,25 +109,31 @@ class Pipeline:
         return (all_tiles, tile_offsets_x_y)
 
     def _get_letter_crops(self, image, bboxes: 'list[list[float]]'):
+        LETTER_IMG_SIZE=128
         grayscale_image = cv.cvtColor(
             src=np.array(image),
             code=cv.COLOR_RGB2GRAY
         )
         just_letter_images=[]
-        for box_x0, box_y0, box_x1, box_y1 in bboxes:
-            box_w=int(box_x1)-int(box_x0)
-            box_h=int(box_y1)-int(box_y0)
-            if box_w>self.tile_resolution or box_h>self.tile_resolution:
-                continue
+        for box in bboxes:
+            box_x0, box_y0, box_w, box_h = [max(int(x),0) for x in box]
+            box_w=min(box_w,LETTER_IMG_SIZE)
+            box_h=min(box_h,LETTER_IMG_SIZE)
+            box_x1=box_x0+box_w
+            box_y1=box_y0+box_h
             box_crop=grayscale_image[
-                int(box_y0):int(box_y1),
-                int(box_x0):int(box_x1)
+                box_y0:box_y1,
+                box_x0:box_x1
                 ]
-            just_letter_images.append(
-                np.pad(box_crop,pad_width=((0,128-box_h),(0,128-box_w)))
-            )
+            if box_crop.shape>(LETTER_IMG_SIZE,LETTER_IMG_SIZE):
+                print("wtf", box_crop.shape, box)
+            padded_img = np.pad(box_crop,pad_width=((0,LETTER_IMG_SIZE-box_crop.shape[0]),(0,LETTER_IMG_SIZE-box_crop.shape[1])))
+            if padded_img.shape != (LETTER_IMG_SIZE, LETTER_IMG_SIZE):
+                print("wtf", padded_img.shape, box_w, box_h, "|",box_x0, box_y0)
+            just_letter_images.append(padded_img)
             # cv.imwrite(f"{str(image)}.png", just_letter_images[-1])
         return np.array(just_letter_images)
+
     def loop(self):
         # if you need to profile use this: https://stackoverflow.com/a/62382967/14587004
 
@@ -153,41 +161,45 @@ class Pipeline:
             ary=all_tiles, 
             indices_or_sections=range(batch_size, len(all_tiles),batch_size),
             axis=0):
+            batch =batch.view().reshape((batch_size,3,512,512))
             # predictions: list[Results] = self.shape_model.predict(batch, verbose=False)
-            predictions_batch: Tensor = self.shape_model.run(["output0"], {"images": batch.reshape((batch_size,3,512,512)).astype(np.float32)})[0] # (batch_size, 4+13, 5376)
-            for prediction in predictions_batch:
-                boxes = prediction[:4, :]
-                deduped_boxes, unique_indices = boxes.reshape((boxes.shape[1], 4)), range(len(boxes))
-                # deduped_boxes, unique_indices = suppress_nonmax_bboxes(boxes.reshape((boxes.shape[1], 4)), 0.5, return_indices=True)
+            predictions_batch: Tensor = self.shape_model.run(
+                output_names=["output0"], 
+                input_feed={"images": batch.astype(np.float32)}
+            )[0] # (batch_size, 4+13, 5376)
+            for prediction in predictions_batch: # (17, 5376)
+                boxes = prediction[:4, :].reshape((prediction.shape[1], 4)) # (5376,4) (x0,y0,w,h)
+                thresholded_indices = np.max(prediction[4:, :],axis=0) > 0.8
+                print(len(boxes[thresholded_indices,:]))
+                deduped_boxes, unique_indices = suppress_nonmax_bboxes(boxes[thresholded_indices,:], 0.5, return_indices=True)
                 labels =  np.argmax(prediction[4:, unique_indices], axis=0)
-                confidences.append(np.max(prediction[labels+4, unique_indices], axis=0))
+                confidences.append(prediction[labels+4, unique_indices])
                 bboxes.append(deduped_boxes)
                 shape_labels.append(labels+1)
+        print("finished shape")
+        # letter_image_buffer=None
+        # for tile_index in range(len(bboxes)):
+        #     if len(bboxes[tile_index])<=0:
+        #         continue
 
-        
-        letter_image_buffer=None
-        for tile_index in range(len(bboxes)):
-            if len(bboxes[tile_index])<=0:
-                continue
+        #     y_offset,x_offset = tile_offsets_x_y[tile_index]
+        #     just_letter_images = self._get_letter_crops(all_tiles[tile_index], bboxes[tile_index])
+        #     if letter_image_buffer is None:
+        #         letter_image_buffer = just_letter_images
+        #     else:
+        #         letter_image_buffer=np.concatenate([letter_image_buffer,just_letter_images],axis=0)
 
-            y_offset,x_offset = tile_offsets_x_y[tile_index]
-            just_letter_images = self._get_letter_crops(all_tiles[tile_index], bboxes[tile_index])
-            if letter_image_buffer is None:
-                letter_image_buffer = just_letter_images
-            else:
-                letter_image_buffer=np.concatenate([letter_image_buffer,just_letter_images],axis=0)
-
-            for box_x0, box_y0, box_x1, box_y1 in bboxes[tile_index]:
-                offset_corrected_bboxes.append([box_x0+x_offset,box_y0+y_offset, box_x1+x_offset, box_y1+y_offset])
-        letter_results = self.letter_detector.predict(letter_image_buffer)
-        letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
-        # plot_fns.show_image_cv(
-        #     img, 
-        #     offset_corrected_bboxes,
-        #     [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*shape_labels))],
-        #     list(itertools.chain(*confidences)),
-        #     file_name="processed_img.png",
-        #     font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
+        #     for box_x0, box_y0, box_x1, box_y1 in bboxes[tile_index]:
+        #         offset_corrected_bboxes.append([box_x0+x_offset,box_y0+y_offset, box_x1+x_offset, box_y1+y_offset])
+        # letter_results = self.letter_detector.predict(letter_image_buffer)
+        # letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
+        plot_fns.show_image_cv(
+            img, 
+            offset_corrected_bboxes,
+            [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(itertools.repeat("NO_LABEL") ,itertools.chain(*shape_labels))],
+            list(itertools.chain(*confidences)),
+            file_name="processed_img.png",
+            font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
 
         #     print(tile_index, result)
 

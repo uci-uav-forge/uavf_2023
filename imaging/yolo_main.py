@@ -4,10 +4,15 @@
 # from shapeInference.shape_inference import ShapeInference
 # from utils.target import Target
 
+import sys
 from torch import Tensor
+import torch
 
 from ultralytics.yolo.engine.results import Results
+from ultralytics.nn.autobackend import AutoBackend
+from ultralytics.yolo.utils import ops
 from ultralytics import YOLO
+from ultralytics.yolo.v8.detect import DetectionPredictor
 # from ..navigation.guided_mission.run_mission import Localizer
 import letter_detection.LetterDetector as letter_detection
 
@@ -19,8 +24,10 @@ import tensorflow as tf
 import time
 
 # needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of the loop function
-# import itertools 
-# import shape_detection.src.plot_functions as plot_fns
+PLOT_RESULTS=True
+if PLOT_RESULTS:
+    import itertools 
+    import shape_detection.src.plot_functions as plot_fns
 
 class Pipeline:
 
@@ -52,11 +59,22 @@ class Pipeline:
 
         # self.localizer = Localizer()
         self.tile_resolution=512# has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO("yolo/trained_models/v8n.pt")
 
+
+        # self.shape_model = AutoBackend("yolo/trained_models/v8n.pt"
+        #                              , device=torch.device("cuda"))
+        # self.shape_model.warmup(imgsz=(66, 3, self.tile_resolution, self.tile_resolution))
+        # self.shape_model.eval()
+
+        self.shape_model = YOLO("yolo/trained_models/v8n.pt")
+        # self.shape_model.overrides={
+        #     "dnn": True,
+        #     "half": True
+        # }
         # warm up model
         rand_input = np.random.rand(1, self.tile_resolution, self.tile_resolution,3).astype(np.float32)
         self.shape_model.predict(list(rand_input), verbose=False)
+
         # this looks stupid but is necessary because yolov8 only sets up the model on the first call to predict. See site-packages/ultralytics/yolo/engine/model.py in predict() function, inside the `if not self.predictor` block. I profiled it and the setup_model step takes 80% of the time.
 
         self.letter_detector = letter_detection.LetterDetector("trained_model.h5")
@@ -119,21 +137,23 @@ class Pipeline:
             code=cv.COLOR_RGB2GRAY
         )
         just_letter_images=[]
-        for box_x0, box_y0, box_x1, box_y1 in bboxes:
-            box_w=int(box_x1)-int(box_x0)
-            box_h=int(box_y1)-int(box_y0)
-            if box_w>self.tile_resolution or box_h>self.tile_resolution:
-                continue
+        LETTER_IMG_SIZE=128
+        for box in bboxes:
+            box_x0, box_y0, box_x1, box_y1 = [max(int(x),0) for x in box]
+            box_x1=min(box_x1,box_x0+LETTER_IMG_SIZE)
+            box_y1=min(box_y1,box_y0+LETTER_IMG_SIZE)
             box_crop=grayscale_image[
-                int(box_y0):int(box_y1),
-                int(box_x0):int(box_x1)
+                box_y0:box_y1,
+                box_x0:box_x1
                 ]
             just_letter_images.append(
-                np.pad(box_crop,pad_width=((0,128-box_h),(0,128-box_w)))
+                np.pad(box_crop,pad_width=((0,LETTER_IMG_SIZE-box_crop.shape[0]),(0,LETTER_IMG_SIZE-box_crop.shape[1])))
             )
-            # cv.imwrite(f"{str(image)}.png", just_letter_images[-1])
-        return np.array(just_letter_images)
+            print("writing image")
+            cv.imwrite(f"{str(box)}.png", box_crop)
+        return just_letter_images
 
+    @profile
     def loop(self):
         # if you need to profile use this: https://stackoverflow.com/a/62382967/14587004
 
@@ -162,6 +182,21 @@ class Pipeline:
             ary=all_tiles, 
             indices_or_sections=range(batch_size, len(all_tiles),batch_size),
             axis=0):
+
+            # batch = torch.Tensor(batch.transpose((0,3, 2, 1))).to("cuda")
+            # # print(batch.shape)# 66, 3, 512, 512
+            # preds = self.shape_model(batch)
+
+            # # defaults for nms: conf=0.25, iou=0.7, dets=300
+            # preds = ops.non_max_suppression(preds,
+            #                                 conf_thres=0.25,
+            #                                 iou_thres=0.7,
+            #                                 max_det=300)
+
+            # predictions: "list[Results]" = []
+            # for pred in preds:
+            #     predictions.append(Results(boxes=pred.round(), orig_shape=(self.tile_resolution,self.tile_resolution)))
+
             predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False) # TODO: figure out why predict needs batch as a list. I suspect this is a bug and it should be able to take a numpy array, which would be faster
             prediction_tensors: list[Tensor] = [x.to('cpu').boxes.boxes for x in predictions]
             bboxes.extend([pred[:,:4] for pred in prediction_tensors])
@@ -178,19 +213,21 @@ class Pipeline:
             if letter_image_buffer is None:
                 letter_image_buffer = just_letter_images
             else:
-                letter_image_buffer=np.concatenate([letter_image_buffer,just_letter_images],axis=0)
+                letter_image_buffer.extend(just_letter_images)
 
             for box_x0, box_y0, box_x1, box_y1 in bboxes[tile_index]:
                 offset_corrected_bboxes.append([box_x0+x_offset,box_y0+y_offset, box_x1+x_offset, box_y1+y_offset])
+        letter_image_buffer = np.array(letter_image_buffer)
         letter_results = self.letter_detector.predict(letter_image_buffer)
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
-        # plot_fns.show_image_cv(
-        #     img, 
-        #     offset_corrected_bboxes,
-        #     [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*shape_labels))],
-        #     list(itertools.chain(*confidences)),
-        #     file_name="processed_img.png",
-        #     font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
+        if PLOT_RESULTS:
+            plot_fns.show_image_cv(
+                img, 
+                offset_corrected_bboxes,
+                [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*shape_labels))],
+                list(itertools.chain(*confidences)),
+                file_name="processed_img.png",
+                font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
 
         #     print(tile_index, result)
 
