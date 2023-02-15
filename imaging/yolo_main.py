@@ -111,9 +111,7 @@ class Pipeline:
         '''
         correct_bboxes = []
         duplicate_indices =  set()
-        def area(box):
-            return (box[2]-box[0])*(box[3]-box[1])
-        for i in sorted(range(len(boxes)), key=lambda i: area(boxes[i]), reverse=True):
+        for i in sorted(range(len(boxes)), key=lambda i: confidences[i], reverse=True):
             x1, y1, x2, y2 = boxes[i]
             is_duplicate = False
             for x3,y3,x4,y4 in correct_bboxes:
@@ -149,16 +147,16 @@ class Pipeline:
 
         return (all_tiles, tile_offsets_x_y)
 
-    def _get_letter_crop(self, img, bbox: 'list[int]'):
+    def _get_letter_crop(self, img: cv.Mat, bbox: 'list[int]'):
         box_x0, box_y0, box_x1, box_y1 = bbox
         box_x1 = min(box_x1, box_x0+self.tile_resolution)
         box_y1 = min(box_y1, box_y0+self.tile_resolution)
-        # if box_w>self.tile_resolution or box_h>self.tile_resolution:
-        #     continue
+
         box_crop=img[
             (box_y0):(box_y1),
             (box_x0):(box_x1)
             ]
+        
         return np.pad(box_crop,pad_width=((0,128-box_crop.shape[0]),(0,128-box_crop.shape[1])))
 
     def loop(self):
@@ -171,12 +169,6 @@ class Pipeline:
         img = cv.imread("gopro-image-5k.png")
         grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
-        # h, w = img.shape[:2]
-        # h_pad = (self.tile_resolution-divmod(h, self.tile_resolution)[1])
-        # w_pad = (self.tile_resolution-divmod(w, self.tile_resolution)[1])
-        # img = np.pad(img, pad_width=[(0,h_pad),(0,w_pad),(0,0)],constant_values=0)
-        # zero pads the image so its dimensions are evenly divisible by the tile resolution.
-
         all_tiles, tile_offsets_x_y =self._split_to_tiles(img)
 
         batch_size = len(all_tiles)
@@ -184,8 +176,6 @@ class Pipeline:
         bboxes_per_tile: "list[Tensor]" = []
         shape_labels, confidences = [], [] 
 
-        offset_corrected_bboxes = []
-        letter_labels = []
         # `map(list,...` in this loop makes sure the correct `predict` type overload is being called.
         for batch in np.split(
             ary=all_tiles, 
@@ -217,29 +207,29 @@ class Pipeline:
                     )
                 )
 
-        duplicate_indices = self.nms_indices([x.bbox for x in all_shape_results], [x.confidence for x in all_shape_results])
+        duplicate_indices = self.nms_indices(
+            [x.bbox for x in all_shape_results], 
+            [x.confidence for x in all_shape_results]
+        )
+
+        valid_results: "list[ShapeResult]" = []
         letter_image_buffer=[]
         for i, shape_result in enumerate(all_shape_results):
-            if i in duplicate_indices:
-                continue
-            letter_image_buffer.append(self._get_letter_crop(grayscale_img, box))
-            offset_corrected_bboxes.append(shape_result.bbox)
+            if i in duplicate_indices: continue
+
+            letter_image_buffer.append(self._get_letter_crop(grayscale_img, shape_result.bbox))
+            valid_results.append(shape_result)
         
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
         if PLOT_RESULT:
             plot_fns.show_image_cv(
                 img, 
-                offset_corrected_bboxes,
-                [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*shape_labels))],
-                list(itertools.chain(*confidences)),
+                [res.bbox for res in valid_results],
+                [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,[res.shape_label for res in valid_results])],
+                [res.confidence for res in valid_results],
                 file_name="processed_img.png",
                 font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
-
-
-
-        # time.sleep(self.SLEEP_TIME)
-
 
     def run(self):
         """
