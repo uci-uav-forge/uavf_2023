@@ -228,7 +228,7 @@ class Pipeline:
                 [res.bbox for res in valid_results],
                 [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,[res.shape_label for res in valid_results])],
                 [res.confidence for res in valid_results],
-                file_name="processed_img.png",
+                file_name="detection_results.png",
                 font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
 
     def run(self):
