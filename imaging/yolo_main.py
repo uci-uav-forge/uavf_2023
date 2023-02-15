@@ -16,11 +16,13 @@ import os
 import numpy as np
 import json
 import tensorflow as tf
+import itertools 
 import time
 
 # needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of the loop function
-# import itertools 
-# import shape_detection.src.plot_functions as plot_fns
+PLOT_RESULT=True
+if PLOT_RESULT:
+    import shape_detection.src.plot_functions as plot_fns
 
 class Pipeline:
 
@@ -95,22 +97,42 @@ class Pipeline:
         f.write("Save counter: {} | location: {}\n".format(counter, loc))
         f.close()
 
+    def merge_bboxes(self, boxes: "list[list[int]]", iou_thresh=0.01):
+        '''
+        Modifies `boxes` in-place to merge boxes and returns indices of the ones that are non-duplicates.
+        '''
+        n = len(boxes)
+        indices = []
+        for i in range(n):
+            for j in range(i+1,n):
+                if self._boxes_overlap(boxes[i], boxes[j]):
+                    x1,y1,x2,y2 = boxes[i]
+                    x3,y3,x4,y4 = boxes[j]
+                    intersection_x1, intersection_x2 = sorted([x1,x2,x3,x4])[1:3]
+                    intersection_y1, intersection_y2 = sorted([y1,y2,y3,y4])[1:3]
+                    intersection_area = (intersection_x2-intersection_x1)*(intersection_y2-intersection_y1)
+                    a1 = (x2-x1)*(y2-y1)
+                    a2 = (x4-x3)*(y4-y3)
+                    iou = intersection_area/(a1+a2-intersection_area)
+                    if iou > iou_thresh:
+                        boxes[i] = [min(x1,x3),min(y1,y3),max(x2,x4),max(y2,y4)]
+                        indices.append(i)
+        return indices
+
     def _split_to_tiles(self, img: cv.Mat):
         h,w = img.shape[:2]
-        n_horizontal_tiles = w//self.tile_resolution
-        n_vertical_tiles = h//self.tile_resolution
+        n_horizontal_tiles = np.ceil(w/self.tile_resolution).astype(int)
+        n_vertical_tiles = np.ceil(h/self.tile_resolution).astype(int)
         all_tiles = []
-        h_tiles = np.split(img,range(self.tile_resolution,(n_horizontal_tiles+1)*self.tile_resolution,self.tile_resolution),axis=1)
         tile_offsets_x_y: 'list[tuple]'  = []
+        v_indices = np.linspace(0,h-self.tile_resolution,n_vertical_tiles).astype(int)
+        h_indices = np.linspace(0,w-self.tile_resolution,n_horizontal_tiles).astype(int)
 
-        for i,h_tile in enumerate(h_tiles):
-            y_offset = i*self.tile_resolution
-            v_tiles = np.split(h_tile,range(self.tile_resolution,(n_vertical_tiles+1)*self.tile_resolution,self.tile_resolution),axis=0)
-            for j,tile in enumerate(v_tiles):
-                if any(dim==0 for dim in tile.shape):
-                    continue
-                all_tiles.append(tile)
-                tile_offsets_x_y.append((j*self.tile_resolution,y_offset))
+        for v,h in itertools.product(v_indices, h_indices):
+            tile = img[v:v+self.tile_resolution, h:h+self.tile_resolution]
+            all_tiles.append(tile)
+            tile_offsets_x_y.append((v,h))
+
         return (all_tiles, tile_offsets_x_y)
 
     def _get_letter_crops(self, image, bboxes: 'list[list[float]]'):
@@ -143,10 +165,10 @@ class Pipeline:
         # self.logGeolocation(save_counter, img, current_location)
         img = cv.imread("gopro-image-5k.png")
 
-        h, w = img.shape[:2]
-        h_pad = (self.tile_resolution-divmod(h, self.tile_resolution)[1])
-        w_pad = (self.tile_resolution-divmod(w, self.tile_resolution)[1])
-        img = np.pad(img, pad_width=[(0,h_pad),(0,w_pad),(0,0)],constant_values=0)
+        # h, w = img.shape[:2]
+        # h_pad = (self.tile_resolution-divmod(h, self.tile_resolution)[1])
+        # w_pad = (self.tile_resolution-divmod(w, self.tile_resolution)[1])
+        # img = np.pad(img, pad_width=[(0,h_pad),(0,w_pad),(0,0)],constant_values=0)
         # zero pads the image so its dimensions are evenly divisible by the tile resolution.
 
         all_tiles, tile_offsets_x_y =self._split_to_tiles(img)
@@ -167,7 +189,7 @@ class Pipeline:
             bboxes.extend([pred[:,:4] for pred in prediction_tensors])
             shape_labels.extend([[int(x) for x in pred[:,5]+1] for pred in prediction_tensors])
             confidences.extend([pred[:,4] for pred in prediction_tensors])
-        
+
         letter_image_buffer=None
         for tile_index in range(len(bboxes)):
             if len(bboxes[tile_index])<=0:
@@ -184,13 +206,14 @@ class Pipeline:
                 offset_corrected_bboxes.append([box_x0+x_offset,box_y0+y_offset, box_x1+x_offset, box_y1+y_offset])
         letter_results = self.letter_detector.predict(letter_image_buffer)
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
-        # plot_fns.show_image_cv(
-        #     img, 
-        #     offset_corrected_bboxes,
-        #     [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*shape_labels))],
-        #     list(itertools.chain(*confidences)),
-        #     file_name="processed_img.png",
-        #     font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
+        if PLOT_RESULT:
+            plot_fns.show_image_cv(
+                img, 
+                offset_corrected_bboxes,
+                [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,itertools.chain(*shape_labels))],
+                list(itertools.chain(*confidences)),
+                file_name="processed_img.png",
+                font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
 
         #     print(tile_index, result)
 
