@@ -19,9 +19,8 @@ from global_path.flight_plan_tsp import FlightPlan
 
 def init_mission(mission_q): 
     # mission parameters in SI units
-    takeoff_alt = 10 # m
     drop_alt = 25 # m
-    avg_spd = 5 # m/s
+    max_spd = 5 # m/s
     drop_spd = 3 # m/s
 
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
@@ -68,10 +67,10 @@ def init_mission(mission_q):
     # add home position at the end, always goes last, home= 2,000,000,000
     mission_q.put((int(2000000000), (0.0, 0.0, avg_alt)))
 
-    return global_path, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt
+    return global_path, drop_alt, max_spd, drop_spd, avg_alt
 
 
-def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt, use_px4=False):
+def mission_loop(mission_q: PriorityQueue, drop_alt, max_spd, drop_spd, avg_alt, use_px4=False):
     # init drone api
     rate = rospy.Rate(20)
     drone = gnc_api()
@@ -83,13 +82,19 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
 
     # align drone heading with north
     drone.initialize_local_frame()
-    if use_px4 == True:
+    if use_px4:
         drone.arm()
+        drone.set_destination(
+            x=0, y=0, z=avg_alt, psi=0)
     else:
-        drone.takeoff(takeoff_alt)
-        
-    drone.set_destination(
-        x=0, y=0, z=takeoff_alt, psi=0)
+        drone.takeoff(avg_alt)
+    
+    # initialize maximum speed
+    if use_px4:
+        drone.set_speed_px4(max_spd)
+    else:
+        drone.set_speed(max_spd)
+
     while not drone.check_waypoint_reached():
         pass
     
@@ -105,10 +110,13 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
         # lower alt and slow down if moving to drop point
         if mission_q.queue[0][0] > 1000000000 and mission_q.queue[0][0] < 2000000000:
             curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
-            drone.set_speed(drop_spd)
-        else:
-            drone.set_speed(avg_spd)
-        #drone.set_heading(hdg)
+            if use_px4:
+                drone.set_speed_px4(drop_spd)
+            else:
+                drone.set_speed(drop_spd)
+        #else:
+            #drone.set_speed(max_spd)
+
         drone.set_destination(
             x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg)
 
@@ -128,15 +136,19 @@ def mission_loop(mission_q: PriorityQueue, takeoff_alt, drop_alt, avg_spd, drop_
                 # lower alt and slow down if moving to drop point
                 if mission_q.queue[0][0] > 1000000000 and mission_q.queue[0][0] < 2000000000:
                     curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
-                    drone.set_speed(drop_spd)
-                else:
-                    drone.set_speed(avg_spd)
+                    if use_px4:
+                        drone.set_speed_px4(drop_spd)
+                    else:
+                        drone.set_speed(drop_spd)           
+                #else:
+                    #drone.set_speed(max_spd)
+
                 drone.set_destination(
                     x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg)
 
-            else:
-                curr_pos = drone.get_current_location()
-                print('current position: ' + str((curr_pos.x, curr_pos.y, curr_pos.z)))
+            #else:
+                #curr_pos = drone.get_current_location()
+                #print('current position: ' + str((curr_pos.x, curr_pos.y, curr_pos.z)))
             rate.sleep()
 
         mission_q.get()
@@ -246,10 +258,10 @@ if __name__ == '__main__':
     use_px4 = True
 
     # init mission
-    global_path, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt = init_mission(mission_q)
+    global_path, drop_alt, max_spd, drop_spd, avg_alt = init_mission(mission_q)
 
     # init priority assigner with mission queue and dropzone wp
     mission_q_assigner = PriorityAssigner(mission_q, global_path[len(global_path) - 1])
 
     # run control loop
-    mission_loop(mission_q, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt, use_px4)
+    mission_loop(mission_q, drop_alt, max_spd, drop_spd, avg_alt, use_px4)

@@ -10,6 +10,8 @@ from mavros_msgs.srv import CommandTOL, CommandTOLRequest
 from mavros_msgs.srv import CommandLong, CommandLongRequest
 from mavros_msgs.srv import CommandBool, CommandBoolRequest
 from mavros_msgs.srv import SetMode, SetModeRequest
+from mavros_msgs.srv import ParamSet
+from mavros_msgs.msg import ParamValue
 
 """Control Functions
 	This module is designed to make high level control programming simple.
@@ -66,34 +68,35 @@ class gnc_api:
         )
 
         rospy.wait_for_service("{}mavros/cmd/arming".format(self.ns))
-
         self.arming_client = rospy.ServiceProxy(
             name="{}mavros/cmd/arming".format(self.ns), service_class=CommandBool
         )
 
         rospy.wait_for_service("{}mavros/cmd/land".format(self.ns))
-
         self.land_client = rospy.ServiceProxy(
             name="{}mavros/cmd/land".format(self.ns), service_class=CommandTOL
         )
 
         rospy.wait_for_service("{}mavros/cmd/takeoff".format(self.ns))
-
         self.takeoff_client = rospy.ServiceProxy(
             name="{}mavros/cmd/takeoff".format(self.ns), service_class=CommandTOL
         )
 
         rospy.wait_for_service("{}mavros/set_mode".format(self.ns))
-
         self.set_mode_client = rospy.ServiceProxy(
             name="{}mavros/set_mode".format(self.ns), service_class=SetMode
         )
 
         rospy.wait_for_service("{}mavros/cmd/command".format(self.ns))
-
         self.command_client = rospy.ServiceProxy(
             name="{}mavros/cmd/command".format(self.ns), service_class=CommandLong
         )
+
+        rospy.wait_for_service("{}/mavros/param/set".format(self.ns))
+        self.px4_speed_client = rospy.ServiceProxy(
+            name="{}/mavros/param/set".format(self.ns), service_class=ParamSet
+        )
+
         rospy.loginfo(CBOLD + CGREEN2 + "Initialization Complete." + CEND)
 
 
@@ -302,6 +305,35 @@ class gnc_api:
                 CRED2 + "Speed set failed with code {}".format(str(response.success)) + CEND)
             rospy.logerr(
                 CRED2 + "Speed set result was {}".format(str(response.result)) + CEND)
+            return -1
+    
+
+    def set_speed_px4(self, speed_mps):
+        """This function is used to change the speed of the vehicle in guided mode. It takes the speed in meters per second as a float as the input.
+
+        Args:
+                speed_mps (Float): Speed in m/s.
+
+        Returns:
+                0 (int): Speed set successful.
+                -1 (int): Speed set unsuccessful.
+        """
+
+        rospy.loginfo(
+            CBLUE2 + "Setting speed to {}m/s".format(str(speed_mps)) + CEND)
+        response = self.px4_speed_client(param_id="MPC_XY_VEL_ALL", value=ParamValue(real=speed_mps))
+
+        if response.success:
+            rospy.loginfo(
+                CGREEN2 + "Speed set successfully with code {}".format(str(response.success)) + CEND)
+            #rospy.loginfo(
+            #    CGREEN2 + "Change Speed result was {}".format(str(response.result)) + CEND)
+            return 0
+        else:
+            rospy.logerr(
+                CRED2 + "Speed set failed with code {}".format(str(response.success)) + CEND)
+            #rospy.logerr(
+            #    CRED2 + "Speed set result was {}".format(str(response.result)) + CEND)
             return -1
 
 
