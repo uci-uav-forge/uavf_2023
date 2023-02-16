@@ -155,8 +155,8 @@ class Pipeline:
         grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
         all_tiles, tile_offsets_x_y = self._split_to_tiles(img)
 
-        batch_size = len(all_tiles)
-        # batch_size = 1  # when running on Jetson Nano
+        # batch_size = len(all_tiles)
+        batch_size = 1  # when running on Jetson Nano
 
         bboxes_per_tile: "list[Tensor]" = []
         shape_labels, confidences = [], []
