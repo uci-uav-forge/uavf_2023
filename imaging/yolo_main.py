@@ -21,7 +21,7 @@ import itertools
 import time
 
 # needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of the loop function
-PLOT_RESULT=True
+PLOT_RESULT=False
 if PLOT_RESULT:
     import shape_detection.src.plot_functions as plot_fns
 
@@ -176,12 +176,14 @@ class Pipeline:
         bboxes_per_tile: "list[Tensor]" = []
         shape_labels, confidences = [], [] 
 
-        # `map(list,...` in this loop makes sure the correct `predict` type overload is being called.
         for batch in np.split(
             ary=all_tiles, 
             indices_or_sections=range(batch_size, len(all_tiles),batch_size),
             axis=0):
-            predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False) # TODO: figure out why predict needs batch as a list. I suspect this is a bug and it should be able to take a numpy array, which would be faster
+            predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False) 
+            # If you don't wrap `batch` in a list, it will raise an error. I actually went in and patched this on my local copy of the library in hopes that passing a raw ndarray would make it faster but it doesn't result in a speedup.
+            # with list wrap: 83.81534 seconds for 100 loops
+            # without list wrap: 84.9
             prediction_tensors: list[Tensor] = [x.to('cpu').boxes.boxes for x in predictions]
             bboxes_per_tile.extend([pred[:,:4] for pred in prediction_tensors])
             shape_labels.extend([[int(x) for x in pred[:,5]+1] for pred in prediction_tensors])
