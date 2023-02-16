@@ -1,3 +1,5 @@
+from io import TextIOWrapper
+import itertools
 import math
 import os
 import random
@@ -33,7 +35,7 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
     
     `num_images` is how many images to output
 
-    `blur_radius` is the size of the gaussian kernel. The default is 3, which means a 3x3 kernel.
+    `blur_radius_fn` is a function that returns the blur radius
 
     `data_split` is a 3-tuple describing the proportions of train, validation, and test data generated respectively.
 
@@ -49,15 +51,18 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
     shape_names_and_categories = list(zip(range(1,len(shapes)+1), sorted(shapes.keys())))
     with open("shape_name_labels.json","w") as f:
         json.dump(dict(shape_names_and_categories),f)
-    if "output" not in os.listdir():
-        os.mkdir("output")
-        os.mkdir("output/train")
-        os.mkdir("output/validation")
-        os.mkdir("output/test")
+    if output_dir not in os.listdir():
+        os.mkdir(output_dir)
+        for split in ["train","validation","test"]:
+            os.mkdir(f"{output_dir}/{split}")
+            for subfolder in ["images","segmentation_masks"]:
+                os.mkdir(f"{output_dir}/{split}/{subfolder}")
+    
     image_idx=0
-    def add_shapes(frame, annotations_file):
+    def add_shapes(frame: cv2.Mat, annotations_file: TextIOWrapper, seg_mask: cv2.Mat):
         height, width = frame.shape[:2]
         for _shape_idx in range(random.randint(0,max_shapes_per_image)):
+            # category_num is in [1,13] and shape_name is in ["circle", "square", ...]
             category_num, shape_name= random.choice(shape_names_and_categories)
 
             shape_source_h, shape_source_w = shapes[shape_name].shape[:2]
@@ -85,18 +90,17 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
 
             x_offset = random.randint(0,width-shape_w)
             y_offset = random.randint(0, height-shape_h)
-            # cv2.imshow("preview",shape_to_draw)
-            # print(shape_color, text_color)
-            # cv2.waitKey(0)
-            for y in range(1,shape_h):
-                for x in range(1,shape_w):
-                    pixel_color = shape_to_draw[bbox[0]+x][bbox[1]+y]
-                    if pixel_color[1]>0:
-                        gaussian_noise = np.random.normal(loc=0,scale=noise_scale,size=3)
-                        frame[y+y_offset][x+x_offset] = text_color+gaussian_noise
-                    elif pixel_color[2]>0 or pixel_color[0]>0:
-                        gaussian_noise = np.random.normal(loc=0,scale=noise_scale,size=3)
-                        frame[y+y_offset][x+x_offset] = shape_color+gaussian_noise
+            for y, x in itertools.product(range(1,shape_h),range(1,shape_w)):
+                pixel_color = shape_to_draw[bbox[0]+x][bbox[1]+y]
+                gaussian_noise = np.random.normal(loc=0,scale=noise_scale,size=3)
+
+                if pixel_color[1]>0:
+                    frame[y+y_offset][x+x_offset] = text_color+gaussian_noise
+                    seg_mask[y+y_offset][x+x_offset] = 125
+                elif pixel_color[2]>0 or pixel_color[0]>0:
+                    frame[y+y_offset][x+x_offset] = shape_color+gaussian_noise
+                    seg_mask[y+y_offset][x+x_offset] = 255
+            
             annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
 
     for num_in_split, split_dir_name in [(data_split[0]*num_images, "train"),(data_split[1]*num_images, "validation"), (data_split[2]*num_images, "test")]:
@@ -107,13 +111,11 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
             frame=get_frame()
             # shape: (height, width, 3) e.g. (2988, 5312, 3)
             output_file_name = f"image{image_idx}.png"
-            add_shapes(frame, annotations_file)
-            blur_radius =blur_radius_fn()
-            if blur_radius>0:
-                frame=cv2.blur(frame, (blur_radius, blur_radius))
-            cv2.imwrite(f"./{output_dir}/{split_dir_name}/{output_file_name}", frame)
+            seg_mask = np.zeros(frame.shape[:2], dtype=np.uint8)
+            add_shapes(frame, annotations_file, seg_mask)
             print("\r[{0}{1}] {2} ({3}%)".format("="*int(image_idx/num_images*20), " "*(20-int(image_idx/num_images*20)), f"Finished {image_idx}/{num_images}", int(image_idx/num_images*100)), end="")
         annotations_file.close()
+        print("\nDone!")
 
 if __name__=="__main__":
     '''
@@ -146,8 +148,8 @@ if __name__=="__main__":
         shape_resolution_fn=lambda: max(10,int(np.random.normal(30,7))), 
         max_shapes_per_image=7, 
         blur_radius_fn=lambda: np.random.randint(3,8),
-        num_images=10_000,
-        output_dir="output",
+        num_images=100,
+        output_dir="seg_output",
         data_split=[0.85,0.1,0.05],
         noise_scale=2
     )
