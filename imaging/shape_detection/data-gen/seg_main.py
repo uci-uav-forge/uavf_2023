@@ -104,22 +104,35 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                     frame[y+y_offset][x+x_offset] = shape_color+gaussian_noise
                     seg_mask[y+y_offset][x+x_offset] = 255
 
-            pad_y = seg_size - shape_h
-            pad_x = seg_size - shape_w
+            crop_ymin = y_offset-ceil((seg_size-shape_h)/2)
+            crop_ymax =y_offset+floor((seg_size-shape_h)/2)+shape_h
+            if crop_ymin<0:
+                crop_ymax=seg_size
+                crop_ymin=0
+            elif crop_ymax>height:
+                crop_ymin=height-seg_size
+                crop_ymax=height
 
+            crop_xmin = x_offset-ceil((seg_size-shape_w)/2)
+            crop_xmax =x_offset+floor((seg_size-shape_w)/2)+shape_w
+            if crop_xmin<0:
+                crop_xmax=seg_size
+                crop_xmin=0
+            elif crop_xmax>width:
+                crop_xmin=width-seg_size
+                crop_xmax=width
+            
+            blur_radius = blur_radius_fn()
+            blur_fn = lambda x: x
+            if blur_radius>0:
+                blur_fn = lambda x: cv2.blur(x, (blur_radius, blur_radius))
             cv2.imwrite(
                 f"./{output_dir}/{split_dir_name}/images/{output_file_name}",
-                frame[
-                        y_offset-ceil(pad_y/2):y_offset+shape_h+floor(pad_y/2),
-                        x_offset-ceil(pad_x/2):x_offset+shape_w+floor(pad_x/2)
-                    ]
+                blur_fn(frame[crop_ymin:crop_ymax,crop_xmin:crop_xmax])
             )
             cv2.imwrite(
                 f"./{output_dir}/{split_dir_name}/segmentation_masks/{output_file_name}",
-                seg_mask[
-                        y_offset-ceil(pad_y/2):y_offset+shape_h+floor(pad_y/2),
-                        x_offset-ceil(pad_x/2):x_offset+shape_w+floor(pad_x/2)
-                    ]
+                seg_mask[crop_ymin:crop_ymax,crop_xmin:crop_xmax]
             )
             annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
 
