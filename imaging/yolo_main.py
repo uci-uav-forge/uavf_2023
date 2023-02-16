@@ -229,8 +229,7 @@ class Pipeline:
         """
         Main run loop for the Imaging pipeline.
         """
-        index = 0
-        while True:
+        for index in range(10):
             self.loop(index)
             time.sleep(self.SLEEP_TIME)  # time to wait until next image capture
 
