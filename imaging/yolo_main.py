@@ -135,7 +135,7 @@ class Pipeline:
         h,w = img.shape[:2]
         n_horizontal_tiles = np.ceil(w/self.tile_resolution).astype(int)
         n_vertical_tiles = np.ceil(h/self.tile_resolution).astype(int)
-        all_tiles = []
+        all_tiles: list[np.ndarray] = []
         tile_offsets_x_y: 'list[tuple]'  = []
         v_indices = np.linspace(0,h-self.tile_resolution,n_vertical_tiles).astype(int)
         h_indices = np.linspace(0,w-self.tile_resolution,n_horizontal_tiles).astype(int)
