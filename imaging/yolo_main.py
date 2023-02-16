@@ -13,13 +13,11 @@ import tensorflow as tf
 import itertools
 import time
 
-# needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of
-# the loop function
-PLOT_RESULT = False
-# PLOT_RESULT = True
+# Flag to turn on the visualization
+# PLOT_RESULT = False
+PLOT_RESULT = True
 if PLOT_RESULT:
     import shape_detection.src.plot_functions as plot_fns
-
 
 @dataclass
 class ShapeResult:
@@ -29,18 +27,12 @@ class ShapeResult:
     tile_index: int
 
 
-def logGeolocation(counter: int, img, loc):
+def logGeolocation(counter: int, location):
     """
-    Save image and corresponding location in the savedGeoloc directory.
-    The image number corresponds to the save counter in savedGeoloc/locations.txt
+    Save location corresponding to the saved image index.
     """
-    # save image
-    img_name = "img{}.png".format(counter)
-    cv.imwrite(os.path.join('savedGeoloc/images', img_name), img)
-
-    # save location
-    f = open("savedGeoloc/locations.txt", "a")
-    f.write("Save counter: {} | location: {}\n".format(counter, loc))
+    f = open("locations.txt", "a")
+    f.write("Save counter [{}] with location: [{}]\n".format(counter, location))
     f.close()
 
 
@@ -75,7 +67,7 @@ class Pipeline:
     VID_CAP_PORT = 1
     SLEEP_TIME = 10
 
-    def __init__(self):
+    def __init__(self, localizer):
         gpus = tf.config.list_physical_devices('GPU')
         if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
             tf.config.set_logical_device_configuration(
@@ -85,6 +77,8 @@ class Pipeline:
         self.tile_resolution = 512  # has to match img_size of the model, which is determined by which one we use.
         self.shape_model = YOLO("yolo/trained_models/v8n.pt")
         self.letter_detector = letter_detection.LetterDetector("trained_model.h5")
+        self.cam = cv.VideoCapture("/dev/video42")
+        self.localizer = localizer
 
         # warm up shape model
         rand_input = np.random.rand(1, self.tile_resolution, self.tile_resolution, 3).astype(np.float32)
@@ -145,15 +139,19 @@ class Pipeline:
         Returns: Source image to start the Imaging pipeline
         """
         # for webcam image capture
-        # ret, img = self.cam.read()
-        # if not ret: raise Exception("Failed to grab frame")
+        ret, img = self.cam.read()
+        if not ret: raise Exception("Failed to grab frame")
+        return img
 
         # for pre-saved image
-        return cv.imread("gopro-image-5k.png")
+        # return cv.imread("gopro-image-5k.png")
 
     def loop(self, index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
         img = self._get_image()
+        curr_location = self.localizer.get_current_location()
+        logGeolocation(index, curr_location)
+
         grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
         all_tiles, tile_offsets_x_y = self._split_to_tiles(img)
 
@@ -214,7 +212,7 @@ class Pipeline:
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
         if PLOT_RESULT:
-            image_file_name = "detection_results_num{}".format(index)
+            image_file_name = "detection_results_num{}.jpg".format(index)
             plot_fns.show_image_cv(
                 img,
                 [res.bbox for res in valid_results],
@@ -229,21 +227,17 @@ class Pipeline:
         """
         Main run loop for the Imaging pipeline.
         """
-        for index in range(10):
+        for index in range(1):
             self.loop(index)
             time.sleep(self.SLEEP_TIME)  # time to wait until next image capture
 
 
-def main():
+if __name__ == "__main__":
     imagingPipeline = Pipeline()
     start = time.perf_counter()
-    imagingPipeline.loop()
+    imagingPipeline.run()
     end = time.perf_counter()
     print(f"elapsed loop time: {end - start:.5f}")
-
-
-if __name__ == "__main__":
-    main()
 
 '''
 Run commands:
