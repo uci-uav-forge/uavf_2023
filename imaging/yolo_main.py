@@ -1,15 +1,8 @@
-# from fieldcapturer import FieldCapturer
-# from geolocator import Geolocator
-# from targetaggregator import TargetAggregator
-# from shapeInference.shape_inference import ShapeInference
-# from utils.target import Target
-
 from dataclasses import dataclass
 from torch import Tensor
 
 from ultralytics.yolo.engine.results import Results
 from ultralytics import YOLO
-# from ..navigation.guided_mission.run_mission import Localizer
 import letter_detection.LetterDetector as letter_detection
 
 import cv2 as cv
@@ -17,177 +10,173 @@ import os
 import numpy as np
 import json
 import tensorflow as tf
-import itertools 
+import itertools
 import time
 
-# needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of the loop function
-PLOT_RESULT=False
+# needed if you want to turn on the visualization by commenting out the plot_fns line near the bottom of
+# the loop function
+PLOT_RESULT = False
+# PLOT_RESULT = True
 if PLOT_RESULT:
     import shape_detection.src.plot_functions as plot_fns
+
 
 @dataclass
 class ShapeResult:
     shape_label: int
     confidence: float
-    bbox: np.ndarray # [min_y, min_x, max_y, max_x] relative to global image coordinates
+    bbox: np.ndarray  # [min_y, min_x, max_y, max_x] relative to global image coordinates
     tile_index: int
 
-class Pipeline:
 
-    # Static variables
+def logGeolocation(counter: int, img, loc):
+    """
+    Save image and corresponding location in the savedGeoloc directory.
+    The image number corresponds to the save counter in savedGeoloc/locations.txt
+    """
+    # save image
+    img_name = "img{}.png".format(counter)
+    cv.imwrite(os.path.join('savedGeoloc/images', img_name), img)
+
+    # save location
+    f = open("savedGeoloc/locations.txt", "a")
+    f.write("Save counter: {} | location: {}\n".format(counter, loc))
+    f.close()
+
+
+def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh=0.01):
+    """
+    Returns indices of the ones that are duplicates.
+    """
+    correct_bboxes = []
+    duplicate_indices = set()
+    for i in sorted(range(len(boxes)), key=lambda i: confidences[i], reverse=True):
+        x1, y1, x2, y2 = boxes[i]
+        is_duplicate = False
+        for x3, y3, x4, y4 in correct_bboxes:
+            if not (x3 > x2 or x1 > x4 or y3 > y2 or y1 > y4):  # if they overlap
+                # gets the coordinates of the intersection
+                intersection_x1, intersection_x2 = sorted([x1, x2, x3, x4])[1:3]
+                intersection_y1, intersection_y2 = sorted([y1, y2, y3, y4])[1:3]
+                intersection_area = (intersection_x2 - intersection_x1) * (intersection_y2 - intersection_y1)
+                a1 = (x2 - x1) * (y2 - y1)
+                a2 = (x4 - x3) * (y4 - y3)
+                iou = intersection_area / (a1 + a2 - intersection_area)
+                if iou >= iou_thresh:
+                    is_duplicate = True
+        if not is_duplicate:
+            correct_bboxes.append(np.array([x1, y1, x2, y2]))
+        else:
+            duplicate_indices.add(i)
+    return duplicate_indices
+
+
+class Pipeline:
     VID_CAP_PORT = 1
     SLEEP_TIME = 10
 
-    """
-    def __init__(self, 
-    fieldCapturer: FieldCapturer, 
-    geolocator: Geolocator, # Geolocation
-    targetAggreg: TargetAggregator, # Remove duplicate detetection targets
-    shapeInference: ShapeInference): # Shape model
-        # self.detector = detector.Detector()
-        self.field_capturer = fieldCapturer
-        self.geolocator = geolocator
-        self.target_aggregator = targetAggreg
-        self.cam = cv.VideoCapture(self.VID_CAP_PORT)
-        self.shapeInference = shapeInference
-        self.localizer = Localizer()
-    """
-
     def __init__(self):
         gpus = tf.config.list_physical_devices('GPU')
-        if gpus: # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
+        if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
             tf.config.set_logical_device_configuration(
                 gpus[0],
                 [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
 
-        # self.localizer = Localizer()
-        self.tile_resolution=512# has to match img_size of the model, which is determined by which one we use.
+        self.tile_resolution = 512  # has to match img_size of the model, which is determined by which one we use.
         self.shape_model = YOLO("yolo/trained_models/v8n.pt")
-
-        # warm up model
-        rand_input = np.random.rand(1, self.tile_resolution, self.tile_resolution,3).astype(np.float32)
-        self.shape_model.predict(list(rand_input), verbose=False)
-        # this looks stupid but is necessary because yolov8 only sets up the model on the first call to predict. See site-packages/ultralytics/yolo/engine/model.py in predict() function, inside the `if not self.predictor` block. I profiled it and the setup_model step takes 80% of the time.
-
         self.letter_detector = letter_detection.LetterDetector("trained_model.h5")
 
-        with open("./shape_detection/data-gen/shape_name_labels.json","r") as f:
+        # warm up shape model
+        rand_input = np.random.rand(1, self.tile_resolution, self.tile_resolution, 3).astype(np.float32)
+        self.shape_model.predict(list(rand_input), verbose=False)
+        # this looks stupid but is necessary because yolov8 only sets up the model on the first call to predict.
+        # See site-packages/ultralytics/yolo/engine/model.py in predict() function,
+        # inside the `if not self.predictor` block. I profiled it and the setup_model step takes 80% of the time.
+
+        with open("./shape_detection/data-gen/shape_name_labels.json", "r") as f:
             raw_dict: dict = json.load(f)
             int_casted_keys = map(int, raw_dict.keys())
             self.labels_to_names_dict = dict(zip(int_casted_keys, raw_dict.values()))
 
-        self.targets = [
-            ("White", "I", "Brown", "Circle"),
-            ("Orange", "V", "Blue", "Rectangle"),
-            ("Yellow", "O", "Orange", "Semicircle"),
-            ("White", "H", "Red", "Hexagon")
-        ]
-
-    
     def getCurrentLocation(self):
         """
         Return the current local location of the UAV.
         """
-        return self.localizer.get_current_location()
-
-    
-    def logGeolocation(self, counter: int, img, loc):
-        """
-        Save image and corresponding location in the savedGeoloc directory. 
-        The image number corresponds to the save counter in savedGeoloc/locations.txt
-        """
-        # save image
-        img_name = "img{}.png".format(counter)
-        cv.imwrite(os.path.join('savedGeoloc/images', img_name), img)
-
-        # save location
-        f = open("savedGeoloc/locations.txt", "a")
-        f.write("Save counter: {} | location: {}\n".format(counter, loc))
-        f.close()
-
-    def nms_indices(self, boxes: "list[list[int]]", confidences: "list[float]", iou_thresh=0.01):
-        '''
-        Returns indices of the ones that are duplicates.
-        '''
-        correct_bboxes = []
-        duplicate_indices =  set()
-        for i in sorted(range(len(boxes)), key=lambda i: confidences[i], reverse=True):
-            x1, y1, x2, y2 = boxes[i]
-            is_duplicate = False
-            for x3,y3,x4,y4 in correct_bboxes:
-                if not (x3>x2 or x1>x4 or y3>y2 or y1>y4):# if they overlap
-                    # gets the coordinates of the intersection
-                    intersection_x1, intersection_x2 = sorted([x1,x2,x3,x4])[1:3]
-                    intersection_y1, intersection_y2 = sorted([y1,y2,y3,y4])[1:3]
-                    intersection_area = (intersection_x2-intersection_x1)*(intersection_y2-intersection_y1)
-                    a1 = (x2-x1)*(y2-y1)
-                    a2 = (x4-x3)*(y4-y3)
-                    iou = intersection_area/(a1+a2-intersection_area)
-                    if iou >= iou_thresh:
-                        is_duplicate=True
-            if not is_duplicate:
-                correct_bboxes.append(np.array([x1,y1,x2,y2]))
-            else:
-                duplicate_indices.add(i)
-        return duplicate_indices
+        pass
 
     def _split_to_tiles(self, img: cv.Mat):
-        h,w = img.shape[:2]
-        n_horizontal_tiles = np.ceil(w/self.tile_resolution).astype(int)
-        n_vertical_tiles = np.ceil(h/self.tile_resolution).astype(int)
+        h, w = img.shape[:2]
+        n_horizontal_tiles = np.ceil(w / self.tile_resolution).astype(int)
+        n_vertical_tiles = np.ceil(h / self.tile_resolution).astype(int)
         all_tiles: list[np.ndarray] = []
-        tile_offsets_x_y: 'list[tuple]'  = []
-        v_indices = np.linspace(0,h-self.tile_resolution,n_vertical_tiles).astype(int)
-        h_indices = np.linspace(0,w-self.tile_resolution,n_horizontal_tiles).astype(int)
+        tile_offsets_x_y: 'list[tuple]' = []
+        v_indices = np.linspace(0, h - self.tile_resolution, n_vertical_tiles).astype(int)
+        h_indices = np.linspace(0, w - self.tile_resolution, n_horizontal_tiles).astype(int)
 
-        for v,h in itertools.product(v_indices, h_indices):
-            tile = img[v:v+self.tile_resolution, h:h+self.tile_resolution]
+        for v, h in itertools.product(v_indices, h_indices):
+            tile = img[v:v + self.tile_resolution, h:h + self.tile_resolution]
             all_tiles.append(tile)
-            tile_offsets_x_y.append((h,v))
+            tile_offsets_x_y.append((h, v))
 
-        return (all_tiles, tile_offsets_x_y)
+        return all_tiles, tile_offsets_x_y
 
     def _get_letter_crop(self, img: cv.Mat, bbox: 'list[int]'):
+        """
+        Args:
+            img: Reformatted image capture from camera
+            bbox: Bounding box of detected target
+
+        Returns: Cropped image according to bounding box containing only detected target.
+
+        """
         box_x0, box_y0, box_x1, box_y1 = bbox
-        box_x1 = min(box_x1, box_x0+self.tile_resolution)
-        box_y1 = min(box_y1, box_y0+self.tile_resolution)
+        box_x1 = min(box_x1, box_x0 + self.tile_resolution)
+        box_y1 = min(box_y1, box_y0 + self.tile_resolution)
 
-        box_crop=img[
-            (box_y0):(box_y1),
-            (box_x0):(box_x1)
-            ]
-        
-        return np.pad(box_crop,pad_width=((0,128-box_crop.shape[0]),(0,128-box_crop.shape[1])))
+        box_crop = img[
+                   (box_y0):(box_y1),
+                   (box_x0):(box_x1)
+                   ]
 
-    def loop(self):
-        # if you need to profile use this: https://stackoverflow.com/a/62382967/14587004
+        return np.pad(box_crop, pad_width=((0, 128 - box_crop.shape[0]), (0, 128 - box_crop.shape[1])))
 
+    def _get_image(self):
+        """
+        Returns: Source image to start the Imaging pipeline
+        """
+        # for webcam image capture
         # ret, img = self.cam.read()
         # if not ret: raise Exception("Failed to grab frame")
-        # current_location = self.getCurrentLocation()
-        # self.logGeolocation(save_counter, img, current_location)
-        img = cv.imread("gopro-image-5k.png")
-        grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
-        all_tiles, tile_offsets_x_y =self._split_to_tiles(img)
+        # for pre-saved image
+        return cv.imread("gopro-image-5k.png")
+
+    def loop(self, index: int):
+        # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
+        img = self._get_image()
+        grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        all_tiles, tile_offsets_x_y = self._split_to_tiles(img)
 
         batch_size = len(all_tiles)
+        # batch_size = 1  # when running on Jetson Nano
 
         bboxes_per_tile: "list[Tensor]" = []
-        shape_labels, confidences = [], [] 
+        shape_labels, confidences = [], []
 
         for batch in np.split(
-            ary=all_tiles, 
-            indices_or_sections=range(batch_size, len(all_tiles),batch_size),
-            axis=0):
-            predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False) 
-            # If you don't wrap `batch` in a list, it will raise an error. I actually went in and patched this on my local copy of the library in hopes that passing a raw ndarray would make it faster but it doesn't result in a speedup.
+                ary=all_tiles,
+                indices_or_sections=range(batch_size, len(all_tiles), batch_size),
+                axis=0):
+            predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False)
+            # If you don't wrap `batch` in a list it will raise an error.
+            # I actually went in and patched this on my local copy of the library in hopes that passing a raw ndarray
+            # would make it faster, but it doesn't result in a speedup.
             # with list wrap: 83.81534 seconds for 100 loops
             # without list wrap: 84.9
             prediction_tensors: list[Tensor] = [x.to('cpu').boxes.boxes for x in predictions]
-            bboxes_per_tile.extend([pred[:,:4] for pred in prediction_tensors])
-            shape_labels.extend([[int(x) for x in pred[:,5]+1] for pred in prediction_tensors])
-            confidences.extend([pred[:,4] for pred in prediction_tensors])
+            bboxes_per_tile.extend([pred[:, :4] for pred in prediction_tensors])
+            shape_labels.extend([[int(x) for x in pred[:, 5] + 1] for pred in prediction_tensors])
+            confidences.extend([pred[:, 4] for pred in prediction_tensors])
 
         all_shape_results: list[ShapeResult] = []
 
@@ -209,43 +198,50 @@ class Pipeline:
                     )
                 )
 
-        duplicate_indices = self.nms_indices(
-            [x.bbox for x in all_shape_results], 
+        duplicate_indices = nms_indices(
+            [x.bbox for x in all_shape_results],
             [x.confidence for x in all_shape_results]
         )
 
         valid_results: "list[ShapeResult]" = []
-        letter_image_buffer=[]
+        letter_image_buffer = []
         for i, shape_result in enumerate(all_shape_results):
             if i in duplicate_indices: continue
 
             letter_image_buffer.append(self._get_letter_crop(grayscale_img, shape_result.bbox))
             valid_results.append(shape_result)
-        
+
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
         if PLOT_RESULT:
+            image_file_name = "detection_results_num{}".format(index)
             plot_fns.show_image_cv(
-                img, 
+                img,
                 [res.bbox for res in valid_results],
-                [f"{l}, {self.labels_to_names_dict[x]}" for l,x in zip(letter_labels,[res.shape_label for res in valid_results])],
+                [f"{l}, {self.labels_to_names_dict[x]}" for l, x in
+                 zip(letter_labels, [res.shape_label for res in valid_results])],
                 [res.confidence for res in valid_results],
-                file_name="detection_results.png",
-                font_scale=1,thickness=2,box_color=(0,0,255),text_color=(0,0,0))
+                file_name=image_file_name,
+                font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0)
+            )
 
     def run(self):
         """
         Main run loop for the Imaging pipeline.
         """
+        index = 0
         while True:
-            self.loop()
+            self.loop(index)
+            time.sleep(self.SLEEP_TIME)  # time to wait until next image capture
+
 
 def main():
     imagingPipeline = Pipeline()
-    start=time.perf_counter()
+    start = time.perf_counter()
     imagingPipeline.loop()
-    end=time.perf_counter()
-    print(f"elapsed loop time: {end-start:.5f}")
+    end = time.perf_counter()
+    print(f"elapsed loop time: {end - start:.5f}")
+
 
 if __name__ == "__main__":
     main()
@@ -258,5 +254,4 @@ pip install line_profiler
 first
 
 kernprof -l -v main.py
-
 '''
