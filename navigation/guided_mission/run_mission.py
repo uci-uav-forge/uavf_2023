@@ -64,10 +64,10 @@ class Localizer():
 
 
 class PriorityAssigner():
-    def __init__(self, mission_q: PriorityQueue, dropzone_end):
+    def __init__(self, mission_q: PriorityQueue, dropzone_end, loc: Localizer):
         self.mission_q = mission_q
         self.dropzone_end = dropzone_end
-        self.pos_updater = Localizer()
+        self.pos_updater = loc
 
         self.avoid_sub = rospy.Subscriber(
             name="obs_avoid_rel_coord",
@@ -100,17 +100,23 @@ class PriorityAssigner():
         pass
 
 
-if __name__ == '__main__':
-    # initialize ROS node and get home position
-    rospy.init_node("drone_GNC", anonymous=True)
+def nav_main(io):
+    navigation_main(io.loc, io.mq)
 
-    mission_q = PriorityQueue()
+def navigation_main(loc:Localizer, mission_q: PriorityQueue):
 
     # init mission
     global_path, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt = init_mission(mission_q)
 
     # init priority assigner with mission queue and dropzone wp
-    mission_q_assigner = PriorityAssigner(mission_q, global_path[len(global_path) - 1])
+    mission_q_assigner = PriorityAssigner(mission_q, global_path[len(global_path) - 1], loc)
 
     # run control loop
     mission_loop(mission_q, takeoff_alt, drop_alt, avg_spd, drop_spd, avg_alt)
+
+if __name__ == '__main__':
+    # initialize ROS node and get home position
+    rospy.init_node("drone_GNC", anonymous=True)
+    loc = Localizer()
+    navigation_main(loc)
+

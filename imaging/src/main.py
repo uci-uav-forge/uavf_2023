@@ -30,7 +30,7 @@ class ImagingPipeline:
     SLEEP_TIME = 10  # Picture taken every 10 seconds
     IMAGE_SIZE = 512
 
-    def __init__(self):
+    def __init__(self,loc):
         self.tile_resolution = self.IMAGE_SIZE  # has to match img_size of the model, which is determined by which one we use.
 
         gpus = tf.config.list_physical_devices('GPU')
@@ -43,7 +43,7 @@ class ImagingPipeline:
         self.shape_model = shape_det_model.getShapeModel(self.IMAGE_SIZE)
         self.letter_detector = LetterDetector.LetterDetector("trained_model.h5")
         self.labels_to_names_dict = shape_det_model.getLabelToNameDict()
-        self.localizer = Localizer()
+        self.localizer = loc
 
     def getImageTiles(self, img: cv.Mat):
         """
@@ -175,8 +175,8 @@ class ImagingPipeline:
             time.sleep(self.SLEEP_TIME)  # must be greater than the time it takes for loop() to complete
 
 
-def main():
-    imagingPipeline = ImagingPipeline()
+def main(io):
+    imagingPipeline = ImagingPipeline(io.localizer)
     start = time.perf_counter()
     imagingPipeline.loop()
     end = time.perf_counter()
@@ -184,7 +184,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    #TODO: import navigation correctly here :((
+    #main(loc)
+    pass
 
 '''
 Run commands:
