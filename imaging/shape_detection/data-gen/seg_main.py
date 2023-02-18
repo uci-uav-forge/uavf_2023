@@ -62,9 +62,11 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                 os.mkdir(f"{output_dir}/{split}/{subfolder}")
     
     image_idx=0
-    def add_shapes(frame: cv2.Mat, annotations_file: TextIOWrapper, seg_mask: cv2.Mat):
-        height, width = frame.shape[:2]
+    def add_shapes(orig_frame: cv2.Mat, annotations_file: TextIOWrapper, orig_seg_mask: cv2.Mat):
+        height, width = orig_frame.shape[:2]
         for _shape_idx in range(random.randint(0,max_shapes_per_image)):
+            frame=orig_frame.copy()
+            seg_mask = np.zeros(frame.shape[:2], dtype=np.uint8)
             # category_num is in [1,13] and shape_name is in ["circle", "square", ...]
             category_num, shape_name= random.choice(shape_names_and_categories)
 
@@ -144,8 +146,8 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
             frame=get_frame()
             # shape: (height, width, 3) e.g. (2988, 5312, 3)
             output_file_name = f"image{image_idx}.png"
-            seg_mask = np.zeros(frame.shape[:2], dtype=np.uint8)
-            add_shapes(frame, annotations_file, seg_mask)
+            # seg_mask = np.zeros(frame.shape[:2], dtype=np.uint8)
+            add_shapes(frame, annotations_file, None)
             print("\r[{0}{1}] {2} ({3}%)".format("="*int(image_idx/num_images*20), " "*(20-int(image_idx/num_images*20)), f"Finished {image_idx}/{num_images}", int(image_idx/num_images*100)), end="")
         annotations_file.close()
         print("\nDone!")
@@ -182,7 +184,7 @@ if __name__=="__main__":
         max_shapes_per_image=7, 
         blur_radius_fn=lambda: np.random.randint(3,8),
         num_images=100,
-        output_dir="seg_output",
+        output_dir="seg_output2",
         data_split=[0.85,0.1,0.05],
         noise_scale=2
     )
