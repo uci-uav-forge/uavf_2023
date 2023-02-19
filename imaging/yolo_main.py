@@ -4,6 +4,7 @@ from torch import Tensor
 from ultralytics.yolo.engine.results import Results
 from ultralytics import YOLO
 from .letter_detection import LetterDetector as letter_detection
+from .camera import GoProCamera
 
 import cv2 as cv
 import numpy as np
@@ -77,7 +78,7 @@ class Pipeline:
         self.tile_resolution = 512  # has to match img_size of the model, which is determined by which one we use.
         self.shape_model = YOLO("imaging/yolo/trained_models/v8n.pt")
         self.letter_detector = letter_detection.LetterDetector("trained_model.h5")
-        self.cam = cv.VideoCapture(self.VID_CAP_PORT)
+        self.cam = GoProCamera()
         self.localizer = localizer
 
         # warm up shape model
@@ -139,9 +140,7 @@ class Pipeline:
         Returns: Source image to start the Imaging pipeline
         """
         # for webcam image capture
-        ret, img = self.cam.read()
-        if not ret: raise Exception("Failed to grab frame")
-        return img
+        return self.cam.get_image()
 
         # for pre-saved image
         # return cv.imread("gopro-image-5k.png")
