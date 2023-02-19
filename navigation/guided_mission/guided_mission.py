@@ -1,4 +1,6 @@
 # Implementation of guidance, navigation, and control using Ardupilot, MAVROS, and the Intelligent-Quads GNC package!
+# Run launch shell script or this script from the navigation directory
+
 from queue import PriorityQueue
 from multiprocessing.managers import BaseManager
 import numpy as np
@@ -13,9 +15,7 @@ from nav_msgs.msg import Odometry
 
 from .py_gnc_functions import *
 from .PrintColours import *
-import sys
-sys.path.append("..")
-from ..global_path.flight_plan_tsp import FlightPlan
+from global_path.flight_plan_tsp import FlightPlan
 
 
 def init_mission(mission_q): 
@@ -32,12 +32,14 @@ def init_mission(mission_q):
     print()
     print('List of mission objective files: ')
     print()
-    [print(file) for file in os.listdir('mission_objectives')]
+    
+    file_list = os.listdir('guided_mission/mission_objectives')
+    [print('(' + str(i) + ') ' + file_list[i]) for i in range(len(file_list))]
+    
     print()
-    print('Input the mission objectives you want to load: ')
-
-    filename = str(input())
-    data = json.load(open('mission_objectives/' + filename))
+    print('Input the number of the mission you want to load: ')
+    file_num = int(input())
+    data = json.load(open('guided_mission/mission_objectives/' + file_list[file_num]))
     
     bound_coords = [tuple(coord) for coord in data['boundary coordinates']] 
     wps = [tuple(wp) for wp in data['waypoints']]
@@ -52,6 +54,7 @@ def init_mission(mission_q):
     while True:
         choice = str(input())
         if choice == 'y':
+            print()
             print('Generating most efficient path...')
             tsp = True
             break
