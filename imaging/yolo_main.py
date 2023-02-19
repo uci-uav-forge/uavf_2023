@@ -96,7 +96,7 @@ class Pipeline:
         """
         Return the current local location of the UAV.
         """
-        pass
+        return self.localizer.get_current_location()
 
     def _split_to_tiles(self, img: cv.Mat):
         h, w = img.shape[:2]
@@ -149,7 +149,7 @@ class Pipeline:
     def loop(self, index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
         img = self._get_image()
-        curr_location = self.localizer.get_current_location()
+        curr_location = self.getCurrentLocation()
         logGeolocation(index, curr_location)
 
         grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
