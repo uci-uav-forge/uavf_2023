@@ -5,6 +5,8 @@ import cv2 as cv
 class GoProCamera:
     def __init__(self, fov_mode = "broken_currently"):
         '''
+        If you want to change the FOV mode, you need to do it manually from the camera's touchscreen.
+
         TODO: figure out why changing the fov mode doesn't actually do anything on the camrea.
         fov_mode: "narrow", "superview", "wide", "linear"
         https://community.gopro.com/s/article/HERO10-Black-Digital-Lenses-FOV-Informations?language=en_US
@@ -25,7 +27,7 @@ class GoProCamera:
         self._wait_on_busy()
         media_list: dict = requests.get(f"{self.url}/gopro/media/list").json()['media']
         file_name = media_list[0]['fs'][-1]['n'] # gets the most recent file name. EX: GOPR0091.JPG
-        self.file_no = int(file_name.split('.')[0][4:])
+        self._file_no = int(file_name.split('.')[0][4:])
 
     def set_fov_mode(self, fov_mode: str):
         '''
@@ -47,8 +49,8 @@ class GoProCamera:
         self._wait_on_busy()
         requests.get(f"{self.url}/gopro/camera/shutter/start")
         self._wait_on_busy()
-        self.file_no += 1
-        img_bytes = requests.get(f"{self.url}/videos/DCIM/100GOPRO/GOPR{self.file_no:04}.JPG").content
+        self._file_no += 1
+        img_bytes = requests.get(f"{self.url}/videos/DCIM/100GOPRO/GOPR{self._file_no:04}.JPG").content
         return cv.imdecode(np.frombuffer(img_bytes, np.uint8), cv.IMREAD_COLOR)
     
 if __name__=="__main__":
