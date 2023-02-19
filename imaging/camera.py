@@ -21,14 +21,11 @@ class GoProCamera:
         self.url = "http://172.23.157.51:8080"
         self._wait_on_busy()
         requests.get(f"{self.url}/gopro/camera/control/wired_usb?p=1") # enable wired control
-        # self._wait_on_busy()
-        # self._fov_dict = {
-        #     "narrow": 19,
-        #     "superview": 100,
-        #     "wide": 100,
-        #     "linear": 102
-        # }
-        # requests.get(f"{self.url}/gopro/camera/setting?setting=122&option={self._fov_dict[fov_mode]}") # set photo mode
+        # self.set_fov_mode(fov_mode)
+        self._wait_on_busy()
+        media_list: dict = requests.get(f"{self.url}/gopro/media/list").json()['media']
+        file_name = media_list[0]['fs'][-1]['n'] # gets the most recent file name. EX: GOPR0091.JPG
+        self.file_no = int(file_name.split('.')[0][4:])
 
     def set_fov_mode(self, fov_mode: str):
         '''
@@ -50,13 +47,13 @@ class GoProCamera:
         self._wait_on_busy()
         requests.get(f"{self.url}/gopro/camera/shutter/start")
         self._wait_on_busy()
-        media_list: dict = requests.get(f"{self.url}/gopro/media/list").json()['media']
-        file_name = media_list[0]['fs'][-1]['n']
-        img_bytes = requests.get(f"{self.url}/videos/DCIM/100GOPRO/{file_name}").content
+        self.file_no += 1
+        img_bytes = requests.get(f"{self.url}/videos/DCIM/100GOPRO/GOPR{self.file_no:04}.JPG").content
         return cv.imdecode(np.frombuffer(img_bytes, np.uint8), cv.IMREAD_COLOR)
     
 if __name__=="__main__":
     cam = GoProCamera()
-    for fov_mode in ["narrow", "linear", "wide", "superview"]:
+    # for fov_mode in ["narrow", "linear", "wide", "superview"]:
+    for i in range(5):
         img = cam.get_image()
-        cv.imwrite(f"gopro_{fov_mode}.png", img)
+        cv.imwrite(f"gopro_img{i}.png", img)
