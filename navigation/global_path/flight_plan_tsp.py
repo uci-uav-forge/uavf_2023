@@ -267,7 +267,7 @@ class FlightPlan():
                 break
             else:
                 print('Not a valid option. Please try again.')
-
+        print()
         return global_path
 
 
