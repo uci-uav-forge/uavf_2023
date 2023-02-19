@@ -1,4 +1,5 @@
 To run both pipelines:
+
     1. Start the MAVROS node. Refer to Navigation's README for further instructions.
     
     2. Start camera stream:
