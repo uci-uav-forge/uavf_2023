@@ -1,10 +1,16 @@
 import requests
 import numpy as np
 import cv2 as cv
+DEBUG = False
+if DEBUG:
+    import time
+    start=time.time()
 
 class GoProCamera:
     def __init__(self, fov_mode = "broken_currently"):
         '''
+        If you want to change the FOV mode, you need to do it manually from the camera's touchscreen.
+
         TODO: figure out why changing the fov mode doesn't actually do anything on the camrea.
         fov_mode: "narrow", "superview", "wide", "linear"
         https://community.gopro.com/s/article/HERO10-Black-Digital-Lenses-FOV-Informations?language=en_US
@@ -21,14 +27,11 @@ class GoProCamera:
         self.url = "http://172.23.157.51:8080"
         self._wait_on_busy()
         requests.get(f"{self.url}/gopro/camera/control/wired_usb?p=1") # enable wired control
-        # self._wait_on_busy()
-        # self._fov_dict = {
-        #     "narrow": 19,
-        #     "superview": 100,
-        #     "wide": 100,
-        #     "linear": 102
-        # }
-        # requests.get(f"{self.url}/gopro/camera/setting?setting=122&option={self._fov_dict[fov_mode]}") # set photo mode
+        # self.set_fov_mode(fov_mode)
+        self._wait_on_busy()
+        media_list: dict = requests.get(f"{self.url}/gopro/media/list").json()['media']
+        file_name = media_list[0]['fs'][-1]['n'] # gets the most recent file name. EX: GOPR0091.JPG
+        self._file_no = int(file_name.split('.')[0][4:])
 
     def set_fov_mode(self, fov_mode: str):
         '''
@@ -47,16 +50,25 @@ class GoProCamera:
             busy = statuses['8'] or statuses['10']
     
     def get_image(self) -> cv.Mat:
+        '''
+        Takes the picture roughly 30-50 ms after this function is called. If we really care about timing between this and the GPS, we can only poll the GPS immediately after the line in this function that presses the shutter.
+        '''
         self._wait_on_busy()
+        if DEBUG:
+            print(f"Setting shutter at {time.time()-start}")
         requests.get(f"{self.url}/gopro/camera/shutter/start")
         self._wait_on_busy()
-        media_list: dict = requests.get(f"{self.url}/gopro/media/list").json()['media']
-        file_name = media_list[0]['fs'][-1]['n']
-        img_bytes = requests.get(f"{self.url}/videos/DCIM/100GOPRO/{file_name}").content
+        if DEBUG:
+            print(f"Busy ended at {time.time()-start}")
+        self._file_no += 1
+        img_bytes = requests.get(f"{self.url}/videos/DCIM/100GOPRO/GOPR{self._file_no:04}.JPG").content
         return cv.imdecode(np.frombuffer(img_bytes, np.uint8), cv.IMREAD_COLOR)
     
 if __name__=="__main__":
     cam = GoProCamera()
-    for fov_mode in ["narrow", "linear", "wide", "superview"]:
+    # for fov_mode in ["narrow", "linear", "wide", "superview"]:
+    for i in range(5):
+        if DEBUG:
+            print(f"Getting image {i} at time {time.time()-start}")
         img = cam.get_image()
-        cv.imwrite(f"gopro_{fov_mode}.png", img)
+        cv.imwrite(f"gopro_img{i}.png", img)
