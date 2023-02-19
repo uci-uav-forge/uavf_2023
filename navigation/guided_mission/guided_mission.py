@@ -1,5 +1,6 @@
 # Implementation of guidance, navigation, and control using Ardupilot, MAVROS, and the Intelligent-Quads GNC package!
 from queue import PriorityQueue
+from multiprocessing.managers import BaseManager
 import numpy as np
 import time
 import json
@@ -10,11 +11,11 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point
 from nav_msgs.msg import Odometry
 
-from py_gnc_functions import *
-from PrintColours import *
+from .py_gnc_functions import *
+from .PrintColours import *
 import sys
 sys.path.append("..")
-from global_path.flight_plan_tsp import FlightPlan
+from ..global_path.flight_plan_tsp import FlightPlan
 
 
 def init_mission(mission_q): 

@@ -3,10 +3,9 @@ from torch import Tensor
 
 from ultralytics.yolo.engine.results import Results
 from ultralytics import YOLO
-import letter_detection.LetterDetector as letter_detection
+from .letter_detection import LetterDetector as letter_detection
 
 import cv2 as cv
-import os
 import numpy as np
 import json
 import tensorflow as tf
@@ -17,7 +16,7 @@ import time
 # PLOT_RESULT = False
 PLOT_RESULT = True
 if PLOT_RESULT:
-    import shape_detection.src.plot_functions as plot_fns
+    from .shape_detection.src import plot_functions as plot_fns
 
 @dataclass
 class ShapeResult:
@@ -64,8 +63,9 @@ def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh
 
 
 class Pipeline:
-    VID_CAP_PORT = 1
+    VID_CAP_PORT = "/dev/video42"
     SLEEP_TIME = 10
+
 
     def __init__(self, localizer):
         gpus = tf.config.list_physical_devices('GPU')
@@ -75,9 +75,9 @@ class Pipeline:
                 [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
 
         self.tile_resolution = 512  # has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO("yolo/trained_models/v8n.pt")
+        self.shape_model = YOLO("imaging/yolo/trained_models/v8n.pt")
         self.letter_detector = letter_detection.LetterDetector("trained_model.h5")
-        self.cam = cv.VideoCapture("/dev/video42")
+        self.cam = cv.VideoCapture(self.VID_CAP_PORT)
         self.localizer = localizer
 
         # warm up shape model
@@ -87,7 +87,7 @@ class Pipeline:
         # See site-packages/ultralytics/yolo/engine/model.py in predict() function,
         # inside the `if not self.predictor` block. I profiled it and the setup_model step takes 80% of the time.
 
-        with open("./shape_detection/data-gen/shape_name_labels.json", "r") as f:
+        with open("imaging/shape_detection/data-gen/shape_name_labels.json", "r") as f:
             raw_dict: dict = json.load(f)
             int_casted_keys = map(int, raw_dict.keys())
             self.labels_to_names_dict = dict(zip(int_casted_keys, raw_dict.values()))

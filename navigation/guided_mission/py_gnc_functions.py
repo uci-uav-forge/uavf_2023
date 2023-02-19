@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from PrintColours import *
+from .PrintColours import *
 import rospy
 from math import atan2, pow, sqrt, degrees, radians, sin, cos
 from std_msgs.msg import Float64
