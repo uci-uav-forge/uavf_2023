@@ -6,7 +6,7 @@ def obstacle_avoidance(centeroids, dimensions):
   angle = 45
   path_distance = 1
   drone_distance = 1
-
+  
   cur_heading = 0
   obstacle_avoidance = False
 
@@ -27,7 +27,6 @@ def obstacle_avoidance(centeroids, dimensions):
     path_dist = np.abs(distance_list * np.sin(beta_list))
     if(np.any(path_dist< radius_list+path_distance) or np.any(distance_list < radius_list + drone_distance)):
       obstacle_avoidance = True
-    
   if(cur_heading > 45):
     return 45
   else:
@@ -40,7 +39,6 @@ def main(centers, dimensions):
   print(drone_heading)
 
 
-if __name__ == " __main__":
-  centers = np.array([[0,6], [0,5]])
-  dimensions = np.array([[0.25, 0.1, 0.1], [1.0, 0.25, 0.25]])
-  main(centers, dimensions)
+centers = np.array([[0,6], [0,5]])
+dimensions = np.array([[0.25, 0.1, 0.1], [1.0, 0.25, 0.25]])
+main(centers, dimensions)

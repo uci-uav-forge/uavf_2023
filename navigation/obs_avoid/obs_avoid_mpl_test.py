@@ -11,10 +11,14 @@ import time
 def test():
     '''comment out either [1] or [2]'''
     # [1] below obstacles are manually defined in code
-    o1 = obstacle(pos=(5,8), rad=0.7)
-    o2 = obstacle(pos=(-3, 8), rad=1)
-    o3 = obstacle(pos=(2.5, 3.5), rad=0.5)
-    obstacles = [o1, o2, o3]
+    #centers = np.array([[5,8], [-3,8], [2.5,3.5]])
+    #radius = np.array([[0.7, 0.7, 0.7], [2, 2, 2], [0.5, 0.5, 0.5]])
+    centers = np.array([[0,5], [3, 6]])
+    radius = np.array([[0.25, 0.25, 0.25], [1, 1, 1]])
+    #o1 = obstacle(pos=(5,8), rad=0.7)
+    #o2 = obstacle(pos=(-3, 8), rad=1)
+    #o3 = obstacle(pos=(2.5, 3.5), rad=0.5)
+    #obstacles = [o1, o2, o3]
 
     # [2] below input() is used to ask user in terminal for obstacles
     #obstacles = get_obstacles()
@@ -22,22 +26,23 @@ def test():
     # find heading
     print('\n calculating heading...')
     t1 = time.perf_counter()
-    heading = avoidObstacle(objects=obstacles)
+    heading = obstacle_avoidance(centers, radius)
     t2 = time.perf_counter()
     print(f'The heading is {heading}. It took {t2 - t1} seconds to find')
 
     # plot obstacles and headign:
     print('\nplotting...')
     fig, ax = create_plot()
-    add_obstacles_to_plot(ax, obstacles)
+    add_obstacles_to_plot(ax, centers, radius)
     add_heading_to_plot(plt, ax, heading)
 
     plt.legend(loc="lower right")
     plt.show()
 
 
+'''
 def get_obstacles() -> list[obstacle]:
-    '''ask user to input '''
+   ''' '''ask user to input ''' '''
     obstacles = []
 
     while True:
@@ -50,19 +55,20 @@ def get_obstacles() -> list[obstacle]:
             break
     
     return obstacles
+     '''
 
 def more_obstacles() -> bool:
     '''asks user if htey want to add another obstacle, returnes true if they do'''
     x = input("Add another obstacle? [yes] or [no]: ")
     return x.lower() == 'yes' or x.lower() == 'y'
 
-def add_obstacles_to_plot(ax, obstacles: list[obstacle]) -> None:
+def add_obstacles_to_plot(ax, centers, radius) -> None:
     '''plots obstacles on matplotlib'''
     
     ax.set_aspect(1)
 
-    for o in obstacles:
-        ax.add_artist(plt.Circle((o.get_position()[0],o.get_position()[1]), o.get_radius()))
+    for c, r in zip(centers, radius):
+        ax.add_artist(plt.Circle((c[0],c[1]), r[0]))
 
 def add_heading_to_plot(plt, ax, heading: int or float) -> None:
     '''plots the heading'''
@@ -70,7 +76,7 @@ def add_heading_to_plot(plt, ax, heading: int or float) -> None:
         plt.axvline(x = 0, color = 'g', label='suggested heading')
     else:
         x = np.linspace(-20, 20, 100)
-        slope = math.tan(math.radians(heading))
+        slope = math.tan((math.pi/2)-math.radians(heading))
         y = slope*x
         ax.plot(x,y,color='g', label='suggested heading')
 
