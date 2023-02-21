@@ -1,6 +1,0 @@
-Pillow
-tensorflow
-numpy
-opencv-python
-matplotlib
-onnxruntime-gpu

@@ -56,10 +56,10 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
         json.dump(dict(shape_names_and_categories),f)
     if output_dir not in os.listdir():
         os.mkdir(output_dir)
-        for split in ["train","validation","test"]:
-            os.mkdir(f"{output_dir}/{split}")
-            for subfolder in ["images","segmentation_masks"]:
-                os.mkdir(f"{output_dir}/{split}/{subfolder}")
+        for subfolder in ["images","segmentation_masks"]:
+            os.mkdir(f"{output_dir}/{subfolder}")
+            for split in ["train","validation","test"]:
+                os.mkdir(f"{output_dir}/{subfolder}/split")
     
     image_idx=0
     def add_shapes(orig_frame: cv2.Mat, annotations_file: TextIOWrapper, orig_seg_mask: cv2.Mat):
