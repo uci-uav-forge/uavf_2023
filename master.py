@@ -10,4 +10,4 @@ if __name__ == "__main__":
     rospy.init_node("imaging_pipeline", anonymous=True)
     localizer = Localizer()
     imaging_pipeline = Pipeline(localizer)
-    imaging_pipeline.run()
+    imaging_pipeline.run(num_loops=2)
