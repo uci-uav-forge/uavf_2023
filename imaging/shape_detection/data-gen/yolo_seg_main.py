@@ -62,11 +62,11 @@ def add_shapes(frame: cv2.Mat, annotations_file: TextIOWrapper, max_shapes_per_i
                     gaussian_noise = np.random.normal(loc=0,scale=noise_scale,size=3)
                     frame[y+y_offset][x+x_offset] = shape_color+gaussian_noise
 
-            transformed_polygon = np.array([[(point[0]+y_offset)/height, (point[1]+x_offset)/width] for point in polygon], dtype=np.float32).reshape(-1)
+            transformed_polygon = np.array([[(point[1]+x_offset)/width,(point[0]+y_offset)/height] for point in polygon], dtype=np.float32).reshape(-1)
             if any(transformed_polygon>1):
                 raise ValueError
             
-            annotations_file.write(f"{category_num} {' '.join(transformed_polygon.astype(str))}")
+            annotations_file.write(f"{category_num} {' '.join(transformed_polygon.astype(str))}\n")
 
 
 def create_shape_dataset(get_frame: Callable[[], cv2.Mat], 
