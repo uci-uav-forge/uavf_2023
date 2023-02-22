@@ -12,3 +12,4 @@ tmux new -d -s mavros_roslaunch ./launch_scripts/start_mavros.sh
 
 tmux new -s mission_script ./launch_scripts/start_mission.sh
 
+tmux new -d -s attitude_recorder ./launch_scripts/start_recorder.sh
