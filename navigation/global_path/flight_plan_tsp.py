@@ -256,8 +256,7 @@ class FlightPlan():
             order, dist = self.run_tsp(global_path)
             global_path = [global_path[i] for i in order]
         
-        print()
-        print('Would you like to visualize the route? (Need GUI access) (y/n)')
+        print('\nWould you like to visualize the route? (Need GUI access) (y/n)')
         while True:
             choice = str(input())
             if choice == 'y':

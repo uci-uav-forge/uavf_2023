@@ -30,15 +30,12 @@ def init_mission(mission_q):
     #home = (33.642608, -117.824574) # gps coordinate on arc field
     
     # read mission objectives from json file
-    print()
-    print('List of mission objective files: ')
-    print()
+    print('\nList of mission objective files:\n')
     
     file_list = os.listdir('guided_mission/mission_objectives')
     [print('(' + str(i) + ') ' + file_list[i]) for i in range(len(file_list))]
     
-    print()
-    print('Input the number of the mission you want to load: ')
+    print('\nInput the number of the mission you want to load: ')
     file_num = int(input())
     data = json.load(open('guided_mission/mission_objectives/' + file_list[file_num]))
     
@@ -50,13 +47,11 @@ def init_mission(mission_q):
     avg_alt = np.average(alts) 
     test_map = FlightPlan(bound_coords, home, drop_alt, avg_alt)
     
-    print()
-    print('Would you like to reorganize the waypoints into the most efficient order? (y/n)')
+    print('\nWould you like to reorganize the waypoints into the most efficient order? (y/n)')
     while True:
         choice = str(input())
         if choice == 'y':
-            print()
-            print('Generating most efficient path...')
+            print('\nGenerating most efficient path...')
             tsp = True
             break
         elif choice == 'n':
@@ -130,8 +125,7 @@ def mission_loop(mission_q: PriorityQueue, drop_alt, max_spd, drop_spd, avg_alt,
             next_wp = mission_q.queue[0][1]
 
             if next_wp != curr_wp:
-                print('waypoint interrupted!')
-                print()
+                print('waypoint interrupted!\n')
                 curr_wp = next_wp
                 # calc desired heading
                 curr_pos = drone.get_current_location()
