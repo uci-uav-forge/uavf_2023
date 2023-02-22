@@ -24,6 +24,7 @@ def init_mission(mission_q):
     max_spd = 5 # m/s
     drop_spd = 3 # m/s
 
+    print("waiting for mavros position message")
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
     home = (home_fix.latitude, home_fix.longitude)
     #home = (33.642608, -117.824574) # gps coordinate on arc field
@@ -252,11 +253,10 @@ class PriorityAssigner():
     def drop_cb(self, drop_coord):
         pass
 
-
-if __name__ == '__main__':
+def main():
     # initialize ROS node and get home position
     rospy.init_node("drone_GNC", anonymous=True)
-
+    print("initialized ROS node")
     mission_q = PriorityQueue()
 
     use_px4 = True
@@ -268,4 +268,8 @@ if __name__ == '__main__':
     mission_q_assigner = PriorityAssigner(mission_q, global_path[len(global_path) - 1])
 
     # run control loop
+    print("running control loop")
     mission_loop(mission_q, drop_alt, max_spd, drop_spd, avg_alt, use_px4)
+
+if __name__ == '__main__':
+    main()

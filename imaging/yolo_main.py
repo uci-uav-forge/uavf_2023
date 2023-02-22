@@ -12,12 +12,15 @@ import json
 import tensorflow as tf
 import itertools
 import time
+import os
 
 # Flag to turn on the visualization
 # PLOT_RESULT = False
 PLOT_RESULT = True
 if PLOT_RESULT:
     from .shape_detection.src import plot_functions as plot_fns
+
+IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 
 @dataclass
 class ShapeResult:
@@ -31,7 +34,7 @@ def logGeolocation(counter: int, location):
     """
     Save location corresponding to the saved image index.
     """
-    f = open("locations.txt", "a")
+    f = open("locations.txt", "w")
     f.write("Save counter [{}] with location: [{}]\n".format(counter, location))
     f.close()
 
@@ -76,8 +79,8 @@ class Pipeline:
                 [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
 
         self.tile_resolution = 512  # has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO("imaging/yolo/trained_models/v8n.pt")
-        self.letter_detector = letter_detection.LetterDetector("trained_model.h5")
+        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/v8n.pt")
+        self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
         self.cam = GoProCamera()
         self.localizer = localizer
 
@@ -88,7 +91,7 @@ class Pipeline:
         # See site-packages/ultralytics/yolo/engine/model.py in predict() function,
         # inside the `if not self.predictor` block. I profiled it and the setup_model step takes 80% of the time.
 
-        with open("imaging/shape_detection/data-gen/shape_name_labels.json", "r") as f:
+        with open(f"{IMAGING_PATH}/shape_detection/data-gen/shape_name_labels.json", "r") as f:
             raw_dict: dict = json.load(f)
             int_casted_keys = map(int, raw_dict.keys())
             self.labels_to_names_dict = dict(zip(int_casted_keys, raw_dict.values()))
@@ -148,6 +151,8 @@ class Pipeline:
     def loop(self, index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
         img = self._get_image()
+        cv.imwrite(f"raw_img{index}.png", img)
+        print(f"got image {index}")
         curr_location = self.getCurrentLocation()
         logGeolocation(index, curr_location)
 
@@ -207,6 +212,9 @@ class Pipeline:
 
             letter_image_buffer.append(self._get_letter_crop(grayscale_img, shape_result.bbox))
             valid_results.append(shape_result)
+        if len(letter_image_buffer)<1:
+            print("no shape detections on index", index)
+            return
 
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
@@ -222,13 +230,12 @@ class Pipeline:
                 font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0)
             )
 
-    def run(self):
+    def run(self, num_loops=50):
         """
         Main run loop for the Imaging pipeline.
         """
-        for index in range(1):
+        for index in range(num_loops):
             self.loop(index)
-            time.sleep(self.SLEEP_TIME)  # time to wait until next image capture
 
 
 if __name__ == "__main__":
