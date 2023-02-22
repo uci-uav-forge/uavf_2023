@@ -15,9 +15,9 @@ from nav_msgs.msg import Odometry
 
 from .py_gnc_functions import *
 from .PrintColours import *
-from global_path.flight_plan_tsp import FlightPlan
+from ..global_path.flight_plan_tsp import FlightPlan
 
-
+os.chdir("navigation")
 def init_mission(mission_q): 
     # mission parameters in SI units
     drop_alt = 25 # m
