@@ -5,4 +5,4 @@
 #attempting to call this script from any other directory will fail
 
 #OPENBLAS_CORETYPE=ARMV8 python guided_mission.py
-python3 -m navigation.data_collection.gps_att_recorder
+python3 -m navigation.data_collection.telem_recorder
