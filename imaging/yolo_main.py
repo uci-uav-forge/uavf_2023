@@ -162,7 +162,8 @@ class Pipeline:
 
         bboxes_per_tile: "list[Tensor]" = []
         shape_labels, confidences = [], []
-
+        all_shape_results: list[ShapeResult] = []
+        tile_index = 0
         for batch in np.split(
                 ary=all_tiles,
                 indices_or_sections=range(batch_size, len(all_tiles), batch_size),
@@ -174,29 +175,22 @@ class Pipeline:
             # with list wrap: 83.81534 seconds for 100 loops
             # without list wrap: 84.9
             prediction_tensors: list[Tensor] = [x.to('cpu').boxes.boxes for x in predictions]
-            bboxes_per_tile.extend([pred[:, :4] for pred in prediction_tensors])
-            shape_labels.extend([[int(x) for x in pred[:, 5] + 1] for pred in prediction_tensors])
-            confidences.extend([pred[:, 4] for pred in prediction_tensors])
-
-        all_shape_results: list[ShapeResult] = []
-
-        for tile_index in range(len(all_tiles)):
-            for i in range(len(bboxes_per_tile[tile_index])):
-                box = bboxes_per_tile[tile_index][i].int().tolist()
-                if len(box) == 0:
-                    continue
-                box[0] += tile_offsets_x_y[tile_index][0]
-                box[1] += tile_offsets_x_y[tile_index][1]
-                box[2] += tile_offsets_x_y[tile_index][0]
-                box[3] += tile_offsets_x_y[tile_index][1]
-                all_shape_results.append(
-                    ShapeResult(
-                        shape_label=shape_labels[tile_index][i],
-                        confidence=confidences[tile_index][i],
-                        bbox=box,
-                        tile_index=tile_index
+            for batch_result in prediction_tensors:
+                for result in batch_result:
+                    box = result[:4].int().tolist()
+                    box[0] += tile_offsets_x_y[tile_index][0]
+                    box[1] += tile_offsets_x_y[tile_index][1]
+                    box[2] += tile_offsets_x_y[tile_index][0]
+                    box[3] += tile_offsets_x_y[tile_index][1]
+                    all_shape_results.append(
+                        ShapeResult(
+                            shape_label=int(result[5]),
+                            confidence=result[4],
+                            bbox=box,
+                            tile_index=tile_index
+                        )
                     )
-                )
+                tile_index += 1
 
         duplicate_indices = nms_indices(
             [x.bbox for x in all_shape_results],
