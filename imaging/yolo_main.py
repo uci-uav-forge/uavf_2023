@@ -21,7 +21,7 @@ IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 # Flag to turn on the visualization
 PLOT_RESULT = True
 if PLOT_RESULT:
-    output_folder_path = f"{IMAGING_PATH}/../data/{time.strftime(r'%m-%d|%H:%M:%S')}"
+    output_folder_path = f"{IMAGING_PATH}/../flight_data/{time.strftime(r'%m-%d|%H:%M:%S')}"
     os.makedirs(output_folder_path, exist_ok=True)
     from .shape_detection.src import plot_functions as plot_fns
 
@@ -254,6 +254,7 @@ class Pipeline:
             for i, res in enumerate(valid_results):
                 cv.imwrite(f"{shape_seg_folder_path}/tile{i}.png", res.tile)
                 cv.imwrite(f"{shape_seg_folder_path}/mask{i}.png", res.mask*255)
+                cv.imwrite(f"{shape_seg_folder_path}/combined{i}.png", cv.copyTo(res.tile,res.mask))
             seg_folder_path = f"{output_folder_path}/seg{loop_index}"
             os.mkdir(seg_folder_path)
             for i in range(len(letter_image_buffer)):
