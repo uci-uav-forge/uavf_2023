@@ -67,10 +67,6 @@ def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh
 
 
 class Pipeline:
-    VID_CAP_PORT = "/dev/video42"
-    SLEEP_TIME = 10
-
-
     def __init__(self, localizer, cam_mode="gopro"):
         self.cam_mode=cam_mode
 
@@ -84,6 +80,8 @@ class Pipeline:
         self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/v8n-640.pt")
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
         self.localizer = localizer
+        if self.cam_mode == "gopro":
+            self.cam = GoProCamera()
 
         # warm up shape model
         rand_input = np.random.rand(1, self.tile_resolution, self.tile_resolution, 3).astype(np.float32)
