@@ -191,50 +191,51 @@ class Pipeline:
 
         return valid_results
 
-    def _get_seg_masks(self, images) -> np.ndarray:
+    def _get_seg_masks(self, images: np.ndarray) -> np.ndarray:
         '''
-        images is batch_size x 
+        images is of shape (batch_size, 128, 128) 
         '''
-        test = np.expand_dims(images, axis=3)
-        test = normalize(test, axis=1)
-        prediction_raw = self.color_seg_model.predict(test)
+        model_input = np.expand_dims(images, axis=3)
+        model_input = normalize(model_input, axis=1)
+        prediction_raw = self.color_seg_model.predict(model_input)
         prediction = np.argmax(prediction_raw, axis=3)
         return prediction
     
     def loop(self, index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
-        img = self._get_image()
-        cv.imwrite(f"raw_img{index}.png", img)
+        cam_img = self._get_image()
+        cv.imwrite(f"raw_img{index}.png", cam_img)
         print(f"got image {index}")
         curr_location = self.getCurrentLocation()
         logGeolocation(index, curr_location)
 
-        grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-        valid_results = self._get_shape_detections(img, batch_size=1)
+        grayscale_cam_img = cv.cvtColor(cam_img, cv.COLOR_BGR2GRAY)
+        valid_results = self._get_shape_detections(cam_img, batch_size=1)
 
         if len(valid_results)<1:
             print("no shape detections on index", index)
             return
 
-        cropped_image_buffer = np.array([self._get_letter_crop(grayscale_img, res.bbox) for res in valid_results])
-        masks = self._get_seg_masks(np.array(cropped_image_buffer)).astype(np.uint8) # 0=background, 1=shape, 2=letter
+        cropped_grayscale_images = np.array([self._get_letter_crop(grayscale_cam_img, res.bbox) for res in valid_results])
+        masks = self._get_seg_masks(cropped_grayscale_images).astype(np.uint8) # 0=background, 1=shape, 2=letter
         only_letter_masks = masks*(masks==2) # only takes the letter masks
         letter_image_buffer = np.zeros(masks.shape, dtype=np.uint8)
-        cv.copyTo(cropped_image_buffer, only_letter_masks, letter_image_buffer)
+        cv.copyTo(cropped_grayscale_images, only_letter_masks, letter_image_buffer)
+        
 
         if PLOT_RESULT:
             os.mkdir(f"seg{index}")
             for i in range(len(letter_image_buffer)):
-                cv.imwrite(f"seg/original{i}.png", cropped_image_buffer[i])
-                cv.imwrite(f"seg/mask{i}.png", masks[i]*127)
-                cv.imwrite(f"seg/letter{i}.png", letter_image_buffer[i])
+                cv.imwrite(f"seg{index}/original{i}.png", cropped_grayscale_images[i])
+                cv.imwrite(f"seg{index}/mask{i}.png", masks[i]*127)
+                cv.imwrite(f"seg{index}/letter{i}.png", letter_image_buffer[i])
 
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
         if PLOT_RESULT:
             image_file_name = "detection_results_num{}.jpg".format(index)
             plot_fns.show_image_cv(
-                img,
+                cam_img,
                 [res.bbox for res in valid_results],
                 [f"{l}, {self.labels_to_names_dict[x]}" for l, x in
                  zip(letter_labels, [res.shape_label for res in valid_results])],
