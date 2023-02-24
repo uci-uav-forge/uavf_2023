@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-import shutil
+import time
 from torch import Tensor
 
 from ultralytics.yolo.engine.results import Results
@@ -15,13 +15,16 @@ from keras.utils import normalize
 import itertools
 import os
 
-# Flag to turn on the visualization
-# PLOT_RESULT = False
-PLOT_RESULT = True
-if PLOT_RESULT:
-    from .shape_detection.src import plot_functions as plot_fns
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
+
+# Flag to turn on the visualization
+PLOT_RESULT = True
+if PLOT_RESULT:
+    output_folder_path = f"{IMAGING_PATH}/../data|{time.strftime(r'%m-%d|%H:%M:%S')}"
+    os.mkdir(output_folder_path)
+    from .shape_detection.src import plot_functions as plot_fns
+
 
 @dataclass
 class ShapeResult:
@@ -30,12 +33,12 @@ class ShapeResult:
     bbox: np.ndarray  # [min_y, min_x, max_y, max_x] relative to global image coordinates
 
 
-def logGeolocation(counter: int, location):
+def logGeolocation(loop_index: int, location):
     """
     Save location corresponding to the saved image index.
     """
-    f = open("locations.txt", "w")
-    f.write("Save counter [{}] with location: [{}]\n".format(counter, location))
+    f = open(f"{output_folder_path}/locations.txt", "w+")
+    f.write(f"Loop index [{loop_index}] has location: [{location}]\n")
     f.close()
 
 
@@ -216,19 +219,19 @@ class Pipeline:
             letter_colors.append(np.mean(img_crop[mask == 2], axis=0).astype(np.uint8))
         return shape_colors, letter_colors
     
-    def loop(self, index: int):
+    def loop(self, loop_index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
         cam_img = self._get_image()
-        cv.imwrite(f"raw_img{index}.png", cam_img)
-        print(f"got image {index}")
+        cv.imwrite(f"{output_folder_path}/raw_full{loop_index}.png", cam_img)
+        print(f"got image {loop_index}")
         curr_location = self.getCurrentLocation()
-        logGeolocation(index, curr_location)
+        logGeolocation(loop_index, curr_location)
 
         grayscale_cam_img = cv.cvtColor(cam_img, cv.COLOR_BGR2GRAY)
         valid_results = self._get_shape_detections(cam_img, batch_size=1)
 
         if len(valid_results)<1:
-            print("no shape detections on index", index)
+            print("no shape detections on index", loop_index)
             return
 
         cropped_grayscale_images = np.array([self._get_letter_crop(grayscale_cam_img, res.bbox) for res in valid_results])
@@ -240,13 +243,12 @@ class Pipeline:
         letter_crops = [self._get_letter_crop(cam_img, res.bbox) for res in valid_results]
 
         if PLOT_RESULT:
-            if f"seg{index}" in os.listdir():
-                shutil.rmtree(f"seg{index}")
-            os.mkdir(f"seg{index}")
+            seg_folder_path = f"{output_folder_path}/seg{loop_index}"
+            os.mkdir(seg_folder_path)
             for i in range(len(letter_image_buffer)):
-                cv.imwrite(f"seg{index}/original{i}.png", cropped_grayscale_images[i])
-                cv.imwrite(f"seg{index}/mask{i}.png", masks[i]*127)
-                cv.imwrite(f"seg{index}/letter{i}.png", letter_image_buffer[i])
+                cv.imwrite(f"{seg_folder_path}/crop{i}.png", cropped_grayscale_images[i])
+                cv.imwrite(f"{seg_folder_path}/mask{i}.png", masks[i]*127)
+                cv.imwrite(f"{seg_folder_path}/letter{i}.png", letter_image_buffer[i])
 
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
@@ -254,7 +256,7 @@ class Pipeline:
         shape_colors, letter_colors = self._get_colors_rgb(letter_crops, masks)
 
         if PLOT_RESULT:
-            image_file_name = "detection_results_num{}.jpg".format(index)
+            image_file_name = f"{output_folder_path}/det{loop_index}.png"
             plot_fns.show_image_cv(
                 cam_img,
                 [res.bbox for res in valid_results],
