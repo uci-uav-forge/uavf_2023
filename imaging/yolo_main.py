@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import time
 from torch import Tensor
 
-from ultralytics.yolo.engine.results import Results
+from ultralytics.yolo.engine.results import Results, Boxes, Masks
 from ultralytics import YOLO
 from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
@@ -21,8 +21,8 @@ IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 # Flag to turn on the visualization
 PLOT_RESULT = True
 if PLOT_RESULT:
-    output_folder_path = f"{IMAGING_PATH}/../data|{time.strftime(r'%m-%d|%H:%M:%S')}"
-    os.mkdir(output_folder_path)
+    output_folder_path = f"{IMAGING_PATH}/../data/{time.strftime(r'%m-%d|%H:%M:%S')}"
+    os.makedirs(output_folder_path, exist_ok=True)
     from .shape_detection.src import plot_functions as plot_fns
 
 
@@ -30,7 +30,10 @@ if PLOT_RESULT:
 class ShapeResult:
     shape_label: int
     confidence: float
-    bbox: np.ndarray  # [min_y, min_x, max_y, max_x] relative to global image coordinates
+    local_bbox: np.ndarray
+    global_bbox: np.ndarray  # [min_y, min_x, max_y, max_x] relative to global image coordinates
+    mask: np.ndarray
+    tile: np.ndarray
 
 
 def logGeolocation(loop_index: int, location):
@@ -80,7 +83,7 @@ class Pipeline:
                 [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
 
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/v8n-640.pt")
+        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt")
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
         self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet.hdf5")
 
@@ -168,25 +171,29 @@ class Pipeline:
             # would make it faster, but it doesn't result in a speedup.
             # with list wrap: 83.81534 seconds for 100 loops
             # without list wrap: 84.9
-            prediction_tensors: list[Tensor] = [x.to('cpu').boxes.boxes for x in predictions]
-            for batch_result in prediction_tensors:
-                for result in batch_result:
-                    box = result[:4].int().tolist()
-                    box[0] += tile_offsets_x_y[tile_index][0]
-                    box[1] += tile_offsets_x_y[tile_index][1]
-                    box[2] += tile_offsets_x_y[tile_index][0]
-                    box[3] += tile_offsets_x_y[tile_index][1]
+            prediction_tensors: list[Boxes] = [x.to('cpu') for x in predictions]
+            for batch_result, tile_img in zip(prediction_tensors, batch):
+                for i, result in enumerate(batch_result.boxes.boxes):
+                    box = result[:4].int()
+                    global_box = box.detach().clone()
+                    global_box[0] += tile_offsets_x_y[tile_index][0]
+                    global_box[1] += tile_offsets_x_y[tile_index][1]
+                    global_box[2] += tile_offsets_x_y[tile_index][0]
+                    global_box[3] += tile_offsets_x_y[tile_index][1]
                     all_shape_results.append(
                         ShapeResult(
                             shape_label=int(result[5]),
                             confidence=result[4],
-                            bbox=box,
+                            local_bbox=box,
+                            global_bbox=global_box,
+                            tile=tile_img,
+                            mask=batch_result.masks.masks[i].numpy().astype(np.uint8)
                         )
                     )
                 tile_index += 1
 
         duplicate_indices = nms_indices(
-            [x.bbox for x in all_shape_results],
+            [x.global_bbox for x in all_shape_results],
             [x.confidence for x in all_shape_results]
         )
 
@@ -227,22 +234,26 @@ class Pipeline:
         curr_location = self.getCurrentLocation()
         logGeolocation(loop_index, curr_location)
 
-        grayscale_cam_img = cv.cvtColor(cam_img, cv.COLOR_BGR2GRAY)
         valid_results = self._get_shape_detections(cam_img, batch_size=1)
 
         if len(valid_results)<1:
             print("no shape detections on index", loop_index)
             return
 
-        cropped_grayscale_images = np.array([self._get_letter_crop(grayscale_cam_img, res.bbox) for res in valid_results])
+        cropped_grayscale_images = np.array([self._get_letter_crop(cv.cvtColor(res.tile, cv.COLOR_BGR2GRAY), res.local_bbox) for res in valid_results])
         masks = self._get_seg_masks(cropped_grayscale_images).astype(np.uint8) # 0=background, 1=shape, 2=letter
         only_letter_masks = masks*(masks==2) # only takes the letter masks
         letter_image_buffer = np.zeros(masks.shape, dtype=np.uint8)
         cv.copyTo(cropped_grayscale_images, only_letter_masks, letter_image_buffer)
         
-        letter_crops = [self._get_letter_crop(cam_img, res.bbox) for res in valid_results]
+        letter_crops = [self._get_letter_crop(res.tile, res.local_bbox) for res in valid_results]
 
         if PLOT_RESULT:
+            shape_seg_folder_path = f"{output_folder_path}/shape_seg{loop_index}"
+            os.mkdir(shape_seg_folder_path)
+            for i, res in enumerate(valid_results):
+                cv.imwrite(f"{shape_seg_folder_path}/tile{i}.png", res.tile)
+                cv.imwrite(f"{shape_seg_folder_path}/mask{i}.png", res.mask*255)
             seg_folder_path = f"{output_folder_path}/seg{loop_index}"
             os.mkdir(seg_folder_path)
             for i in range(len(letter_image_buffer)):
@@ -259,7 +270,7 @@ class Pipeline:
             image_file_name = f"{output_folder_path}/det{loop_index}.png"
             plot_fns.show_image_cv(
                 cam_img,
-                [res.bbox for res in valid_results],
+                [res.global_bbox for res in valid_results],
                 [f"{l} | {self.labels_to_names_dict[x]} | Shape Color: {sc} | Letter Color: {lc}" for l, x, sc, lc in
                  zip(letter_labels, [res.shape_label for res in valid_results], shape_colors, letter_colors)],
                 [res.confidence for res in valid_results],
