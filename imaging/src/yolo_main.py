@@ -3,8 +3,8 @@ from torch import Tensor
 
 from ultralytics.yolo.engine.results import Results
 from ultralytics import YOLO
-from .letter_detection import LetterDetector as letter_detection
-from .camera import GoProCamera
+from imaging.letter_detection import LetterDetector as letter_detection
+from imaging.src.camera import GoProCamera
 
 import cv2 as cv
 import numpy as np
@@ -18,7 +18,7 @@ import os
 # PLOT_RESULT = False
 PLOT_RESULT = True
 if PLOT_RESULT:
-    from .shape_detection.src import plot_functions as plot_fns
+    from imaging.shape_detection.src import plot_functions as plot_fns
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -33,7 +33,7 @@ def logGeolocation(counter: int, location):
     """
     Save location corresponding to the saved image index.
     """
-    f = open("locations.txt", "w")
+    f = open("../locations.txt", "w")
     f.write("Save counter [{}] with location: [{}]\n".format(counter, location))
     f.close()
 
