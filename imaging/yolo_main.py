@@ -71,17 +71,18 @@ class Pipeline:
     SLEEP_TIME = 10
 
 
-    def __init__(self, localizer):
+    def __init__(self, localizer, cam_mode="gopro"):
+        self.cam_mode=cam_mode
+
         gpus = tf.config.list_physical_devices('GPU')
         if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
             tf.config.set_logical_device_configuration(
                 gpus[0],
                 [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
 
-        self.tile_resolution = 512  # has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/v8n.pt")
+        self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
+        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/v8n-640.pt")
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
-        self.cam = GoProCamera()
         self.localizer = localizer
 
         # warm up shape model
@@ -142,11 +143,10 @@ class Pipeline:
         """
         Returns: Source image to start the Imaging pipeline
         """
-        # for webcam image capture
-        return self.cam.get_image()
-
-        # for pre-saved image
-        # return cv.imread("gopro-image-5k.png")
+        if self.cam_mode == "gopro":
+            return self.cam.get_image()
+        elif self.cam_mode == "image":
+            return cv.imread(f"{IMAGING_PATH}/gopro-image-5k.png")
 
     def loop(self, index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
@@ -212,6 +212,7 @@ class Pipeline:
 
             letter_image_buffer.append(self._get_letter_crop(grayscale_img, shape_result.bbox))
             valid_results.append(shape_result)
+
         if len(letter_image_buffer)<1:
             print("no shape detections on index", index)
             return
@@ -236,14 +237,6 @@ class Pipeline:
         """
         for index in range(num_loops):
             self.loop(index)
-
-
-if __name__ == "__main__":
-    imagingPipeline = Pipeline()
-    start = time.perf_counter()
-    imagingPipeline.run()
-    end = time.perf_counter()
-    print(f"elapsed loop time: {end - start:.5f}")
 
 '''
 Run commands:
