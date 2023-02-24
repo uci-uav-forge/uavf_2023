@@ -27,7 +27,6 @@ class ShapeResult:
     shape_label: int
     confidence: float
     bbox: np.ndarray  # [min_y, min_x, max_y, max_x] relative to global image coordinates
-    tile_index: int
 
 
 def logGeolocation(counter: int, location):
@@ -145,23 +144,12 @@ class Pipeline:
             return self.cam.get_image()
         elif self.cam_mode == "image":
             return cv.imread(f"{IMAGING_PATH}/gopro-image-5k.png")
-
-    def loop(self, index: int):
-        # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
-        img = self._get_image()
-        cv.imwrite(f"raw_img{index}.png", img)
-        print(f"got image {index}")
-        curr_location = self.getCurrentLocation()
-        logGeolocation(index, curr_location)
-
-        grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        
+    def _get_shape_detections(self, img: cv.Mat, batch_size=1):
         all_tiles, tile_offsets_x_y = self._split_to_tiles(img)
 
-        # batch_size = len(all_tiles)
         batch_size = 1  # when running on Jetson Nano
 
-        bboxes_per_tile: "list[Tensor]" = []
-        shape_labels, confidences = [], []
         all_shape_results: list[ShapeResult] = []
         tile_index = 0
         for batch in np.split(
@@ -187,7 +175,6 @@ class Pipeline:
                             shape_label=int(result[5]),
                             confidence=result[4],
                             bbox=box,
-                            tile_index=tile_index
                         )
                     )
                 tile_index += 1
@@ -198,16 +185,28 @@ class Pipeline:
         )
 
         valid_results: "list[ShapeResult]" = []
-        letter_image_buffer = []
         for i, shape_result in enumerate(all_shape_results):
             if i in duplicate_indices: continue
-
-            letter_image_buffer.append(self._get_letter_crop(grayscale_img, shape_result.bbox))
             valid_results.append(shape_result)
 
-        if len(letter_image_buffer)<1:
+        return valid_results
+    
+    def loop(self, index: int):
+        # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
+        img = self._get_image()
+        cv.imwrite(f"raw_img{index}.png", img)
+        print(f"got image {index}")
+        curr_location = self.getCurrentLocation()
+        logGeolocation(index, curr_location)
+
+        grayscale_img = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
+        valid_results = self._get_shape_detections(img, batch_size=1)
+
+        if len(valid_results)<1:
             print("no shape detections on index", index)
             return
+
+        letter_image_buffer = [self._get_letter_crop(grayscale_img, res.bbox) for res in valid_results]
 
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
