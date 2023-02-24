@@ -241,11 +241,14 @@ class Pipeline:
         print("Finished shape detections")
         color_results = []
         letter_masks = []
+        if PLOT_RESULT:
+            os.makedirs(f"{output_folder_path}/color_seg{loop_index}", exist_ok=True)
         for res in valid_results:
-            seg = color_segmentation(self._get_letter_crop(res.tile,res.local_bbox,pad=False))
+            masked_crop = cv.copyTo(res.tile,res.mask)
+            seg = color_segmentation(self._get_letter_crop(masked_crop, res.local_bbox, pad=False), f"{output_folder_path}/color_seg{loop_index}/{res.shape_label}.png" if PLOT_RESULT else None)
             color_results.append(seg)
-            w,h =seg.mask.shape
-            resized_mask = self._get_letter_crop(seg.mask, [0,0,h,w], pad=True)
+            h,w =seg.mask.shape
+            resized_mask = self._get_letter_crop(seg.mask, [0,0,w,h], pad=True)
             letter_masks.append(resized_mask)
 
         cropped_grayscale_images = np.array([self._get_letter_crop(cv.cvtColor(res.tile, cv.COLOR_BGR2GRAY), res.local_bbox) for res in valid_results])
