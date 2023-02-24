@@ -1,11 +1,11 @@
 from dataclasses import dataclass
 import time
-from torch import Tensor
 
-from ultralytics.yolo.engine.results import Results, Boxes, Masks
+from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
 from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
+from .colordetect.color_segment import color_segmentation
 
 import cv2 as cv
 import numpy as np
@@ -20,10 +20,9 @@ IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 
 # Flag to turn on the visualization
 PLOT_RESULT = True
-if PLOT_RESULT:
-    output_folder_path = f"{IMAGING_PATH}/../flight_data/{time.strftime(r'%m-%d|%H:%M:%S')}"
-    os.makedirs(output_folder_path, exist_ok=True)
-    from .shape_detection.src import plot_functions as plot_fns
+output_folder_path = f"{IMAGING_PATH}/../flight_data/{time.strftime(r'%m-%d|%H:%M:%S')}"
+os.makedirs(output_folder_path, exist_ok=True)
+from .shape_detection.src import plot_functions as plot_fns
 
 
 @dataclass
@@ -125,7 +124,7 @@ class Pipeline:
 
         return all_tiles, tile_offsets_x_y
 
-    def _get_letter_crop(self, img: cv.Mat, bbox: 'list[int]'):
+    def _get_letter_crop(self, img: cv.Mat, bbox: 'list[int]', pad=True):
         """
         Args:
             img: Image capture from camera
@@ -135,8 +134,6 @@ class Pipeline:
 
         """
         box_x0, box_y0, box_x1, box_y1 = bbox
-        box_x1 = min(box_x1, box_x0 + self.tile_resolution)
-        box_y1 = min(box_y1, box_y0 + self.tile_resolution)
 
         if img.ndim==2:
             box_crop = img[box_y0:box_y1,box_x0:box_x1]
@@ -144,8 +141,10 @@ class Pipeline:
         else:
             box_crop = img[box_y0:box_y1,box_x0:box_x1]
             pad_widths = [(0, 128 - box_crop.shape[0]), (0, 128 - box_crop.shape[1]), (0,0)]
-
-        return np.pad(box_crop, pad_width=pad_widths)
+        if pad:
+            return np.pad(box_crop, pad_width=pad_widths)
+        else:
+            return box_crop
 
     def _get_image(self):
         """
@@ -239,14 +238,25 @@ class Pipeline:
         if len(valid_results)<1:
             print("no shape detections on index", loop_index)
             return
+        print("Finished shape detections")
+        color_results = []
+        letter_masks = []
+        for res in valid_results:
+            seg = color_segmentation(self._get_letter_crop(res.tile,res.local_bbox,pad=False))
+            color_results.append(seg)
+            w,h =seg.mask.shape
+            resized_mask = self._get_letter_crop(seg.mask, [0,0,h,w], pad=True)
+            letter_masks.append(resized_mask)
 
         cropped_grayscale_images = np.array([self._get_letter_crop(cv.cvtColor(res.tile, cv.COLOR_BGR2GRAY), res.local_bbox) for res in valid_results])
-        masks = self._get_seg_masks(cropped_grayscale_images).astype(np.uint8) # 0=background, 1=shape, 2=letter
+        # masks = self._get_seg_masks(cropped_grayscale_images).astype(np.uint8) # 0=background, 1=shape, 2=letter
+        masks = np.array(letter_masks).astype(np.uint8)
         only_letter_masks = masks*(masks==2) # only takes the letter masks
         letter_image_buffer = np.zeros(masks.shape, dtype=np.uint8)
         cv.copyTo(cropped_grayscale_images, only_letter_masks, letter_image_buffer)
         
         letter_crops = [self._get_letter_crop(res.tile, res.local_bbox) for res in valid_results]
+
 
         if PLOT_RESULT:
             shape_seg_folder_path = f"{output_folder_path}/shape_seg{loop_index}"
@@ -254,8 +264,10 @@ class Pipeline:
             for i, res in enumerate(valid_results):
                 cv.imwrite(f"{shape_seg_folder_path}/tile{i}.png", res.tile)
                 cv.imwrite(f"{shape_seg_folder_path}/mask{i}.png", res.mask*255)
-                cv.imwrite(f"{shape_seg_folder_path}/combined{i}.png", cv.copyTo(res.tile,res.mask))
-            seg_folder_path = f"{output_folder_path}/seg{loop_index}"
+                combined = cv.copyTo(res.tile,res.mask)
+                cv.imwrite(f"{shape_seg_folder_path}/combined{i}.png", combined)
+                cv.imwrite(f"{shape_seg_folder_path}/crop{i}.png", self._get_letter_crop(combined, res.local_bbox, pad=False))
+            seg_folder_path = f"{output_folder_path}/letter_seg{loop_index}"
             os.mkdir(seg_folder_path)
             for i in range(len(letter_image_buffer)):
                 cv.imwrite(f"{seg_folder_path}/crop{i}.png", cropped_grayscale_images[i])
@@ -266,17 +278,19 @@ class Pipeline:
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
 
         shape_colors, letter_colors = self._get_colors_rgb(letter_crops, masks)
+        
 
         if PLOT_RESULT:
             image_file_name = f"{output_folder_path}/det{loop_index}.png"
             plot_fns.show_image_cv(
                 cam_img,
                 [res.global_bbox for res in valid_results],
-                [f"{l} | {self.labels_to_names_dict[x]} | Shape Color: {sc} | Letter Color: {lc}" for l, x, sc, lc in
-                 zip(letter_labels, [res.shape_label for res in valid_results], shape_colors, letter_colors)],
+                [f"{l} | {self.labels_to_names_dict[x]} | Shape Color: {cr.shape_color} | Letter Color: {cr.letter_color}" for l, x, cr in
+                 zip(letter_labels, [res.shape_label for res in valid_results], color_results)],
                 [res.confidence for res in valid_results],
                 file_name=image_file_name,
-                font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0)
+                font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0),
+                color_results=color_results
             )
 
     def run(self, num_loops=50):

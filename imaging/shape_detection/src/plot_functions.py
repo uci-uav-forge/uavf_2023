@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 from matplotlib import patches
 import cv2 as cv
 
+from imaging.colordetect.color_segment import ColorSegmentationResult
+
 
 def get_rectangle_edges_from_pascal_bbox(bbox):
     xmin_top_left, ymin_top_left, xmax_bottom_right, ymax_bottom_right = bbox
@@ -74,13 +76,16 @@ def show_image(
 
 def show_image_cv(
         image: cv.Mat, bboxes=None, labels=None, confidences=None, file_name=None, font_scale=2,
-        thickness=1, box_color=(255, 255, 255), text_color=(255, 255, 255)
+        thickness=1, box_color=(255, 255, 255), text_color=(255, 255, 255),
+        color_results: "list[ColorSegmentationResult]" = None
 ):
-    for bbox, label, confidence in zip(bboxes, labels, confidences):
+    for bbox, label, confidence, color_res in zip(bboxes, labels, confidences,color_results):
         x0, y0, x1, y1 = map(int, bbox)
         image = cv.rectangle(image, (x0, y0), (x1, y1), color=box_color, thickness=thickness)
         cv.putText(image, f"{label} ({confidence:.1%})", (x0, y0), cv.FONT_HERSHEY_PLAIN, font_scale, text_color,
                    thickness)
+        cv.circle(image, (x0,y1), 5, color_res.shape_color.tolist(), -1)
+        cv.circle(image, (x1,y1), 5, color_res.letter_color.tolist(), -1)
     if file_name is not None:
         cv.imwrite(file_name, image)
     else:
