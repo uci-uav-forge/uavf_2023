@@ -148,8 +148,6 @@ class Pipeline:
     def _get_shape_detections(self, img: cv.Mat, batch_size=1):
         all_tiles, tile_offsets_x_y = self._split_to_tiles(img)
 
-        batch_size = 1  # when running on Jetson Nano
-
         all_shape_results: list[ShapeResult] = []
         tile_index = 0
         for batch in np.split(
