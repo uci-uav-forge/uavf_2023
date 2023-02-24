@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import shutil
 from torch import Tensor
 
 from ultralytics.yolo.engine.results import Results
@@ -121,7 +122,7 @@ class Pipeline:
     def _get_letter_crop(self, img: cv.Mat, bbox: 'list[int]'):
         """
         Args:
-            img: Reformatted image capture from camera
+            img: Image capture from camera
             bbox: Bounding box of detected target
 
         Returns: Cropped image according to bounding box containing only detected target.
@@ -131,12 +132,14 @@ class Pipeline:
         box_x1 = min(box_x1, box_x0 + self.tile_resolution)
         box_y1 = min(box_y1, box_y0 + self.tile_resolution)
 
-        box_crop = img[
-                   (box_y0):(box_y1),
-                   (box_x0):(box_x1)
-                   ]
+        if img.ndim==2:
+            box_crop = img[box_y0:box_y1,box_x0:box_x1]
+            pad_widths = [(0, 128 - box_crop.shape[0]), (0, 128 - box_crop.shape[1])]
+        else:
+            box_crop = img[box_y0:box_y1,box_x0:box_x1]
+            pad_widths = [(0, 128 - box_crop.shape[0]), (0, 128 - box_crop.shape[1]), (0,0)]
 
-        return np.pad(box_crop, pad_width=((0, 128 - box_crop.shape[0]), (0, 128 - box_crop.shape[1])))
+        return np.pad(box_crop, pad_width=pad_widths)
 
     def _get_image(self):
         """
@@ -201,6 +204,18 @@ class Pipeline:
         prediction = np.argmax(prediction_raw, axis=3)
         return prediction
     
+    def _get_colors_rgb(self, img_crops: "list[np.ndarray]", masks: np.ndarray):
+        """
+        Returns (shape_colors, letter_colors)
+        where each of those is a list of (ndarrays of shape (3,))
+        """
+        shape_colors = []
+        letter_colors = []
+        for img_crop, mask in zip(img_crops, masks):
+            shape_colors.append(np.mean(img_crop[mask == 1], axis=0).astype(np.uint8))
+            letter_colors.append(np.mean(img_crop[mask == 2], axis=0).astype(np.uint8))
+        return shape_colors, letter_colors
+    
     def loop(self, index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
         cam_img = self._get_image()
@@ -222,8 +237,11 @@ class Pipeline:
         letter_image_buffer = np.zeros(masks.shape, dtype=np.uint8)
         cv.copyTo(cropped_grayscale_images, only_letter_masks, letter_image_buffer)
         
+        letter_crops = [self._get_letter_crop(cam_img, res.bbox) for res in valid_results]
 
         if PLOT_RESULT:
+            if f"seg{index}" in os.listdir():
+                shutil.rmtree(f"seg{index}")
             os.mkdir(f"seg{index}")
             for i in range(len(letter_image_buffer)):
                 cv.imwrite(f"seg{index}/original{i}.png", cropped_grayscale_images[i])
@@ -232,13 +250,16 @@ class Pipeline:
 
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
+
+        shape_colors, letter_colors = self._get_colors_rgb(letter_crops, masks)
+
         if PLOT_RESULT:
             image_file_name = "detection_results_num{}.jpg".format(index)
             plot_fns.show_image_cv(
                 cam_img,
                 [res.bbox for res in valid_results],
-                [f"{l}, {self.labels_to_names_dict[x]}" for l, x in
-                 zip(letter_labels, [res.shape_label for res in valid_results])],
+                [f"{l} | {self.labels_to_names_dict[x]} | Shape Color: {sc} | Letter Color: {lc}" for l, x, sc, lc in
+                 zip(letter_labels, [res.shape_label for res in valid_results], shape_colors, letter_colors)],
                 [res.confidence for res in valid_results],
                 file_name=image_file_name,
                 font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0)
