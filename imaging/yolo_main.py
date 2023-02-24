@@ -10,8 +10,8 @@ import cv2 as cv
 import numpy as np
 import json
 import tensorflow as tf
+from keras.utils import normalize
 import itertools
-import time
 import os
 
 # Flag to turn on the visualization
@@ -78,6 +78,8 @@ class Pipeline:
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
         self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/v8n-640.pt")
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
+        self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet.hdf5")
+
         self.localizer = localizer
         if self.cam_mode == "gopro":
             self.cam = GoProCamera()
@@ -188,6 +190,16 @@ class Pipeline:
             valid_results.append(shape_result)
 
         return valid_results
+
+    def _get_seg_masks(self, images) -> np.ndarray:
+        '''
+        images is batch_size x 
+        '''
+        test = np.expand_dims(images, axis=3)
+        test = normalize(test, axis=1)
+        prediction_raw = self.color_seg_model.predict(test)
+        prediction = np.argmax(prediction_raw, axis=3)
+        return prediction
     
     def loop(self, index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
@@ -204,7 +216,18 @@ class Pipeline:
             print("no shape detections on index", index)
             return
 
-        letter_image_buffer = [self._get_letter_crop(grayscale_img, res.bbox) for res in valid_results]
+        cropped_image_buffer = np.array([self._get_letter_crop(grayscale_img, res.bbox) for res in valid_results])
+        masks = self._get_seg_masks(np.array(cropped_image_buffer)).astype(np.uint8) # 0=background, 1=shape, 2=letter
+        only_letter_masks = masks*(masks==2) # only takes the letter masks
+        letter_image_buffer = np.zeros(masks.shape, dtype=np.uint8)
+        cv.copyTo(cropped_image_buffer, only_letter_masks, letter_image_buffer)
+
+        if PLOT_RESULT:
+            os.mkdir(f"seg{index}")
+            for i in range(len(letter_image_buffer)):
+                cv.imwrite(f"seg/original{i}.png", cropped_image_buffer[i])
+                cv.imwrite(f"seg/mask{i}.png", masks[i]*127)
+                cv.imwrite(f"seg/letter{i}.png", letter_image_buffer[i])
 
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
