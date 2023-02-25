@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import time
+from .color_knn.color_classify import ColorClassifier
 
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
@@ -85,6 +86,7 @@ class Pipeline:
         self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt")
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
         self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet.hdf5")
+        self.color_classifer = ColorClassifier()
 
         self.localizer = localizer
         if self.cam_mode == "gopro":
@@ -241,12 +243,18 @@ class Pipeline:
         print("Finished shape detections")
         color_results = []
         letter_masks = []
+        shape_color_names = []
+        letter_color_names = []
+
         if PLOT_RESULT:
             os.makedirs(f"{output_folder_path}/color_seg{loop_index}", exist_ok=True)
+        
         for res in valid_results:
             masked_crop = cv.copyTo(res.tile,res.mask)
             seg = color_segmentation(self._get_letter_crop(masked_crop, res.local_bbox, pad=False), f"{output_folder_path}/color_seg{loop_index}/{res.shape_label}.png" if PLOT_RESULT else None)
             color_results.append(seg)
+            shape_color_names.append(self.color_classifer.predict(seg.shape_color, bgr=True))
+            letter_color_names.append(self.color_classifer.predict(seg.letter_color, bgr=True))
             h,w =seg.mask.shape
             resized_mask = self._get_letter_crop(seg.mask, [0,0,w,h], pad=True)
             letter_masks.append(resized_mask)
@@ -288,8 +296,13 @@ class Pipeline:
             plot_fns.show_image_cv(
                 cam_img,
                 [res.global_bbox for res in valid_results],
-                [f"{l} | {self.labels_to_names_dict[x]}" for l, x in
-                 zip(letter_labels, [res.shape_label for res in valid_results])],
+                [f"{l} | {self.labels_to_names_dict[x]} | Shape Color: {sc} | Letter Color: {lc}" for l, x, sc, lc in
+                 zip(
+                    letter_labels, 
+                    [res.shape_label for res in valid_results],
+                    shape_color_names,
+                    letter_color_names
+                    )],
                 [res.confidence for res in valid_results],
                 file_name=image_file_name,
                 font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0),
