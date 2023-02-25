@@ -10,10 +10,12 @@ class FakeLocalizer:
     def __init__(self):
         pass
     def get_current_location(self):
-        return (69,420)
+        return (69,-1337,420)
+    def get_current_heading(self):
+        return (-90,0,-90)
 
 if __name__ == "__main__":
-    imaging_pipeline = Pipeline(FakeLocalizer(), img_file="imaging/gopro-image-5k.png")
+    imaging_pipeline = Pipeline(FakeLocalizer(), (5312, 2988), img_file="imaging/gopro-image-5k.png")
     start = time.perf_counter()
     imaging_pipeline.run(num_loops=1)
     end = time.perf_counter()

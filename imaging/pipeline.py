@@ -1,20 +1,23 @@
-from dataclasses import dataclass
 import time
-from .color_knn.color_classify import ColorClassifier
+import json
+import itertools
+import os
+from dataclasses import dataclass
 
+
+import cv2 as cv
+import numpy as np
+import tensorflow as tf
+from keras.utils import normalize
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
+
+from .local_geolocation import GeoLocation
+from .color_knn.color_classify import ColorClassifier
 from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
 from .colordetect.color_segment import color_segmentation
 
-import cv2 as cv
-import numpy as np
-import json
-import tensorflow as tf
-from keras.utils import normalize
-import itertools
-import os
 
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -73,8 +76,9 @@ def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh
 
 
 class Pipeline:
-    def __init__(self, localizer, img_file="gopro"):
+    def __init__(self, localizer, img_size, img_file="gopro"):
         self.img_file=img_file
+        self.geolocator = GeoLocation(img_size)
 
         gpus = tf.config.list_physical_devices('GPU')
         if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
@@ -241,6 +245,16 @@ class Pipeline:
 
         valid_results = self._get_shape_detections(cam_img, batch_size=1)
 
+        coords = [
+            self.geolocator.get_location(
+                res.global_bbox[0], 
+                res.global_bbox[1],
+                self.localizer.get_current_location(),
+                self.localizer.get_current_heading()
+            )     
+            for res in valid_results
+        ]
+
         if len(valid_results)<1:
             print("no shape detections on index", loop_index)
             return
@@ -311,12 +325,14 @@ class Pipeline:
             plot_fns.show_image_cv(
                 cam_img,
                 [res.global_bbox for res in valid_results],
-                [f"{l} | {self.labels_to_names_dict[res.shape_label]} ({res.confidence:.1%}) | Shape Color: {sc} | Letter Color: {lc}" for l, res, sc, lc in
+                [
+                f"{l} | {self.labels_to_names_dict[res.shape_label]} ({res.confidence:.1%}) | Shape Color: {sc} | Letter Color: {lc} | Coords: {c}" for l, res, sc, lc, c in
                  zip(
                     letter_labels, 
                     valid_results,
                     shape_color_names,
-                    letter_color_names
+                    letter_color_names,
+                    coords
                     )],
                 file_name=image_file_name,
                 font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0),
