@@ -82,8 +82,11 @@ def show_image_cv(
     for bbox, label, confidence, color_res in zip(bboxes, labels, confidences,color_results):
         x0, y0, x1, y1 = map(int, bbox)
         image = cv.rectangle(image, (x0, y0), (x1, y1), color=box_color, thickness=thickness)
-        cv.putText(image, f"{label} ({confidence:.1%})", (x0, y0), cv.FONT_HERSHEY_PLAIN, font_scale, text_color,
-                   thickness)
+        cv.putText(image, f"{label} ({confidence:.1%})", (x0, y0), cv.FONT_HERSHEY_PLAIN, font_scale, text_color,thickness)
+        
+        cv.putText(image, "Shape", (max(0,x0-40), y1+20), cv.FONT_HERSHEY_PLAIN, font_scale, text_color,thickness, bottomLeftOrigin=False)
+        cv.putText(image, "Letter", (x1, y1+20), cv.FONT_HERSHEY_PLAIN, font_scale, text_color,thickness, bottomLeftOrigin=False)
+        
         cv.circle(image, (x0,y1), 5, color_res.shape_color.tolist(), -1)
         cv.circle(image, (x1,y1), 5, color_res.letter_color.tolist(), -1)
     if file_name is not None:

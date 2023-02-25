@@ -288,8 +288,8 @@ class Pipeline:
             plot_fns.show_image_cv(
                 cam_img,
                 [res.global_bbox for res in valid_results],
-                [f"{l} | {self.labels_to_names_dict[x]} | Shape Color: {cr.shape_color} | Letter Color: {cr.letter_color}" for l, x, cr in
-                 zip(letter_labels, [res.shape_label for res in valid_results], color_results)],
+                [f"{l} | {self.labels_to_names_dict[x]}" for l, x in
+                 zip(letter_labels, [res.shape_label for res in valid_results])],
                 [res.confidence for res in valid_results],
                 file_name=image_file_name,
                 font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0),
