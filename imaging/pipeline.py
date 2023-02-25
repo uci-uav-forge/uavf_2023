@@ -73,8 +73,8 @@ def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh
 
 
 class Pipeline:
-    def __init__(self, localizer, cam_mode="gopro"):
-        self.cam_mode=cam_mode
+    def __init__(self, localizer, img_file="gopro"):
+        self.img_file=img_file
 
         gpus = tf.config.list_physical_devices('GPU')
         if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
@@ -89,7 +89,7 @@ class Pipeline:
         self.color_classifer = ColorClassifier()
 
         self.localizer = localizer
-        if self.cam_mode == "gopro":
+        if self.img_file == "gopro":
             self.cam = GoProCamera()
 
         # warm up shape model
@@ -152,10 +152,10 @@ class Pipeline:
         """
         Returns: Source image to start the Imaging pipeline
         """
-        if self.cam_mode == "gopro":
+        if self.img_file == "gopro":
             return self.cam.get_image()
-        elif self.cam_mode == "image":
-            return cv.imread(f"{IMAGING_PATH}/gopro-image-5k.png")
+        else:
+            return cv.imread(self.img_file)
         
     def _get_shape_detections(self, img: cv.Mat, batch_size=1):
         all_tiles, tile_offsets_x_y = self._split_to_tiles(img)

@@ -3,7 +3,7 @@ Master script to run Imaging and Navigation pipelines.
 Currently only running Imaging pipeline to test for Feb. 16 flight day.
 """
 
-from imaging.yolo_main import Pipeline
+from imaging.pipeline import Pipeline
 import time
 
 class FakeLocalizer:
@@ -13,7 +13,7 @@ class FakeLocalizer:
         return (69,420)
 
 if __name__ == "__main__":
-    imaging_pipeline = Pipeline(FakeLocalizer(), cam_mode="image")
+    imaging_pipeline = Pipeline(FakeLocalizer(), img_file="imaging/shape_detection/data-gen/images/train/image2.png")
     start = time.perf_counter()
     imaging_pipeline.run(num_loops=1)
     end = time.perf_counter()
