@@ -245,23 +245,34 @@ class Pipeline:
             print("no shape detections on index", loop_index)
             return
         print("Finished shape detections")
-        color_results = []
         letter_masks = []
-        shape_color_names = []
         letter_color_names = []
 
         if PLOT_RESULT:
             os.makedirs(f"{output_folder_path}/color_seg{loop_index}", exist_ok=True)
         
-        for res in valid_results:
-            masked_crop = cv.copyTo(res.tile,res.mask)
-            color_seg_result = color_segmentation(self._get_letter_crop(masked_crop, res.local_bbox, pad=None), f"{output_folder_path}/color_seg{loop_index}/{res.shape_label}.png" if PLOT_RESULT else None)
-            color_results.append(color_seg_result)
-            shape_color_names.append(self.color_classifer.predict(color_seg_result.shape_color, bgr=True))
-            letter_color_names.append(self.color_classifer.predict(color_seg_result.letter_color, bgr=True))
-            h,w =color_seg_result.mask.shape
-            resized_mask = self._get_letter_crop(color_seg_result.mask, [0,0,w,h], pad="resize")
-            letter_masks.append(resized_mask)
+        color_results = [
+            color_segmentation(
+                self._get_letter_crop(cv.copyTo(res.tile,res.mask), res.local_bbox, pad=None),
+                f"{output_folder_path}/color_seg{loop_index}/{res.shape_label}.png" if PLOT_RESULT else None
+            )
+            for res in valid_results
+        ]
+
+
+        shape_color_names = [
+            self.color_classifer.predict(r.shape_color, bgr=True) for r in color_results
+        ]
+
+        letter_color_names = [
+            self.color_classifer.predict(r.letter_color, bgr=True) for r in color_results
+        ]
+
+        letter_masks = [
+            cv.resize(res.mask.astype(np.float32), (128,128), interpolation=cv.INTER_AREA).astype(np.uint8)
+            for res in color_results
+        ]
+
 
         cropped_grayscale_images = np.array([self._get_letter_crop(cv.cvtColor(res.tile, cv.COLOR_BGR2GRAY), res.local_bbox) for res in valid_results])
         # masks = self._get_seg_masks(cropped_grayscale_images).astype(np.uint8) # 0=background, 1=shape, 2=letter
