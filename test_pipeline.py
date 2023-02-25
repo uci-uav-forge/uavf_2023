@@ -13,7 +13,7 @@ class FakeLocalizer:
         return (69,420)
 
 if __name__ == "__main__":
-    imaging_pipeline = Pipeline(FakeLocalizer(), img_file="imaging/shape_detection/data-gen/images/train/image2.png")
+    imaging_pipeline = Pipeline(FakeLocalizer(), img_file="imaging/gopro-image-5k.png")
     start = time.perf_counter()
     imaging_pipeline.run(num_loops=1)
     end = time.perf_counter()
