@@ -288,7 +288,7 @@ class Pipeline:
         letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
 
-        shape_colors, letter_colors = self._get_colors_rgb(letter_crops, masks)
+        # shape_colors, letter_colors = self._get_colors_rgb(letter_crops, masks)
         
 
         if PLOT_RESULT:
@@ -296,14 +296,13 @@ class Pipeline:
             plot_fns.show_image_cv(
                 cam_img,
                 [res.global_bbox for res in valid_results],
-                [f"{l} | {self.labels_to_names_dict[x]} | Shape Color: {sc} | Letter Color: {lc}" for l, x, sc, lc in
+                [f"{l} | {self.labels_to_names_dict[res.shape_label]} ({res.confidence:.1%}) | Shape Color: {sc} | Letter Color: {lc}" for l, res, sc, lc in
                  zip(
                     letter_labels, 
-                    [res.shape_label for res in valid_results],
+                    valid_results,
                     shape_color_names,
                     letter_color_names
                     )],
-                [res.confidence for res in valid_results],
                 file_name=image_file_name,
                 font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0),
                 color_results=color_results

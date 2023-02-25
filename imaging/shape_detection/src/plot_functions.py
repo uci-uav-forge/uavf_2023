@@ -79,10 +79,10 @@ def show_image_cv(
         thickness=1, box_color=(255, 255, 255), text_color=(255, 255, 255),
         color_results: "list[ColorSegmentationResult]" = None
 ):
-    for bbox, label, confidence, color_res in zip(bboxes, labels, confidences,color_results):
+    for bbox, label, color_res in zip(bboxes, labels,color_results):
         x0, y0, x1, y1 = map(int, bbox)
         image = cv.rectangle(image, (x0, y0), (x1, y1), color=box_color, thickness=thickness)
-        cv.putText(image, f"{label} ({confidence:.1%})", (x0, y0), cv.FONT_HERSHEY_PLAIN, font_scale, text_color,thickness)
+        cv.putText(image, label, (x0, y0), cv.FONT_HERSHEY_PLAIN, font_scale, text_color,thickness)
         
         cv.putText(image, "Shape", (max(0,x0-40), y1+20), cv.FONT_HERSHEY_PLAIN, font_scale, text_color,thickness, bottomLeftOrigin=False)
         cv.putText(image, "Letter", (x1, y1+20), cv.FONT_HERSHEY_PLAIN, font_scale, text_color,thickness, bottomLeftOrigin=False)
