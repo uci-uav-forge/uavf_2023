@@ -89,7 +89,7 @@ class Pipeline:
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
         self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt")
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
-        self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet.hdf5")
+        self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
         self.color_classifer = ColorClassifier()
 
         self.localizer = localizer
@@ -130,7 +130,7 @@ class Pipeline:
 
         return all_tiles, tile_offsets_x_y
 
-    def _get_letter_crop(self, img: cv.Mat, bbox: 'list[int]', pad="resize"):
+    def _crop_img(self, img: cv.Mat, bbox: 'list[int]', pad="resize"):
         """
         Args:
             img: Image capture from camera
@@ -215,10 +215,9 @@ class Pipeline:
 
     def _get_seg_masks(self, images: np.ndarray) -> np.ndarray:
         '''
-        images is of shape (batch_size, 128, 128) 
+        images is of shape (batch_size, 128, 128, 3) 
         '''
-        model_input = np.expand_dims(images, axis=3)
-        model_input = normalize(model_input, axis=1)
+        model_input = normalize(images, axis=1)
         prediction_raw = self.color_seg_model.predict(model_input)
         prediction = np.argmax(prediction_raw, axis=3)
         return prediction
@@ -259,15 +258,13 @@ class Pipeline:
             print("no shape detections on index", loop_index)
             return
         print("Finished shape detections")
-        letter_masks = []
-        letter_color_names = []
 
         if PLOT_RESULT:
             os.makedirs(f"{output_folder_path}/color_seg{loop_index}", exist_ok=True)
         
         color_results = [
             color_segmentation(
-                self._get_letter_crop(cv.copyTo(res.tile,res.mask), res.local_bbox, pad=None),
+                self._crop_img(cv.copyTo(res.tile,res.mask), res.local_bbox, pad=None),
                 f"{output_folder_path}/color_seg{loop_index}/{res.shape_label}.png" if PLOT_RESULT else None
             )
             for res in valid_results
@@ -282,20 +279,20 @@ class Pipeline:
             self.color_classifer.predict(r.letter_color, bgr=True) for r in color_results
         ]
 
-        letter_masks = [
-            cv.resize(res.mask.astype(np.float32), (128,128), interpolation=cv.INTER_AREA).astype(np.uint8)
-            for res in color_results
-        ]
-
-
-        cropped_grayscale_images = np.array([self._get_letter_crop(cv.cvtColor(res.tile, cv.COLOR_BGR2GRAY), res.local_bbox) for res in valid_results])
-        # masks = self._get_seg_masks(cropped_grayscale_images).astype(np.uint8) # 0=background, 1=shape, 2=letter
-        masks = np.array(letter_masks).astype(np.uint8)
-        only_letter_masks = masks*(masks==2) # only takes the letter masks
-        letter_image_buffer = np.zeros(masks.shape, dtype=np.uint8)
-        cv.copyTo(cropped_grayscale_images, only_letter_masks, letter_image_buffer)
+        letter_crops = np.array([self._crop_img(cv.copyTo(res.tile,res.mask), res.local_bbox, pad="resize") for res in valid_results])
+        USE_UNET = False
+        if USE_UNET:
+            masks = self._get_seg_masks(letter_crops).astype(np.uint8)
+        else:
+            letter_masks = [
+                cv.resize(res.mask.astype(np.float32), (128,128), interpolation=cv.INTER_AREA).astype(np.uint8)
+                for res in color_results
+            ]
+            masks = np.array(letter_masks).astype(np.uint8)
         
-        letter_crops = [self._get_letter_crop(res.tile, res.local_bbox) for res in valid_results]
+        only_letter_masks = masks*(masks==2) # only takes the letter masks
+        only_letter_masks_rgb = np.stack([only_letter_masks]*3, axis=-1)
+        letter_image_buffer = cv.copyTo(letter_crops, only_letter_masks_rgb)
 
 
         if PLOT_RESULT:
@@ -306,15 +303,15 @@ class Pipeline:
                 cv.imwrite(f"{shape_seg_folder_path}/mask{i}.png", res.mask*255)
                 combined = cv.copyTo(res.tile,res.mask)
                 cv.imwrite(f"{shape_seg_folder_path}/combined{i}.png", combined)
-                cv.imwrite(f"{shape_seg_folder_path}/crop{i}.png", self._get_letter_crop(combined, res.local_bbox, pad=None))
+                cv.imwrite(f"{shape_seg_folder_path}/crop{i}.png", self._crop_img(combined, res.local_bbox, pad=None))
             seg_folder_path = f"{output_folder_path}/letter_seg{loop_index}"
             os.mkdir(seg_folder_path)
             for i in range(len(letter_image_buffer)):
-                cv.imwrite(f"{seg_folder_path}/crop{i}.png", cropped_grayscale_images[i])
+                cv.imwrite(f"{seg_folder_path}/crop{i}.png", letter_crops[i])
                 cv.imwrite(f"{seg_folder_path}/mask{i}.png", masks[i]*127)
                 cv.imwrite(f"{seg_folder_path}/letter{i}.png", letter_image_buffer[i])
 
-        letter_results = self.letter_detector.predict(np.array(letter_image_buffer))
+        letter_results = self.letter_detector.predict(np.mean(letter_image_buffer, axis=-1))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
 
         # shape_colors, letter_colors = self._get_colors_rgb(letter_crops, masks)
