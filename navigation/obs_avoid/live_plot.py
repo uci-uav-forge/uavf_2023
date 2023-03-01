@@ -9,15 +9,15 @@ import time
 class LivePlot:
     
 
-    def __init__(self, num_markers):    # num_markers should be number of objects 
+    def __init__(self, num_obj):    # num_markers should be number of objects 
         self.x_lim = np.array([0, 100]) # dimensions of plot, ex: x-coords from 0 to 100
         self.y_lim = np.array([0, 100]) # make them similar to range of d455 camera, the y-lim is 20 meters
 
         self.obj_marker = 'ro'          # matplotplib parameter for marker color and shape
         self.drone_marker = 'b^' 
 
-        self.x_coords = np.zeros(num_markers+1)  # correspond each index in these arrays to an object
-        self.y_coords = np.zeros(num_markers+1)  # the final index represents the drone itself
+        self.x_coords = np.zeros(num_obj+1)  # correspond each index in these arrays to an object
+        self.y_coords = np.zeros(num_obj+1)  # the final index represents the drone itself
 
         self.init_plot()
         
