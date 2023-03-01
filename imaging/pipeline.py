@@ -17,6 +17,7 @@ from .color_knn.color_classify import ColorClassifier
 from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
 from .colordetect.color_segment import color_segmentation
+from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
 
 
 
@@ -24,7 +25,7 @@ IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 
 # Flag to turn on the visualization
 PLOT_RESULT = True
-output_folder_path = f"{IMAGING_PATH}/../flight_data/{time.strftime(r'%m-%d|%H:%M:%S')}"
+output_folder_path = os.path.join(os.path.dirname(IMAGING_PATH), "flight_data", f"{time.strftime(r'%m-%d-%H-%M-%S')}")
 os.makedirs(output_folder_path, exist_ok=True)
 from .shape_detection.src import plot_functions as plot_fns
 
@@ -53,11 +54,13 @@ def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh
     Returns indices of the ones that are duplicates.
     """
     correct_bboxes = []
+    duplicates = {}
     duplicate_indices = set()
     for i in sorted(range(len(boxes)), key=lambda i: confidences[i], reverse=True):
         x1, y1, x2, y2 = boxes[i]
         is_duplicate = False
-        for x3, y3, x4, y4 in correct_bboxes:
+        for j in correct_bboxes:
+            x3, y3, x4, y4 = boxes[j]
             if not (x3 > x2 or x1 > x4 or y3 > y2 or y1 > y4):  # if they overlap
                 # gets the coordinates of the intersection
                 intersection_x1, intersection_x2 = sorted([x1, x2, x3, x4])[1:3]
@@ -69,14 +72,23 @@ def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh
                 if iou >= iou_thresh:
                     is_duplicate = True
         if not is_duplicate:
-            correct_bboxes.append(np.array([x1, y1, x2, y2]))
+            correct_bboxes.append(i)
+            duplicates[i] = []
         else:
             duplicate_indices.add(i)
-    return duplicate_indices
+            duplicates[j].append(i)
+    return duplicate_indices,duplicates
 
+
+def patch_postprocess(self, pp):
+    def pp2(*args):
+        self.preds.append(args[0])
+        return pp(*args)
+    return pp2
+        
 
 class Pipeline:
-    def __init__(self, localizer, img_size, img_file="gopro"):
+    def __init__(self, localizer, img_size, img_file="gopro", targets=[("O", "square")]):
         self.img_file=img_file
         self.geolocator = GeoLocation(img_size)
 
@@ -87,7 +99,7 @@ class Pipeline:
                 [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
 
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt")
+        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt", )
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
         self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
         self.color_classifer = ColorClassifier()
@@ -95,6 +107,8 @@ class Pipeline:
         self.localizer = localizer
         if self.img_file == "gopro":
             self.cam = GoProCamera()
+        
+        self.targets = targets
 
         # warm up shape model
         rand_input = np.random.rand(1, self.tile_resolution, self.tile_resolution, 3).astype(np.float32)
@@ -174,7 +188,7 @@ class Pipeline:
                 ary=all_tiles,
                 indices_or_sections=range(batch_size, len(all_tiles), batch_size),
                 axis=0):
-            predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False)
+            predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False, conf=MATCH_THRESHOLD)
             # If you don't wrap `batch` in a list it will raise an error.
             # I actually went in and patched this on my local copy of the library in hopes that passing a raw ndarray
             # would make it faster, but it doesn't result in a speedup.
@@ -201,7 +215,7 @@ class Pipeline:
                     )
                 tile_index += 1
 
-        duplicate_indices = nms_indices(
+        duplicate_indices, duplicates = nms_indices(
             [x.global_bbox for x in all_shape_results],
             [x.confidence for x in all_shape_results]
         )
@@ -210,8 +224,9 @@ class Pipeline:
         for i, shape_result in enumerate(all_shape_results):
             if i in duplicate_indices: continue
             valid_results.append(shape_result)
+            shape_result.duplicates = [all_shape_results[d] for d in duplicates[i]]
 
-        return valid_results
+        return list(filter(lambda x: x.confidence > CONF_THRESHOLD, valid_results))
 
     def _get_seg_masks(self, images: np.ndarray) -> np.ndarray:
         '''
@@ -314,6 +329,11 @@ class Pipeline:
         letter_results = self.letter_detector.predict(np.mean(letter_image_buffer, axis=-1))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
 
+        letter_confidences = [list(zip(self.letter_detector.labels, row)) for row in letter_results]
+        shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates] for res in valid_results]
+
+        tags = [best_match(self.targets, lC, sC) for lC,sC in zip(letter_confidences,shape_confidences)]
+
         # shape_colors, letter_colors = self._get_colors_rgb(letter_crops, masks)
         
 
@@ -323,13 +343,14 @@ class Pipeline:
                 cam_img,
                 [res.global_bbox for res in valid_results],
                 [
-                f"{l} | {self.labels_to_names_dict[res.shape_label]} ({res.confidence:.1%}) | Shape Color: {sc} | Letter Color: {lc} | Coords: {c}" for l, res, sc, lc, c in
+                f"{l} | {self.labels_to_names_dict[res.shape_label]} ({res.confidence:.1%}) | Shape Color: {sc} | Letter Color: {lc} | Coords: {c} | Tag: {tg}" for l, res, sc, lc, c, tg in
                  zip(
                     letter_labels, 
                     valid_results,
                     shape_color_names,
                     letter_color_names,
-                    coords
+                    coords,
+                    tags
                     )],
                 file_name=image_file_name,
                 font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0),
