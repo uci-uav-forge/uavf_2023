@@ -40,12 +40,12 @@ class ShapeResult:
     tile: np.ndarray
 
 
-def logGeolocation(loop_index: int, location):
+def logGeolocation(loop_index: int, location, heading):
     """
     Save location corresponding to the saved image index.
     """
     f = open(f"{output_folder_path}/locations.txt", "w+")
-    f.write(f"Loop index [{loop_index}] has location: [{location}]\n")
+    f.write(f"Loop index [{loop_index}] has location: [{location}] and heading [{heading}]\n")
     f.close()
 
 
@@ -88,10 +88,19 @@ def patch_postprocess(self, pp):
         
 
 class Pipeline:
-    def __init__(self, localizer, img_size, img_file="gopro", targets=[("O", "square")]):
+    def __init__(self, localizer, img_size, img_file="gopro", targets=[("O", "square")], dry_run=False):
+        ''' dry_run being true will just make the pipeline only record the raw images and coordinates and not run any inference'''
+        self.doing_dry_run=dry_run
         self.img_file=img_file
-        self.geolocator = GeoLocation(img_size)
+        self.localizer = localizer
+        if self.img_file == "gopro":
+            self.cam = GoProCamera()
+        
+        if self.doing_dry_run:
+            return
 
+        self.geolocator = GeoLocation(img_size)
+        
         gpus = tf.config.list_physical_devices('GPU')
         if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
             tf.config.set_logical_device_configuration(
@@ -104,10 +113,6 @@ class Pipeline:
         self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
         self.color_classifer = ColorClassifier()
 
-        self.localizer = localizer
-        if self.img_file == "gopro":
-            self.cam = GoProCamera()
-        
         self.targets = targets
 
         # warm up shape model
@@ -121,12 +126,6 @@ class Pipeline:
             raw_dict: dict = json.load(f)
             int_casted_keys = map(int, raw_dict.keys())
             self.labels_to_names_dict = dict(zip(int_casted_keys, raw_dict.values()))
-
-    def getCurrentLocation(self):
-        """
-        Return the current local location of the UAV.
-        """
-        return self.localizer.get_current_location()
 
     def _split_to_tiles(self, img: cv.Mat):
         h, w = img.shape[:2]
@@ -254,8 +253,12 @@ class Pipeline:
         cam_img = self._get_image()
         cv.imwrite(f"{output_folder_path}/raw_full{loop_index}.png", cam_img)
         print(f"got image {loop_index}")
-        curr_location = self.getCurrentLocation()
-        logGeolocation(loop_index, curr_location)
+        curr_location = self.localizer.get_current_location()
+        curr_heading = self.localizer.get_current_heading()
+        logGeolocation(loop_index, curr_location, curr_heading)
+        
+        if self.doing_dry_run:
+            return
 
         valid_results = self._get_shape_detections(cam_img, batch_size=1)
 

@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 """
 Master script to run Imaging and Navigation pipelines.
 Currently only running Imaging pipeline to test for Feb. 16 flight day.
@@ -15,7 +16,8 @@ class FakeLocalizer:
         return (-90,0,-90)
 
 if __name__ == "__main__":
-    imaging_pipeline = Pipeline(FakeLocalizer(), (5312, 2988), img_file="imaging/gopro-image-5k.png", targets = [("X", "trapezoid"), ("B", "square"), ("E", "circle")])
+    USE_GOPRO = True
+    imaging_pipeline = Pipeline(FakeLocalizer(), (5312, 2988), img_file="gopro" if USE_GOPRO else "imaging/gopro-image-5k.png", targets = [("X", "trapezoid"), ("B", "square"), ("E", "circle")])
     start = time.perf_counter()
     imaging_pipeline.run(num_loops=1)
     end = time.perf_counter()
