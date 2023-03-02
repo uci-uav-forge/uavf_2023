@@ -155,17 +155,17 @@ class Pipeline:
 
         """
         box_x0, box_y0, box_x1, box_y1 = bbox
-
-        if img.ndim==2:
-            box_crop = img[box_y0:box_y1,box_x0:box_x1]
-            pad_widths = [(0, 128 - box_crop.shape[0]), (0, 128 - box_crop.shape[1])]
-        else:
-            box_crop = img[box_y0:box_y1,box_x0:box_x1]
-            pad_widths = [(0, 128 - box_crop.shape[0]), (0, 128 - box_crop.shape[1]), (0,0)]
+        if pad == "background":
+            box_crop = img[box_y0:box_y0+128,box_x0:box_x0+128]
+            return box_crop
+        box_crop = img[box_y0:box_y1,box_x0:box_x1]
         if pad is not None:
             if pad=="resize":
                 return cv.resize(box_crop.astype(np.float32), (128,128), interpolation=cv.INTER_AREA).astype(np.uint8)
             else:
+                pad_widths = [(0, 128 - box_crop.shape[0]), (0, 128 - box_crop.shape[1])]
+                if img.ndim == 3:
+                    pad_widths.append((0,0))
                 return np.pad(box_crop, pad_width=pad_widths)
         else:
             return box_crop
@@ -232,7 +232,7 @@ class Pipeline:
         '''
         images is of shape (batch_size, 128, 128, 3) 
         '''
-        model_input = normalize(images, axis=1)
+        model_input = normalize(images)
         prediction_raw = self.color_seg_model.predict(model_input)
         prediction = np.argmax(prediction_raw, axis=3)
         return prediction
@@ -319,6 +319,7 @@ class Pipeline:
                 combined = cv.copyTo(res.tile,res.mask)
                 cv.imwrite(f"{shape_seg_folder_path}/combined{i}.png", combined)
                 cv.imwrite(f"{shape_seg_folder_path}/crop{i}.png", self._crop_img(combined, res.local_bbox, pad=None))
+            
             seg_folder_path = f"{output_folder_path}/letter_seg{loop_index}"
             os.mkdir(seg_folder_path)
             for i in range(len(letter_image_buffer)):
