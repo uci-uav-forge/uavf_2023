@@ -6,13 +6,12 @@ from sklearn.neighbors import RadiusNeighborsClassifier
 COLOR_KNN_PATH = os.path.dirname(os.path.realpath(__file__))
 
 class ColorClassifier:
-    def __init__(self):
+    def __init__(self, kradius = 100):
         shadesofcolordata = json.load(open(f"{COLOR_KNN_PATH}/traincolors.json"))
 
         xdata = []
         ylabel = []
 
-        kradius = 100
         for colorlabel in shadesofcolordata:
             for shadevalue in shadesofcolordata[colorlabel]:
                 xdata.append(shadevalue) 
