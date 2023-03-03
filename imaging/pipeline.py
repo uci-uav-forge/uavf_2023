@@ -44,7 +44,7 @@ def logGeolocation(loop_index: int, location, heading):
     """
     Save location corresponding to the saved image index.
     """
-    f = open(f"{output_folder_path}/locations.txt", "w+")
+    f = open(f"{output_folder_path}/locations.txt", "a+")
     f.write(f"Loop index [{loop_index}] has location: [{location}] and heading [{heading}]\n")
     f.close()
 
@@ -250,14 +250,19 @@ class Pipeline:
     
     def loop(self, loop_index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
-        cam_img = self._get_image()
-        cv.imwrite(f"{output_folder_path}/raw_full{loop_index}.png", cam_img)
-        print(f"got image {loop_index}")
-        curr_location = self.localizer.get_current_location()
-        curr_heading = self.localizer.get_current_heading()
-        logGeolocation(loop_index, curr_location, curr_heading)
-        
-        if self.doing_dry_run:
+        try:
+            cam_img = self._get_image()
+            cv.imwrite(f"{output_folder_path}/raw_full{loop_index}.png", cam_img)
+            print(f"got image {loop_index}")
+            curr_location = self.localizer.get_current_location()
+            curr_heading = self.localizer.get_current_heading()
+            logGeolocation(loop_index, curr_location, curr_heading)
+            
+            if self.doing_dry_run:
+                return
+        except Exception as e:
+            print(loop_index)
+            print(e)
             return
 
         valid_results = self._get_shape_detections(cam_img, batch_size=1)

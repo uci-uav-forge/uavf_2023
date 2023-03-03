@@ -16,7 +16,7 @@ class FakeLocalizer:
         return (-90,0,-90)
 
 if __name__ == "__main__":
-    USE_GOPRO = True
+    USE_GOPRO = False
     imaging_pipeline = Pipeline(FakeLocalizer(), (5312, 2988), img_file="gopro" if USE_GOPRO else "imaging/gopro-image-5k.png", targets = [("X", "trapezoid"), ("B", "square"), ("E", "circle")])
     start = time.perf_counter()
     imaging_pipeline.run(num_loops=1)
