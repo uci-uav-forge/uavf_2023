@@ -10,15 +10,14 @@ import os
 
 import rospy
 from sensor_msgs.msg import NavSatFix
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, Pose
 from nav_msgs.msg import Odometry
 
 from .py_gnc_functions import *
-from .PrintColours import *
 from ..global_path.flight_plan_tsp import FlightPlan
 
 os.chdir("navigation")
-def init_mission(mission_q): 
+def init_mission(mission_q, use_px4=False): 
     # mission parameters in SI units
     drop_alt = 25 # m
     max_spd = 5 # m/s
@@ -62,26 +61,23 @@ def init_mission(mission_q):
     global_path = test_map.gen_globalpath(wps, drop_bds, tsp)
 
     # initialize priority queue
-    for i in range(1, len(global_path)): 
-        mission_q.put((int(i), global_path[i]))
-    # add home position at the end, always goes last, home= 2,000,000,000
-    mission_q.put((int(2000000000), (0.0, 0.0, avg_alt)))
+    for i in range(1, len(global_path)): mission_q.put((int(i), global_path[i]))
 
-    return global_path, drop_alt, max_spd, drop_spd, avg_alt
-
-
-def mission_loop(mission_q: PriorityQueue, drop_alt, max_spd, drop_spd, avg_alt, use_px4=False):
-    # init drone api
-    rate = rospy.Rate(20)
     drone = gnc_api()
     drone.wait4connect()
     if use_px4 == True:
         drone.set_mode_px4('OFFBOARD')
     else:
         drone.wait4start()
-
-    # align drone heading with north
     drone.initialize_local_frame()
+
+    return drone, global_path, drop_alt, max_spd, drop_spd, avg_alt
+
+
+def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, use_px4=False):
+    # init drone api
+    rate = rospy.Rate(20)
+    
     if use_px4:
         drone.arm()
         drone.set_destination(
@@ -99,17 +95,22 @@ def mission_loop(mission_q: PriorityQueue, drop_alt, max_spd, drop_spd, avg_alt,
         pass
     
     # outer loop: check if there are more waypoints to travel to
-    while mission_q.qsize():
-        # get next waypoint
-        curr_wp = mission_q.queue[0][1]
-        # calc desired heading
+    while mission_q.qsize() or not mission_q.drop_received:
         curr_pos = drone.get_current_location()
+
+        # get next waypoint
+        try:
+            curr_wp = mission_q.queue[0][1]
+        except IndexError:
+            curr_wp = (curr_pos.x, curr_pos.y)
+
+        # calc desired heading
         hdg = -90 + np.degrees(
             np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x))
 
         # lower alt and slow down if moving to drop point
         if mission_q.queue[0][0] > 1000000000 and mission_q.queue[0][0] < 2000000000:
-            curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
+            #curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
             if use_px4:
                 drone.set_speed_px4(drop_spd)
             else:
@@ -134,7 +135,7 @@ def mission_loop(mission_q: PriorityQueue, drop_alt, max_spd, drop_spd, avg_alt,
 
                 # lower alt and slow down if moving to drop point
                 if mission_q.queue[0][0] > 1000000000 and mission_q.queue[0][0] < 2000000000:
-                    curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
+                    #curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
                     if use_px4:
                         drone.set_speed_px4(drop_spd)
                     else:
@@ -158,65 +159,14 @@ def mission_loop(mission_q: PriorityQueue, drop_alt, max_spd, drop_spd, avg_alt,
     drone.land()
 
 
-class Localizer():
-    def __init__(self):
-        self.current_pose_g = Odometry()
-        self.current_heading_g = 0.0
-        self.local_offset_g = 0.0
-
-        self.currentPos = rospy.Subscriber(
-            name="mavros/global_position/local",
-            data_class=Odometry,
-            queue_size=1,
-            callback=self.pose_cb)
-
-
-    def pose_cb(self, msg):
-        self.current_pose_g = msg
-        self.enu_2_local()
-
-        q0, q1, q2, q3 = (
-            self.current_pose_g.pose.pose.orientation.w,
-            self.current_pose_g.pose.pose.orientation.x,
-            self.current_pose_g.pose.pose.orientation.y,
-            self.current_pose_g.pose.pose.orientation.z,)
-
-        psi = atan2((2 * (q0 * q3 + q1 * q2)),
-                    (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
-
-        self.current_heading_g = degrees(psi) - self.local_offset_g
-    
-
-    def enu_2_local(self):
-        x, y, z = (
-            self.current_pose_g.pose.pose.position.x,
-            self.current_pose_g.pose.pose.position.y,
-            self.current_pose_g.pose.pose.position.z)
-
-        current_pos_local = Point()
-        current_pos_local.x = x * cos(radians((self.local_offset_g - 90))) - y * sin(
-            radians((self.local_offset_g - 90)))
-        current_pos_local.y = x * sin(radians((self.local_offset_g - 90))) + y * cos(
-            radians((self.local_offset_g - 90)))
-        current_pos_local.z = z
-
-        return current_pos_local
-
-
-    def get_current_heading(self):
-        return self.current_heading_g
-
-
-    def get_current_location(self):
-        return self.enu_2_local()
-
-
 class PriorityAssigner():
-    def __init__(self, mission_q: PriorityQueue, dropzone_end):
+    def __init__(self, mission_q: PriorityQueue, drone: gnc_api, dropzone_end: tuple, drop_alt: int):
         self.mission_q = mission_q
+        self.drone = drone
         self.dropzone_end = dropzone_end
-        self.pos_updater = Localizer()
-
+        self.drop_alt = drop_alt
+        self.drop_received = False
+        
         self.avoid_sub = rospy.Subscriber(
             name="obs_avoid_rel_coord",
             data_class=Point,
@@ -224,16 +174,17 @@ class PriorityAssigner():
             callback=self.avoid_cb
         )
         self.drop_sub = rospy.Subscriber(
-            name="drop_coord",
-            data_class=Point,
-            queue_size=10,
+            name="drop_waypoints",
+            data_class=Float32MultiArray,
+            queue_size=1,
             callback=self.drop_cb
         )
     
 
     def avoid_cb(self, avoid_coord):
         prio = int(-1000000000)
-        curr_pos = self.pos_updater.get_current_location()
+        curr_pos = self.drone.get_current_location()
+        
         wp_x = curr_pos.x + avoid_coord.x
         wp_y = curr_pos.y + avoid_coord.y
         wp_z = curr_pos.z + avoid_coord.z
@@ -244,26 +195,37 @@ class PriorityAssigner():
             self.mission_q.put((prio, (wp_x, wp_y, wp_z)))
     
 
-    def drop_cb(self, drop_coord):
-        pass
+    def drop_cb(self, drop_wps):
+        prio = int(1000000000)
+
+        for i in len(drop_wps):
+            wp_x = drop_wps[i][0]
+            wp_y = drop_wps[i][1]
+            wp_z = self.drop_alt
+
+            add_prio = int( (wp_x - self.dropzone_end[0])**2 + (wp_y - self.dropzone_end[1])**2 )
+            self.mission_q.put((prio + add_prio, (wp_x, wp_y, wp_z)))
+
+        self.drop_received = True
+
 
 def main():
     # initialize ROS node and get home position
     rospy.init_node("drone_GNC", anonymous=True)
     print("initialized ROS node")
-    mission_q = PriorityQueue()
 
+    mission_q = PriorityQueue()
     use_px4 = True
 
     # init mission
-    global_path, drop_alt, max_spd, drop_spd, avg_alt = init_mission(mission_q)
+    drone, global_path, drop_alt, max_spd, drop_spd, avg_alt = init_mission(mission_q, use_px4)
 
     # init priority assigner with mission queue and dropzone wp
-    mission_q_assigner = PriorityAssigner(mission_q, global_path[len(global_path) - 1])
+    mission_q_assigner = PriorityAssigner(mission_q, drone, global_path[len(global_path) - 1], drop_alt)
 
     # run control loop
     print("running control loop")
-    mission_loop(mission_q, drop_alt, max_spd, drop_spd, avg_alt, use_px4)
+    mission_loop(drone, mission_q, max_spd, drop_spd, avg_alt, use_px4)
 
 if __name__ == '__main__':
     main()
