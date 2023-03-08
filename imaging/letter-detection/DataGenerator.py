@@ -29,7 +29,7 @@ class DataGenerator():
     def generate_letters(self, font, distribution, numImages, startNum = 0):
         with open(f".{self.path}/dataset/labels.txt", "a") as file:
             currentDeg = 0
-            font = pygame.font.SysFont(font, self.resolution)
+            font = pygame.font.SysFont(font, random.randint(-50, 65))
             screen = pygame.display.set_mode([self.resolution,self.resolution])
             
             for index, x in enumerate(ALPHABET): 
