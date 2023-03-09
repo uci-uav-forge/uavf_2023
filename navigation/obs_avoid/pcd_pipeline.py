@@ -40,10 +40,10 @@ def process_pcd(pcd):
     for the centroid of each cluster as well as an array of dimensions for each bounding box.'''
     
     # downsample
-    down_pcd = pcd.voxel_down_sample(voxel_size=50)
-    
+    st = time.time()
+    down_pcd = pcd.voxel_down_sample(voxel_size=60)
     # radius outlier removal
-    fil_cl, ind = down_pcd.remove_radius_outlier(nb_points=40, radius=400)
+    fil_cl, ind = down_pcd.remove_radius_outlier(nb_points=40, radius=240)
     #fil_cl, ind = down_pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
     '''
     # DBSCAN clustering

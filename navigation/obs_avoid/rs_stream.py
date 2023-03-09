@@ -37,12 +37,12 @@ class O3d_Visualizer():
 
 def post_process_filters(input_frame, threshold, decimation, spatial, temporal, hole_filling, to_disparity, to_depth):
     frame = threshold.process(input_frame)
-    frame = decimation.process(input_frame)
+    #frame = decimation.process(input_frame)
     
     #frame = to_disparity.process(input_frame)
     #frame = spatial.process(frame)
     
-    frame = to_depth.process(frame)
+    #frame = to_depth.process(frame)
     #frame = hole_filling.process(frame)
     return frame
 
@@ -56,9 +56,6 @@ def rgbd_to_pcd(depth_frame, color_frame, intr):
     rgbd_img = o3d.geometry.RGBDImage.create_from_color_and_depth(
         color_img, depth_img, convert_rgb_to_intensity=False
     )
-    #print(type(rgbd_img))
-    #print(type(pinhole_intr))
-    #print(depth_img)
 
     pcd = o3d.geometry.PointCloud.create_from_rgbd_image(rgbd_img, intr)
     return pcd
@@ -66,10 +63,9 @@ def rgbd_to_pcd(depth_frame, color_frame, intr):
 
 def depth_to_pcd(depth_frame, intr):
     depth_arr = np.asanyarray(depth_frame.get_data())
-    print(depth_arr.shape)
     depth_img = o3d.geometry.Image(depth_arr.astype(np.float32))
     pcd = o3d.geometry.PointCloud.create_from_depth_image(depth_img, intr)
-    return pcd, depth_img
+    return pcd
 
 
 # start the camera stream
@@ -89,41 +85,25 @@ def rs_stream(res_width, res_height, frame_rate, o3d_vis):
     sensor = profile.get_device().first_depth_sensor()
     #max_range = sensor.set_option(sensor.set_option(rs.option.max_distance, 20))
 
-    intr = profile.get_stream(rs.stream.depth).as_video_stream_profile().get_intrinsics()
-    pinhole_intr = o3d.camera.PinholeCameraIntrinsic(
-        intr.width, intr.height, intr.fx, intr.fy, intr.ppx, intr.ppy
-    )
-    default_intr = o3d.camera.PinholeCameraIntrinsic(
-        o3d.camera.PinholeCameraIntrinsicParameters.PrimeSenseDefault)
-
     # initialize filters
     align = rs.align(rs.stream.depth)
     threshold = rs.threshold_filter(min_dist=0.05, max_dist=16.0)
-    decimation = rs.decimation_filter(6)
+    decimation = rs.decimation_filter(1)
     spatial = rs.spatial_filter()
     temporal = rs.temporal_filter()
     hole_filling = rs.hole_filling_filter()
     to_disparity = rs.disparity_transform(True)
     to_depth = rs.disparity_transform(False)
 
-    rs_pcd = rs.pointcloud()
-    o3d_pcd = o3d.geometry.PointCloud()
-    #o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
-
     try: 
         while True:
             frames = pipe.wait_for_frames()
-            #aligned_frames = align.process(frames)
+            '''aligned_frames = align.process(frames)'''
 
             depth_frame = post_process_filters(
                 frames.get_depth_frame(), 
                 threshold, decimation, spatial, temporal, hole_filling,
                 to_disparity, to_depth
-            )
-            prof = depth_frame.get_profile()
-            intr = prof.as_video_stream_profile().get_intrinsics()
-            pinhole_intr = o3d.camera.PinholeCameraIntrinsic(
-                intr.width, intr.height, intr.fx, intr.fy, intr.ppx, intr.ppy
             )
 
             '''
@@ -131,17 +111,24 @@ def rs_stream(res_width, res_height, frame_rate, o3d_vis):
                 aligned_frames.get_color_frame(), 
                 threshold, decimation, spatial, temporal, hole_filling,
                 to_disparity, to_depth
-            )
-            
-            o3d_pcd = rgbd_to_pcd(depth_frame, color_frame, pinhole_intr)
-            '''
+            )'''
 
-            o3d_pcd, depth_img = depth_to_pcd(depth_frame, pinhole_intr)
+            prof = depth_frame.get_profile()
+            intr = prof.as_video_stream_profile().get_intrinsics()
+            pinhole_intr = o3d.camera.PinholeCameraIntrinsic(
+                intr.width, intr.height, intr.fx, intr.fy, intr.ppx, intr.ppy
+            )
+
+            '''
+            o3d_pcd = rgbd_to_pcd(depth_frame, color_frame, pinhole_intr)'''
+
+            o3d_pcd = depth_to_pcd(depth_frame, pinhole_intr)
             o3d_pcd.transform([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]])
             fil_cl = process_pcd(o3d_pcd)
 
-            #centroids, box_dims, fil_cl = process_pcd(o3d_pcd)
-            #o3d.visualization.draw_geometries([fil_cl])
+            '''
+            centroids, box_dims, fil_cl = process_pcd(o3d_pcd)
+            o3d.visualization.draw_geometries([fil_cl])'''
             o3d_vis.update_pcd(fil_cl)
             #o3d_vis.update_img(depth_img)
 
@@ -154,8 +141,8 @@ def rs_stream(res_width, res_height, frame_rate, o3d_vis):
 if __name__=='__main__':
     #o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
     # initial resolution is 720p but decimating down to 120p
-    width = 1280
-    height = 720
+    width = 848
+    height = 480
     frame_rate = 30
 
     o3d_vis = O3d_Visualizer()
