@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import cv2 as cv
 import numpy as np
 import tensorflow as tf
+import rospy
 from keras.utils import normalize
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
@@ -20,6 +21,9 @@ from .colordetect.color_segment import color_segmentation
 from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
 
 
+from std_msgs.msg import Float32MultiArray
+''' FIGURE OUT RELATIVE IMPORTS FOR .py_gnc_functions'''
+import py_gnc_functions
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -126,6 +130,16 @@ class Pipeline:
             raw_dict: dict = json.load(f)
             int_casted_keys = map(int, raw_dict.keys())
             self.labels_to_names_dict = dict(zip(int_casted_keys, raw_dict.values()))
+
+        rospy.init_node("drone_GNC", anonymous=True)
+        self.drop_pub = rospy.Publisher(
+            name="drop_waypoints",
+            data_class=Float32MultiArray,
+            queue_size=1,
+        )
+
+        self.drone = py_gnc_functions.gnc_api()
+        self.drone.initialize_local_frame()
 
     def _split_to_tiles(self, img: cv.Mat):
         h, w = img.shape[:2]
@@ -248,6 +262,17 @@ class Pipeline:
             letter_colors.append(np.mean(img_crop[mask == 2], axis=0).astype(np.uint8))
         return shape_colors, letter_colors
     
+
+    def _push_waypoints_to_nav(self, waypoints):
+        '''
+        Pushes dropzone waypoints to nav through ROS Topic publisher 
+        where waypoints is a list of x,y locations 
+        '''
+        drop_wp = Float32MultiArray()
+        drop_wp.data = np.array(waypoints)
+        self.drop_pub.publish(drop_wp)
+    
+
     def loop(self, loop_index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
         try:
