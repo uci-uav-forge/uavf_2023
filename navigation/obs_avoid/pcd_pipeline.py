@@ -2,6 +2,7 @@ import open3d as o3d
 import numpy as np
 import time
 import timeit
+from numba import njit, prange
 
 
 def segment_clusters(num_cluster: int, points: np.ndarray, labels: np.ndarray) -> tuple:
@@ -11,6 +12,7 @@ def segment_clusters(num_cluster: int, points: np.ndarray, labels: np.ndarray) -
     # initialize centroid and bounding box dimension array
     centr_arr = np.zeros((num_cluster, 3), dtype=float)       
     box_arr = np.zeros((num_cluster, 3), dtype=float)
+    box_list = []
 
     for i in range(num_cluster):
         # get indices of points belonging to ith cluster in array of all points
@@ -28,27 +30,35 @@ def segment_clusters(num_cluster: int, points: np.ndarray, labels: np.ndarray) -
 
         centr_arr[i] = np.average(cluster, axis=0)
         box_arr[i] = box_dim
+        box_list.append(bd_box)
     
-    return centr_arr, box_arr
+    return centr_arr, box_arr, box_list
 
 
-def process_pcd(pcd) -> tuple:
+def process_pcd(pcd):
     '''Will downsample, filter, cluster, and segment a pointcloud. Returns an array of coordinates 
     for the centroid of each cluster as well as an array of dimensions for each bounding box.'''
     
     # downsample
-    down_pcd = pcd.voxel_down_sample(voxel_size=0.1)
-
+    down_pcd = pcd.voxel_down_sample(voxel_size=50)
+    
     # radius outlier removal
-    fil_cl, ind = down_pcd.remove_radius_outlier(nb_points=16, radius=0.2)
-
+    fil_cl, ind = down_pcd.remove_radius_outlier(nb_points=40, radius=400)
+    #fil_cl, ind = down_pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+    '''
     # DBSCAN clustering
-    labels = np.array(fil_cl.cluster_dbscan(eps=0.2, min_points=10, print_progress=False))
+    labels = np.array(fil_cl.cluster_dbscan(eps=0.14, min_points=14, print_progress=False))
+
     
     # cluster segmentation
     N = labels.max() + 1
-    centroids, box_dims = segment_clusters(N, fil_cl.points, labels)
-    return centroids, box_dims
+    centroids, box_dims, boxes = segment_clusters(N, fil_cl.points, labels)
+    
+    print(len(boxes))
+    o3d.visualization.draw_geometries(boxes)
+    '''
+    return fil_cl
+    return centroids, box_dims, fil_cl
 
 
 if __name__ == '__main__':
@@ -61,7 +71,7 @@ dataset = o3d.data.PLYPointCloud()
 pcd = o3d.io.read_point_cloud(dataset.path)'''
 
     TEST_CODE = '''
-centroids, dims = process_pcd(pcd)'''
+centroids, dims, fil_cl = process_pcd(pcd)'''
 
     times = timeit.repeat(setup = SETUP_CODE, stmt = TEST_CODE, repeat=1000, number=1)
     print('Best case pcd processing time: {}'.format(np.min(times)))
@@ -73,7 +83,7 @@ centroids, dims = process_pcd(pcd)'''
     pcd = o3d.io.read_point_cloud(dataset.path)
 
     st = time.time()
-    centroids, dims = process_pcd(pcd)
+    centroids, dims, fil_cl = process_pcd(pcd)
     et = time.time() - st
     
     print()
