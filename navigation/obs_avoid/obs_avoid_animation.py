@@ -9,29 +9,33 @@ import time
 import math
 
 TIMESTEP = 0.5 # seconds
-MAX_TURN = 180 # the maximum a drone can turn in one second
-DRONE_SPEED = 1 # all speeds in m/s
+MAX_TURN = 180 # the maximum a drone can turn in one second (degrees)
+DRONE_SPEED = 1 # m/s
+ANIMATION_LENGTH = 10 # How long the animation should last, in seconds.
 
 # main code:
 def run_test():
     centroids, dimensions, velocities = create_obstacles() # change this function to change obstacles
-    drone_heading = 0 # straight forward (up). 90 degrees would be right, -90 (or 270) left. 
+    drone_heading = 0 # straight forward (up).
     drone_position = [0,0] # start at (0,0)
-    relative_positions = [x[:] for x in centroids] # complicated way of making copy so same list is not referenced.
-    # centroids will keep track of obstacles from a global frame of a reference. we also need relative_positions
-    # to keep track of obstacles from the drone's point of view, as obstacle_avoidance is a relative function
+    relative_positions = [x[:] for x in centroids]
+    # Note: centroids variable will keep track of where obstacles are from a global frame of a reference. we also need relative_positions
+    # to keep track of obstacles from the drone's point of view, as obstacle_avoidance() assumes the drone's perspective.
 
     t = time.time()
-    while time.time() - t < 10: # kill animation after 60 seconds
+    while time.time() - t < ANIMATION_LENGTH:
 
         # find best course:
         heading = obstacle_avoidance(centroids, dimensions)
         drone_heading = update_drone_heading(drone_heading=drone_heading, heading=heading)
+        #print(f'drone heading: {drone_heading}, drone position: {drone_position}')
+        #print(f'obstacles: {centroids}')
+        #print()
 
         # update positions:
         update_drone_position(drone_heading, drone_position)
         update_obstacle_positions(centroids, velocities)
-        update_relative_positions(relative_positions, centroids, drone_position) # ***this function is not done yet***
+        update_relative_positions(relative_positions, centroids, drone_position, drone_heading)
 
 
         time.sleep(TIMESTEP)
@@ -46,7 +50,7 @@ def create_obstacles() -> None:
 def update_drone_heading(drone_heading: int, heading: int):
     '''update drone heading, taking into account that drone has max turn rate'''
     max_turn = MAX_TURN*TIMESTEP
-    if abs(heading - drone_heading) < max_turn:
+    if abs(heading - drone_heading) < max_turn: # drone capable of turning as much as function tells it to
         drone_heading = heading
     elif (heading - drone_heading > 0):
         drone_heading = drone_heading + max_turn
@@ -66,8 +70,21 @@ def update_obstacle_positions(centroids: list, velocities: list):
         centroids[i][0] = centroids[i][0] + velocities[i][0]*TIMESTEP
         centroids[i][1] = centroids[i][1] + velocities[i][1]*TIMESTEP
 
-def update_relative_positions(relative_position: list, centroids: list, drone_position: int):
-    pass
+def update_relative_positions(relative_position: list, centroids: list, drone_position: int, drone_heading: int):
+    '''update where obstacles are, from viewpoint of drone'''
+    for i in range(len(centroids)):
+        a1 = math.atan((centroids[i][1]-drone_position[1]) / (centroids[i][0]-drone_position[0])) # calculate angle of line from drone to obstacle
+        a2 = math.radians(drone_heading) - a1 # angle difference between heading of drone and direction to obstacle
+        dist = math.sqrt( (centroids[i][1]-drone_position[1])**2 + (centroids[i][0]-drone_position[0])**2 ) # distance between drone and obstacle
+        relative_position[i][0] = dist*math.cos(a2) # x value
+        relative_position[i][1] = dist*math.sin(a2) # y value
+
+        # temporary, for debugging:
+        #print(f'distance to object: {dist}')
+        #print(f'calculated parameters: x = {dist*math.cos(a2)}, y = {dist*math.sin(a2)} ')
+        
+        
+    
     
 
 if __name__ == '__main__':
