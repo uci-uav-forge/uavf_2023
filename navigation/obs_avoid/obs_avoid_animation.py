@@ -8,19 +8,18 @@ import numpy as np
 import time
 import math
 
-TIMESTEP = 0.5 # seconds
+TIMESTEP = 1 # seconds
 MAX_TURN = 180 # the maximum a drone can turn in one second (degrees)
 DRONE_SPEED = 1 # m/s
-ANIMATION_LENGTH = 10 # How long the animation should last, in seconds.
+ANIMATION_LENGTH = 5 # How long the animation should last, in seconds.
 
 # main code:
 def run_test():
-    centroids, dimensions, velocities = create_obstacles() # change this function to change obstacles
-    drone_heading = 0 # straight forward (up).
-    drone_position = [0,0] # start at (0,0)
-    relative_positions = [x[:] for x in centroids]
+    centroids, relative_positions, dimensions, velocities = create_obstacles() # change this function to change obstacles
     # Note: centroids variable will keep track of where obstacles are from a global frame of a reference. we also need relative_positions
     # to keep track of obstacles from the drone's point of view, as obstacle_avoidance() assumes the drone's perspective.
+    drone_heading = 0 # straight forward (up).
+    drone_position = [0,0] # start at (0,0)
 
     t = time.time()
     while time.time() - t < ANIMATION_LENGTH:
@@ -29,12 +28,12 @@ def run_test():
         heading = obstacle_avoidance(centroids, dimensions)
         drone_heading = update_drone_heading(drone_heading=drone_heading, heading=heading)
         #print(f'drone heading: {drone_heading}, drone position: {drone_position}')
-        #print(f'obstacles: {centroids}')
         #print()
 
         # update positions:
         update_drone_position(drone_heading, drone_position)
         update_obstacle_positions(centroids, velocities)
+        #print(f'obstacles just got updated: {centroids}')
         update_relative_positions(relative_positions, centroids, drone_position, drone_heading)
 
 
@@ -42,10 +41,11 @@ def run_test():
 
     
 def create_obstacles() -> None:
-    centroids = np.array([[1,1], [2,1], [-4,-5]])       # location on plot (x,y)
+    centroids = np.array([[1,1], [2,1], [-4,-5]], dtype=float)       # location on plot (x,y)
+    relative_positions = [[1,1], [2,1], [-4,-5]] # *** must match centroids***, since drone begins at (0,0) they match.
     dimensions = np.array([(1,1,1), (2,1,2), (4,2,3)])  # size (x,y,z)
     velocities = [(0.5, 0.5), (1,1), (-1, 2)]           # speed(vx, vy).
-    return centroids, dimensions, velocities
+    return centroids, relative_positions, dimensions, velocities
 
 def update_drone_heading(drone_heading: int, heading: int):
     '''update drone heading, taking into account that drone has max turn rate'''
@@ -67,8 +67,10 @@ def update_drone_position(heading: int, position: list):
 def update_obstacle_positions(centroids: list, velocities: list):
     '''based on provided velocity in (vx,vy) format, will update position'''
     for i in range(len(centroids)):
+        #print(f'obstacle at {centroids[i]} will go forward by {velocities[i]}')
         centroids[i][0] = centroids[i][0] + velocities[i][0]*TIMESTEP
         centroids[i][1] = centroids[i][1] + velocities[i][1]*TIMESTEP
+        #print(f'obstacle has now moved to {centroids[i]}')
 
 def update_relative_positions(relative_position: list, centroids: list, drone_position: int, drone_heading: int):
     '''update where obstacles are, from viewpoint of drone'''
