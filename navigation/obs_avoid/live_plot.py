@@ -5,19 +5,25 @@ import numpy as np
 import random
 import time
 
+from obs_avoid_animation import *
+
+LOWER_LIMIT =-30
+UPPER_LIMIT=30
 
 class LivePlot:
-    
+
 
     def __init__(self, num_obj):    # num_markers should be number of objects 
-        self.x_lim = np.array([0, 100]) # dimensions of plot, ex: x-coords from 0 to 100
-        self.y_lim = np.array([0, 100]) # make them similar to range of d455 camera, the y-lim is 20 meters
+        self.x_lim = np.array([LOWER_LIMIT, UPPER_LIMIT]) # dimensions of plot, ex: x-coords from 0 to 100
+        self.y_lim = np.array([LOWER_LIMIT, UPPER_LIMIT]) # make them similar to range of d455 camera, the y-lim is 20 meters
 
         self.obj_marker = 'ro'          # matplotplib parameter for marker color and shape
         self.drone_marker = 'b^' 
 
-        self.x_coords = np.zeros(num_obj+1)  # correspond each index in these arrays to an object
-        self.y_coords = np.zeros(num_obj+1)  # the final index represents the drone itself
+        self.x_coords = np.zeros(num_obj)  # correspond each index in these arrays to an object
+        self.y_coords = np.zeros(num_obj)  # the final index represents the drone itself
+        self.x_drone = [0]
+        self.y_drone = [0]
 
         self.init_plot()
         
@@ -47,35 +53,85 @@ class LivePlot:
         for i in range(len(self.x_coords) - 1):         # iterate thru coord array and draw each one
             (pt,) = self.ax1.plot(
                 self.x_coords[i], self.y_coords[i], 
-                marker, markersize=5)
-            pt.set_data(self.x_coords[i], self.y_coords[i])
+                self.obj_marker, markersize=5)
+            pt.set_data(self.x_coords, self.y_coords)
 
+            (pt2,) = self.ax1.plot(
+                self.x_drone[0], self.y_drone[0], 
+                self.drone_marker, markersize=5)
             self.ax1.set_xlim(self.x_lim[0], self.x_lim[1])
             self.ax1.set_ylim(self.y_lim[0], self.y_lim[1])
-            self.ax1.draw_artist(pt)    
+            #self.ax1.draw_artist(pt)    
+            #self.ax1.draw_artist(pt2)    
+           # print("===sleeping for a moment===")
+         #   time.sleep(0.2)
 
+
+        # animation stuff
+        #self.fig.canvas.blit(self.fig.bbox)
+        #self.fig.canvas.flush_events()
+
+
+    def update_drone(self, position):    # is_drone=True to plot the drone, false for objects
+        
+        self.x_drone[0] = position[0]
+        self.y_drone[0] = position[1]
+        marker = self.drone_marker
+                                                    
+        self.fig.canvas.restore_region(self.bg)
+        (pt,) = self.ax1.plot(
+                self.x_coords, self.y_coords, 
+                self.obj_marker, markersize=5)
+
+
+
+        (pt2,) = self.ax1.plot(
+                self.x_drone[0], self.y_drone[0], 
+                self.drone_marker, markersize=5)
+        self.ax1.set_xlim(self.x_lim[0], self.x_lim[1])
+        self.ax1.set_ylim(self.y_lim[0], self.y_lim[1])
+        self.ax1.draw_artist(pt)
+        self.ax1.draw_artist(pt2)    
         # animation stuff
         self.fig.canvas.blit(self.fig.bbox)
         self.fig.canvas.flush_events()
-
 
     def close(self):
         plt.close()
 
 
 if __name__ == '__main__':
-    new_plot = LivePlot(2)
-    while True:
-        for i in range(3):
-            new_plot.update(np.array(
-                [random.randrange(0, 2, 1),
-                 random.randrange(0, 2, 1),
-                random.randrange(0, 2, 1)]), 
-                id=i)
-            
-            new_plot.update(np.array(
-                [random.randrange(0, 2, 1),
-                 random.randrange(0, 2, 1),
-                random.randrange(0, 2, 1)]),
-                is_drone=True
-            )
+    num = 3
+    new_plot = LivePlot(num)
+    print(TIMESTEP)
+    centroids, relative_positions, dimensions, velocities = create_obstacles()
+    drone_heading = 0 # straight forward (up).
+    drone_position = [0,0] # start at (0,0)
+    t=time.time()
+    while (time.time() - t )< ANIMATION_LENGTH+10:
+
+        # find best course:
+        heading = obstacle_avoidance(centroids, dimensions)
+        drone_heading = update_drone_heading(drone_heading=drone_heading, heading=heading)
+   
+        # update positions:
+        update_drone_position(drone_heading, drone_position)
+        update_obstacle_positions(centroids, velocities)
+        update_relative_positions(relative_positions, centroids, drone_position, drone_heading)
+        
+        print(drone_position)
+        print(centroids)
+        
+        for i in range(num):
+            new_plot.update(centroids[i], id=i)
+    
+        new_plot.update_drone(drone_position)
+        
+
+        time.sleep(TIMESTEP) 
+        
+        #for i in range(num):
+        #    new_plot.update(np.array([random.randrange(0, 40, 1),random.randrange(0, 40, 1), random.randrange(0, 40, 1)]), id=i)
+        #new_plot.update_drone(np.array(      [random.randrange(75, 100, 1),   random.randrange(75, 100, 1)]), )   
+         
+        
