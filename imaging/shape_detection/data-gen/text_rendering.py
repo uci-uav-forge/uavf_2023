@@ -45,9 +45,10 @@ def drawText(img: cv2.Mat, letter: str, bounding_box: "tuple[tuple[int]]", thick
                 color=color,
                 thickness=thickness)
 
-@cache
-def _get_shape_text_area(shape_name: str):
-    img = cv2.imread(f"shapes/{shape_name}.png")
+def get_shape_text_area_from_mat(img: cv2.Mat):
+    '''
+    Returns [(x,y), (x,y)] which are top left, bot right respectively
+    '''
     h,w, _c = img.shape
     bounding_box = []
     for i,j in product(range(h),range(w)):
@@ -59,6 +60,12 @@ def _get_shape_text_area(shape_name: str):
             bounding_box.append((j,i))
             break
     return bounding_box
+
+
+@cache
+def _get_shape_text_area(shape_name: str):
+    img = cv2.imread(f"shapes/{shape_name}.png")
+    return get_shape_text_area_from_mat(img)
 
 def get_shape_text_area(shape_name: str):
     # implementation is in the private function so that the @cache doesn't mess up the argument type hint
