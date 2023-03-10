@@ -18,6 +18,7 @@ from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
 from .colordetect.color_segment import color_segmentation
 from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
+from .targetaggregator import TargetAggregator
 
 
 
@@ -88,7 +89,7 @@ def patch_postprocess(self, pp):
         
 
 class Pipeline:
-    def __init__(self, localizer, img_size, img_file="gopro", targets=[("O", "square")], dry_run=False):
+    def __init__(self, localizer, img_size, img_file="gopro", targets_file="targets.csv", dry_run=False):
         ''' dry_run being true will just make the pipeline only record the raw images and coordinates and not run any inference'''
         self.doing_dry_run=dry_run
         self.img_file=img_file
@@ -111,9 +112,9 @@ class Pipeline:
         self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt", )
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
         self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
-        self.color_classifer = ColorClassifier()
+        self.color_classifier = ColorClassifier()
 
-        self.targets = targets
+        self.target_aggregator = TargetAggregator(targets_file)
 
         # warm up shape model
         rand_input = np.random.rand(1, self.tile_resolution, self.tile_resolution, 3).astype(np.float32)
@@ -295,11 +296,11 @@ class Pipeline:
 
 
         shape_color_names = [
-            self.color_classifer.predict(r.shape_color, bgr=True) for r in color_results
+            self.color_classifier.predict(r.shape_color, bgr=True) for r in color_results
         ]
 
         letter_color_names = [
-            self.color_classifer.predict(r.letter_color, bgr=True) for r in color_results
+            self.color_classifier.predict(r.letter_color, bgr=True) for r in color_results
         ]
 
         letter_crops = np.array([self._crop_img(cv.copyTo(res.tile,res.mask), res.local_bbox, pad="resize") for res in valid_results])
@@ -337,11 +338,18 @@ class Pipeline:
 
         letter_results = self.letter_detector.predict(np.mean(letter_image_buffer, axis=-1))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
-
+        print(self.labels_to_names_dict)
         letter_confidences = [list(zip(self.letter_detector.labels, row)) for row in letter_results]
         shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates] for res in valid_results]
 
-        tags = [best_match(self.targets, lC, sC) for lC,sC in zip(letter_confidences,shape_confidences)]
+
+        for i in range(len(valid_results)):
+            self.target_aggregator.match_target_color(
+                coords[i], 
+                color_results[i].letter_color, letter_confidences[i], 
+                color_results[i].shape_color, shape_confidences[i])
+
+
 
         # shape_colors, letter_colors = self._get_colors_rgb(letter_crops, masks)
         
@@ -352,15 +360,13 @@ class Pipeline:
                 cam_img,
                 [res.global_bbox for res in valid_results],
                 [
-                f"{l} | {self.labels_to_names_dict[res.shape_label]} ({res.confidence:.1%}) | Shape Color: {sc} | Letter Color: {lc} | Coords: {c} | Tag: {tg}" for l, res, sc, lc, c, tg in
+                f"{l} | {self.labels_to_names_dict[res.shape_label]} ({res.confidence:.1%}) | Shape Color: {sc} | Letter Color: {lc} | Coords: {c}" for l, res, sc, lc, c in
                  zip(
                     letter_labels, 
                     valid_results,
                     shape_color_names,
                     letter_color_names,
-                    coords,
-                    tags
-                    )],
+                    coords)],
                 file_name=image_file_name,
                 font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0),
                 color_results=color_results
