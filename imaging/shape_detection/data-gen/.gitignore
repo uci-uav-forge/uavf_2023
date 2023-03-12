@@ -2,3 +2,4 @@ images
 labels
 segmentation_masks
 *annotations.csv
+masks
