@@ -54,7 +54,7 @@ def get_polygon(shape_img: cv2.Mat) -> np.ndarray:
     '''
     im = cv2.cvtColor(shape_img, cv2.COLOR_BGR2GRAY)
     im = cv2.threshold(im, 1, 255, cv2.THRESH_BINARY)[1]
-    contours = cv2.findContours(im, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    contours = cv2.findContours(im, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_TC89_KCOS)
     # imshow the contours on a black iamge
     # prev = np.zeros(shape_img.shape, dtype=np.uint8)
     # cv2.drawContours(prev, contours[0], -1, (255,255,255), 3)
