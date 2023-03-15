@@ -11,7 +11,7 @@ import math
 TIMESTEP = 1 # seconds
 MAX_TURN = 180 # the maximum a drone can turn in one second (degrees)
 DRONE_SPEED = 1 # m/s
-ANIMATION_LENGTH = 5 # How long the animation should last, in seconds.
+ANIMATION_LENGTH = 3 # How long the animation should last, in seconds.
 
 # main code:
 def run_test():
@@ -27,14 +27,16 @@ def run_test():
         # find best course:
         heading = obstacle_avoidance(centroids, dimensions)
         drone_heading = update_drone_heading(drone_heading=drone_heading, heading=heading)
-        #print(f'drone heading: {drone_heading}, drone position: {drone_position}')
+        print(f'drone heading: {drone_heading}')
         #print()
 
         # update positions:
         update_drone_position(drone_heading, drone_position)
+        print(f'drone position: {drone_position}')
         update_obstacle_positions(centroids, velocities)
-        #print(f'obstacles just got updated: {centroids}')
+        print(f'obstacles updated: {centroids}')
         update_relative_positions(relative_positions, centroids, drone_position, drone_heading)
+        print(f'relative positions: {relative_positions}')
 
 
         time.sleep(TIMESTEP)
@@ -51,7 +53,7 @@ def update_drone_heading(drone_heading: int, heading: int):
     '''update drone heading, taking into account that drone has max turn rate'''
     max_turn = MAX_TURN*TIMESTEP
     if abs(heading - drone_heading) < max_turn: # drone capable of turning as much as function tells it to
-        drone_heading = heading
+        drone_heading = drone_heading + heading
     elif (heading - drone_heading > 0):
         drone_heading = drone_heading + max_turn
     else:
@@ -82,8 +84,8 @@ def update_relative_positions(relative_position: list, centroids: list, drone_po
         relative_position[i][1] = dist*math.sin(a2) # y value
 
         # temporary, for debugging:
-        #print(f'distance to object: {dist}')
-        #print(f'calculated parameters: x = {dist*math.cos(a2)}, y = {dist*math.sin(a2)} ')
+        #print(f'debug: distance to object: {dist}')
+        #print(f'debug: calculated parameters: x = {dist*math.cos(a2)}, y = {dist*math.sin(a2)} ')
         
         
     
