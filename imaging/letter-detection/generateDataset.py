@@ -68,7 +68,7 @@ class DataSet():
 
 
 def main():
-    d = DataSet(1000, path="/train") # Change the number here to change the size of the dataset
+    d = DataSet(1000, path="/test_32_32_3") # Change the number here to change the size of the dataset
     custom_distributions = {}
     #add (key, 0 <= dist <= 1) to the custom_distributions
     #TODO Have them read from a file

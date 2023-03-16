@@ -6,7 +6,7 @@ import random
 class DataGenerator():
     
     
-    def __init__(self, resolution=128, path=""):
+    def __init__(self, resolution=32, path=""):
         self.resolution = 128
         self.path = path
         pygame.init()
@@ -15,7 +15,7 @@ class DataGenerator():
 
     def generate_font_letters(self, fontName):
         '''Generates letters for the given font'''
-        font = pygame.font.SysFont(fontName, self.resolution)
+        font = pygame.font.SysFont(fontName, self.resolution//4)
         for x in ALPHABET:
             self.screen.fill((0,0,0)) # Fill screen with black
             letter = font.render(x, True, (255,255,255), (0,0,0))
@@ -29,7 +29,7 @@ class DataGenerator():
     def generate_letters(self, font, distribution, numImages, startNum = 0):
         with open(f".{self.path}/dataset/labels.txt", "a") as file:
             currentDeg = 0
-            font = pygame.font.SysFont(font, random.randint(-50, 65))
+            font = pygame.font.SysFont(font, self.resolution)
             screen = pygame.display.set_mode([self.resolution,self.resolution])
             
             for index, x in enumerate(ALPHABET): 
@@ -46,7 +46,7 @@ class DataGenerator():
                     screen.blit(letter, textRect)
                     pygame.display.flip()
                     pygame.image.save(screen, f".{self.path}/dataset/data/{startNum}.jpg")
-                    file.write(f"./data/{startNum}.jpg" + ", " + str(index) + "\n")
+                    file.write(f"data/{startNum}.jpg" + ", " + str(index) + "\n")
                     startNum += 1
         return startNum
 
