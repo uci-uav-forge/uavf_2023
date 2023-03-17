@@ -11,14 +11,18 @@ if __name__ == "__main__":
     shapes_to_categories = {shape:category for category, shape in categories_to_shapes.items()}
     output_dir = f"{base_dir}/labels"
     os.makedirs(output_dir, exist_ok=True)
-    dir_contents = os.listdir(f"{base_dir}/masks")
-    for dir in filter(lambda x: '.' not in x, dir_contents): # for all the subdirectories
-        with open(f"{base_dir}/labels/images{dir}.txt", "w") as f:
+    for dir in os.listdir(f"{base_dir}/masks"): # for all the subdirectories
+        with open(f"{base_dir}/labels/image{dir}.txt", "w") as f:
             for mask_file_name in os.listdir(f"{base_dir}/masks/{dir}"):
                 mask_path = f"{base_dir}/masks/{dir}/{mask_file_name}"
                 shape_name = mask_file_name.split("_")[0] 
                 mask = cv2.imread(mask_path)
                 polygon = get_polygon(mask)
-                f.write(f"{shapes_to_categories[shape_name]} {' '.join(map(str, polygon.astype(str).flatten()))}")
+
+                if len(polygon) == 0:
+                    print(f"no polygon found for {mask_path}")
+                    continue
+                normalized_polygon = polygon / np.array([mask.shape[1], mask.shape[0]])
+                f.write(f"{shapes_to_categories[shape_name]} {' '.join(map(str, normalized_polygon.astype(str).flatten()))}")
 
     
