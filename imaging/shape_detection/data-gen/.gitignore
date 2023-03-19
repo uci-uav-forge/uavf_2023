@@ -3,3 +3,4 @@ labels
 segmentation_masks
 *annotations.csv
 masks
+data

@@ -13,3 +13,4 @@ pyvenv.cfg
 *sandbox.ipynb 
 # `*sandbox.py` is here because Eric likes to make untracked python files to test out random stuff and uses a naming convention where they're always suffixed with "sandbox"
 .vscode
+godot_data

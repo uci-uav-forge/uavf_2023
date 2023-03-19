@@ -4,25 +4,56 @@ import os
 import cv2
 import json
 import numpy as np
+from tqdm import tqdm
+
+def preprocess_img(img):
+    # blur image with random kernel size
+    kernel_size = 3 + 2*np.random.randint(0, 2)
+    img = cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
+    # add random noise with random variance
+    variance = np.random.randint(0, 10)
+    img = img + np.random.normal(0, variance, img.shape)
+    # clamp values to 0-255
+    img = np.clip(img, 0, 255)
+    return img
+
 
 if __name__ == "__main__":
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    categories_to_shapes = json.load(open(f"{base_dir}/shape_name_labels.json","r"))
+    datagen_dir = os.path.dirname(os.path.abspath(__file__))
+    categories_to_shapes = json.load(open(f"{datagen_dir}/shape_name_labels.json","r"))
     shapes_to_categories = {shape:category for category, shape in categories_to_shapes.items()}
-    output_dir = f"{base_dir}/labels"
+    input_dir = "/home/holden/code/uavf_2023/imaging/godot_data"
+    output_dir = f"{datagen_dir}/data"
     os.makedirs(output_dir, exist_ok=True)
-    for dir in os.listdir(f"{base_dir}/masks"): # for all the subdirectories
-        with open(f"{base_dir}/labels/image{dir}.txt", "w") as f:
-            for mask_file_name in os.listdir(f"{base_dir}/masks/{dir}"):
-                mask_path = f"{base_dir}/masks/{dir}/{mask_file_name}"
-                shape_name = mask_file_name.split("_")[0] 
-                mask = cv2.imread(mask_path)
-                polygon = get_polygon(mask)
+    for split_name in ["train", "validation", "test"]:
+        os.makedirs(f"{output_dir}/labels/{split_name}", exist_ok=True)
+        os.makedirs(f"{output_dir}/images/{split_name}", exist_ok=True)
+    for num in tqdm(range(10_000)):
+        print(num)
+        if int(num)<8500:
+            split_name = "train"
+        elif int(num)<9500:
+            split_name = "validation"
+        else:
+            split_name = "test" 
+        img = cv2.imread(f"{input_dir}/images/image{num}.png")
+        if img is None:
+            print(f"image read error for {img}")
+            continue
+        img = preprocess_img(img)
+        cv2.imwrite(f"{output_dir}/images/{split_name}/image{num}.png", img)
+        f = open(f"{output_dir}/labels/{split_name}/image{num}.txt", "w")
+        for mask_file_name in os.listdir(f"{input_dir}/masks/{num}"):
+            mask_path = f"{input_dir}/masks/{num}/{mask_file_name}"
+            shape_name = mask_file_name.split("_")[0] 
+            mask = cv2.imread(mask_path)
+            polygon = get_polygon(mask)
 
-                if len(polygon) == 0:
-                    print(f"no polygon found for {mask_path}")
-                    continue
-                normalized_polygon = polygon / np.array([mask.shape[1], mask.shape[0]])
-                f.write(f"{shapes_to_categories[shape_name]} {' '.join(map(str, normalized_polygon.astype(str).flatten()))}")
+            if len(polygon) <= 2:
+                print(f"no polygon found for {mask_path}")
+                continue
+            normalized_polygon = polygon / np.array([mask.shape[1], mask.shape[0]])
+            f.write(f"{shapes_to_categories[shape_name]} {' '.join(map(str, normalized_polygon.flatten()))}\n")
+        f.close()
 
     
