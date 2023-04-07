@@ -2,12 +2,26 @@ import math
 import os
 import random
 import json
+import argparse
+import webcolors
 from typing import Callable
 
 import cv2
 import numpy as np
 from image_rotation import get_rotated_image, get_shape_bbox
 from text_rendering import drawText, get_shape_text_area
+
+
+# smh british people on stackoverflow
+def closest_colour(requested_colour):
+    min_colours = {}
+    for key, name in webcolors.CSS3_HEX_TO_NAMES.items():
+        r_c, g_c, b_c = webcolors.hex_to_rgb(key)
+        rd = (r_c - requested_colour[0]) ** 2
+        gd = (g_c - requested_colour[1]) ** 2
+        bd = (b_c - requested_colour[2]) ** 2
+        min_colours[(rd + gd + bd)] = name
+    return min_colours[min(min_colours.keys())]
 
 def create_shape_dataset(get_frame: Callable[[], cv2.Mat], 
                          shapes_directory:str, 
@@ -17,7 +31,8 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                          blur_radius_fn=lambda: 3,
                          data_split=[1,0,0],
                          output_dir="output",
-                         noise_scale=10):
+                         noise_scale=10,
+                         include_labels=False):
     '''
     creates a directory called "output" adjacent to wherever this is run from and fills it with output images.
 
@@ -97,11 +112,17 @@ def create_shape_dataset(get_frame: Callable[[], cv2.Mat],
                     elif pixel_color[2]>0 or pixel_color[0]>0:
                         gaussian_noise = np.random.normal(loc=0,scale=noise_scale,size=3)
                         frame[y+y_offset][x+x_offset] = shape_color+gaussian_noise
-            annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
+            if include_labels:
+                annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h,closest_colour(text_color),letter,closest_colour(shape_color),shape_name]))])
+            else:
+                annotations_file.writelines(["\n",",".join(map(str,[output_file_name,category_num,x_offset,y_offset,x_offset+shape_w,y_offset+shape_h]))])
 
     for num_in_split, split_dir_name in [(data_split[0]*num_images, "train"),(data_split[1]*num_images, "validation"), (data_split[2]*num_images, "test")]:
         annotations_file = open(f"./{output_dir}/{split_dir_name}annotations.csv","w")
-        annotations_file.writelines(["image,label,xmin,ymin,xmax,ymax"])
+        if include_labels:
+            annotations_file.writelines(["image,label,xmin,ymin,xmax,ymax,letter_color_r,letter_color,letter,shape_color,shape"])
+        else:
+            annotations_file.writelines(["image,label,xmin,ymin,xmax,ymax"])
         for _ in range(math.ceil(num_in_split)):
             image_idx+=1
             frame=get_frame()
@@ -120,6 +141,9 @@ if __name__=="__main__":
     vid = cv2.VideoCapture("no-targets-cut.mp4")
     grab_frame = lambda: vid.read()[1]
     '''
+    ap = argparse.ArgumentParser()
+    ap.add_argument('-l','--label',action='store_true')
+    ar = ap.parse_args()
     background_images = []
     for file in os.listdir("backgrounds"):
         background_images.append(cv2.imread(f"backgrounds/{file}"))
@@ -146,8 +170,9 @@ if __name__=="__main__":
         shape_resolution_fn=lambda: max(10,int(np.random.normal(30,7))), 
         max_shapes_per_image=7, 
         blur_radius_fn=lambda: np.random.randint(3,8),
-        num_images=10_000,
+        num_images=1000,
         output_dir="output",
         data_split=[0.85,0.1,0.05],
-        noise_scale=2
+        noise_scale=2,
+        include_labels=ar.label
     )

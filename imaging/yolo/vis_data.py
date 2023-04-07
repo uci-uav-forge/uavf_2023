@@ -2,9 +2,9 @@ from ultralytics import YOLO
 import cv2 as cv
 import numpy as np
 # model = YOLO('./trained_models/seg-v8n-18epoch.pt')
-img_num=2
-img = cv.imread(f"../shape_detection/data-gen/output/images/train/image{img_num}.png")
-with open(f"../shape_detection/data-gen/output/labels/train/image{img_num}.txt", "r") as f:
+img_num=0
+img = cv.imread(f"../shape_detection/data-gen/data/images/train/image{img_num}.png")
+with open(f"../shape_detection/data-gen/data/labels/train/image{img_num}.txt", "r") as f:
 
     for label in f.readlines():
         label, *poly_str = label.split(' ')

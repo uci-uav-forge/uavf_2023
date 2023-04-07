@@ -14,3 +14,6 @@ To run both pipelines:
         $ python master.py
 
 All three commands must be running simultaneously
+
+
+https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#python_topics
