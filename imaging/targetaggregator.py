@@ -28,9 +28,9 @@ class TargetAggregator:
     def match_target_color(self, gps, letterColor, letterConf, shapeColor, shapeConf):
         letterColorConf = gen_color_conf(letterColor, [x[0] for x in self.targets])
         shapeColorConf = gen_color_conf(shapeColor, [x[2] for x in self.targets])
+
         match, score = best_match_color(self.targets, letterColorConf, letterConf, shapeColorConf, shapeConf)
         matchIndex = self.targets.index(match)
-
 
         if score > self.best_conf[matchIndex]:
             self.target_gps[matchIndex] = gps

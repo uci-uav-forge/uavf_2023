@@ -74,7 +74,7 @@ def init_mission(mission_q, use_px4=False):
     return drone, global_path, drop_alt, max_spd, drop_spd, avg_alt
 
 
-def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, use_px4=False):
+def mission_loop(drone, mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, use_px4=False):
     # init drone api
     rate = rospy.Rate(20)
     

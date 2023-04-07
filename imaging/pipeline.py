@@ -10,6 +10,8 @@ import tensorflow as tf
 from keras.utils import normalize
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
+from std_msgs.msg import Float32MultiArray
+
 
 from .local_geolocation import GeoLocation
 from .color_knn.color_classify import ColorClassifier
@@ -87,13 +89,14 @@ def patch_postprocess(self, pp):
 
 
 class Pipeline:
-    def __init__(self, localizer, img_size, img_file="gopro", targets_file="targets.csv", dry_run=False):
+    def __init__(self, localizer, img_size, drop_pub, img_file="gopro", targets_file="targets.csv", dry_run=False):
         """ dry_run being true will just make the pipeline only record the raw images and coordinates and
         not run any inference
         """
         self.doing_dry_run = dry_run
         self.img_file = img_file
         self.localizer = localizer
+        self.drop_pub = drop_pub
         if self.img_file == "gopro": self.cam = GoProCamera()
         if self.doing_dry_run: return
         self.geolocator = GeoLocation(img_size)
@@ -357,6 +360,11 @@ class Pipeline:
         """
         for index in range(num_loops):
             self.loop(index)
+
+        msg = Float32MultiArray()
+        msg.data = np.array(self.target_aggregator.target_gps)
+        self.drop_pub.publish(msg)
+
 
 
 '''

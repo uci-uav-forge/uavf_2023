@@ -4,7 +4,6 @@ Master script to run Imaging and Navigation pipelines.
 Currently only running Imaging pipeline to test for Feb. 16 flight day.
 """
 
-
 from imaging.pipeline import Pipeline
 import time
 
