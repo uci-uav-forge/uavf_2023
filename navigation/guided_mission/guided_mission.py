@@ -2,7 +2,6 @@
 # Run launch shell script or this script from the navigation directory
 
 from queue import PriorityQueue
-from multiprocessing.managers import BaseManager
 import numpy as np
 import time
 import json
@@ -12,11 +11,19 @@ import rospy
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Bool, Float32MultiArray
 
 from .py_gnc_functions import *
 from ..global_path.flight_plan_tsp import FlightPlan
 
 os.chdir("navigation")
+
+drop_signal = rospy.Publisher(
+    name="drop_signal",
+    data_class=Bool,
+    queue_size=1,
+)
+
 def init_mission(mission_q, use_px4=False): 
     # mission parameters in SI units
     drop_alt = 25 # m
@@ -74,9 +81,10 @@ def init_mission(mission_q, use_px4=False):
     return drone, global_path, drop_alt, max_spd, drop_spd, avg_alt
 
 
-def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, use_px4=False):
-    # init drone api
-    rate = rospy.Rate(20)
+def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, dropzone_end: tuple, use_px4=False):
+    # init control loop refresh rate and dropzone signal 
+    rate = rospy.Rate(30)
+    in_dropzone = False
     
     if use_px4:
         drone.arm()
@@ -108,16 +116,24 @@ def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, use_px4=F
         hdg = -90 + np.degrees(
             np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x))
 
-        # lower alt and slow down if moving to drop point
-        if mission_q.queue[0][0] > 1000000000 and mission_q.queue[0][0] < 2000000000:
-            #curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
+        # slow down and tell imaging if in dropzone
+        if mission_q.queue[0][1] == dropzone_end and !in_dropzone:
+            in_dropzone = True
+
+            bool_msg = Bool()
+            bool_msg.data = in_dropzone
+            drop_signal.publish(bool_msg)
+
             if use_px4:
                 drone.set_speed_px4(drop_spd)
             else:
                 drone.set_speed(drop_spd)
-        #else:
-            #drone.set_speed(max_spd)
 
+        # fly lower for a dropzone
+        if mission_q.queue[0][0] > 1000000000 and mission_q.queue[0][0] < 2000000000:
+            curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
+
+        # send command to drone
         drone.set_destination(
             x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg)
 
@@ -128,20 +144,11 @@ def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, use_px4=F
             if next_wp != curr_wp:
                 print('waypoint interrupted!\n')
                 curr_wp = next_wp
+
                 # calc desired heading
                 curr_pos = drone.get_current_location()
                 hdg = -90 + np.degrees(
                     np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x))
-
-                # lower alt and slow down if moving to drop point
-                if mission_q.queue[0][0] > 1000000000 and mission_q.queue[0][0] < 2000000000:
-                    #curr_wp = (curr_wp[0], curr_wp[1], drop_alt)
-                    if use_px4:
-                        drone.set_speed_px4(drop_spd)
-                    else:
-                        drone.set_speed(drop_spd)           
-                #else:
-                    #drone.set_speed(max_spd)
 
                 drone.set_destination(
                     x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg)
@@ -150,10 +157,13 @@ def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, use_px4=F
                 #curr_pos = drone.get_current_location()
                 #print('current position: ' + str((curr_pos.x, curr_pos.y, curr_pos.z)))
             rate.sleep()
-
         mission_q.get()
     
     # go to home position and land
+    if use_px4:
+        drone.set_speed_px4(max_spd)
+    else:
+        drone.set_speed(max_spd)
     drone.set_destination(
         x=0, y=0, z=0, psi=0)
     drone.land()
@@ -221,11 +231,13 @@ def main():
     drone, global_path, drop_alt, max_spd, drop_spd, avg_alt = init_mission(mission_q, use_px4)
 
     # init priority assigner with mission queue and dropzone wp
-    mission_q_assigner = PriorityAssigner(mission_q, drone, global_path[len(global_path) - 1], drop_alt)
+    drop_start = global_path[len(global_path) - 2]
+    drop_end = global_path[len(global_path) - 1]
+    mission_q_assigner = PriorityAssigner(mission_q, drone, drop_end, drop_alt)
 
     # run control loop
     print("running control loop")
-    mission_loop(drone, mission_q, max_spd, drop_spd, avg_alt, use_px4)
+    mission_loop(drone, mission_q, max_spd, drop_spd, avg_alt, drop_start, use_px4)
 
 if __name__ == '__main__':
     main()
