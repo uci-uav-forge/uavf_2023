@@ -99,7 +99,7 @@ class Pipeline:
         self.localizer = localizer
         self.drop_pub = drop_pub
         if drop_sub:
-            self.drop_sub = rospy.Subscriber("drop_signal", Bool, self.drop_sub_cb)
+            self.drop_sub = rospy.Subscriber("drop_end", Bool, self.drop_sub_cb)
             self.drop = False
         else:
             self.drop_sub = None
@@ -371,6 +371,7 @@ class Pipeline:
             for index in range(num_loops):
                 self.loop(index)
         else:
+            rospy.wait_for_message("drop_signal",Bool)
             index = 0
             while not self.drop:
                 self.loop(index)
