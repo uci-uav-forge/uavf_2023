@@ -99,7 +99,7 @@ class Pipeline:
         self.localizer = localizer
         self.drop_pub = drop_pub
         if drop_sub:
-            self.drop_sub = rospy.Subscriber("drop_end", Bool, self.drop_sub_cb)
+            self.drop_sub = rospy.Subscriber("drop_signal", Bool, self.drop_sub_cb)
             self.drop = False
         else:
             self.drop_sub = None
@@ -361,7 +361,7 @@ class Pipeline:
             )
 
     def drop_sub_cb(self, data):
-        self.drop = self.drop or data.data
+        self.drop = data.data
 
     def run(self, num_loops=50):
         """
@@ -371,14 +371,15 @@ class Pipeline:
             for index in range(num_loops):
                 self.loop(index)
         else:
-            rospy.wait_for_message("drop_signal",Bool)
-            index = 0
             while not self.drop:
+                time.sleep(0.1)
+            index = 0
+            while self.drop:
                 self.loop(index)
                 index += 1
 
         msg = Float32MultiArray()
-        msg.data = np.array(self.target_aggregator.target_gps)
+        msg.data = np.array([[gps[0], gps[1], idx] for gps, idx in enumerate(self.target_aggregator.target_gps)])
         self.drop_pub.publish(msg)
 
 
