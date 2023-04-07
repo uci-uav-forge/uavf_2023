@@ -513,3 +513,112 @@ class gnc_api:
             return 1
         else:
             return 0
+
+class loc_api:
+    def __init__(self):
+        """
+        Subscribes to MAVROS streams for heading/etc.
+        """
+        self.current_state_g = State()
+        self.current_pose_g = Odometry()
+        self.current_compass_hdg = Float64()
+
+        self.current_heading_g = 0.0
+        self.local_offset_g = 0.0
+        self.correction_heading_g = 0.0     
+        self.local_desired_heading_g = 0.0
+
+        self.compass_sub = rospy.Subscriber (
+            name="{}mavros/global_position/compass_hdg".format(self.ns),
+            data_class=Float64,
+            queue_size=1,
+            callback=self.compass_cb,
+        )
+
+        self.currentPos = rospy.Subscriber(
+            name="{}mavros/global_position/local".format(self.ns),
+            data_class=Odometry,
+            queue_size=1,
+            callback=self.pose_cb,
+        )
+
+        self.state_sub = rospy.Subscriber(
+            name="{}mavros/state".format(self.ns),
+            data_class=State,
+            queue_size=1,
+            callback=self.state_cb,
+        )
+
+
+    def state_cb(self, message):
+        self.current_state_g = message
+
+
+    def pose_cb(self, msg):
+        """Gets the raw pose of the drone and processes it for use in control.
+
+        Args:
+                msg (geometry_msgs/Pose): Raw pose of the drone.
+        """
+        self.current_pose_g = msg
+        self.enu_2_local()
+
+        q0, q1, q2, q3 = (
+            self.current_pose_g.pose.pose.orientation.w,
+            self.current_pose_g.pose.pose.orientation.x,
+            self.current_pose_g.pose.pose.orientation.y,
+            self.current_pose_g.pose.pose.orientation.z,
+        )
+
+        psi = atan2((2 * (q0 * q3 + q1 * q2)),
+                    (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
+
+        self.current_heading_g = degrees(psi) - self.local_offset_g
+
+
+    def compass_cb(self, msg):
+        self.current_compass_hdg = msg
+
+    
+    def enu_2_local(self):
+        x, y, z = (
+            self.current_pose_g.pose.pose.position.x,
+            self.current_pose_g.pose.pose.position.y,
+            self.current_pose_g.pose.pose.position.z,
+        )
+
+        current_pos_local = Point()
+
+        current_pos_local.x = x * cos(radians((self.local_offset_g - 90))) - y * sin(
+            radians((self.local_offset_g - 90))
+        )
+
+        current_pos_local.y = x * sin(radians((self.local_offset_g - 90))) + y * cos(
+            radians((self.local_offset_g - 90))
+        )
+
+        current_pos_local.z = z
+
+        return current_pos_local
+
+    
+    def get_current_compass_hdg(self):\
+        return self.current_compass_hdg.data
+
+    
+    def get_current_heading(self):
+        """Returns the current heading of the drone.
+
+        Returns:
+            Heading (Float): θ in is degrees.
+        """
+        return self.current_heading_g
+
+
+    def get_current_location(self):
+        current_pos_local = Point()
+        current_pos_local.x = self.current_pose_g.pose.pose.position.x - self.correction_vector_g.position.x - self.local_offset_pose_g.x
+        current_pos_local.y = self.current_pose_g.pose.pose.position.y - self.correction_vector_g.position.y - self.local_offset_pose_g.y
+        current_pos_local.z = self.current_pose_g.pose.pose.position.z - self.correction_vector_g.position.z - self.local_offset_pose_g.z
+
+        return current_pos_local
