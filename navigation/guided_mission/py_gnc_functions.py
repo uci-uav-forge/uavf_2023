@@ -152,7 +152,7 @@ class gnc_api:
         return current_pos_local
 
     
-    def get_current_compass_hdg(self):\
+    def get_current_compass_hdg(self):
         return self.current_compass_hdg.data
 
     
@@ -474,7 +474,7 @@ class gnc_api:
         #    CGREEN2 + "The X-Axis is facing: {}".format(self.local_offset_g) + CEND)
 
 
-    def check_waypoint_reached(self, pos_tol=3, head_tol=3):
+    def check_waypoint_reached(self, pos_tol=5, head_tol=3):
         """This function checks if the waypoint is reached within given tolerance and returns an int of 1 or 0. This function can be used to check when to request the next waypoint in the mission.
 
         Args:
