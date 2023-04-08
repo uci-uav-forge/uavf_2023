@@ -178,6 +178,11 @@ class gnc_api:
     def get_current_pitch_roll_yaw(self):
         return self.pitch, self.roll, self.current_heading_g
 
+    def get_current_xyz(self):
+        '''returns the current x, y, z position of the drone in local frame in meters'''
+        pos = self.get_current_location()
+        return pos.x, pos.y, pos.z
+
     def get_current_location(self):
         current_pos_local = Point()
         current_pos_local.x = self.current_pose_g.pose.pose.position.x - self.correction_vector_g.position.x - self.local_offset_pose_g.x

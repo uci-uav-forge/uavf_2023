@@ -255,7 +255,7 @@ class Pipeline:
             cam_img = self._get_image()
             cv.imwrite(f"{output_folder_path}/raw_full{loop_index}.png", cam_img)
             print(f"got image {loop_index}")
-            curr_location = self.localizer.get_current_location()
+            curr_location = self.localizer.get_current_xyz()
             curr_heading = self.localizer.get_current_heading()
             logGeolocation(loop_index, curr_location, curr_heading)
             
@@ -272,7 +272,7 @@ class Pipeline:
             self.geolocator.get_location(
                 res.global_bbox[0], 
                 res.global_bbox[1],
-                self.localizer.get_current_location(),
+                self.localizer.get_current_xyz(),
                 self.localizer.get_current_heading()
             )     
             for res in valid_results
