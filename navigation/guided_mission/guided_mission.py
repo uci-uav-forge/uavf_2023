@@ -81,10 +81,11 @@ def init_mission(mission_q, use_px4=False):
     return drone, global_path, drop_alt, max_spd, drop_spd, avg_alt
 
 
-def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, dropzone_end: tuple, use_px4=False):
+def mission_loop(drone, mission_q: PriorityQueue, mission_q_assigner, max_spd, drop_spd, avg_alt, dropzone_end: tuple, use_px4=False):
     # init control loop refresh rate and dropzone signal 
     rate = rospy.Rate(30)
     in_dropzone = False
+    mission_q_assigner.drop_received = True
     
     if use_px4:
         drone.arm()
@@ -103,7 +104,7 @@ def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, dropzone_
         pass
     
     # outer loop: check if there are more waypoints to travel to
-    while mission_q.qsize() or not mission_q.drop_received:
+    while mission_q.qsize() or not mission_q_assigner.drop_received:
         curr_pos = drone.get_current_location()
 
         # get next waypoint
@@ -117,7 +118,7 @@ def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, dropzone_
             np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x))
 
         # slow down and tell imaging if in dropzone
-        if mission_q.queue[0][1] == dropzone_end and !in_dropzone:
+        if curr_wp == dropzone_end and not in_dropzone:
             in_dropzone = True
 
             bool_msg = Bool()
@@ -164,8 +165,12 @@ def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, dropzone_
         drone.set_speed_px4(max_spd)
     else:
         drone.set_speed(max_spd)
+
     drone.set_destination(
-        x=0, y=0, z=0, psi=0)
+        x=0, y=0, z=avg_alt, psi=0)
+    while not drone.check_waypoint_reached():
+        pass
+        
     drone.land()
 
 
@@ -237,7 +242,9 @@ def main():
 
     # run control loop
     print("running control loop")
-    mission_loop(drone, mission_q, max_spd, drop_spd, avg_alt, drop_start, use_px4)
+    mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4)
+
+
 class Localizer():
     def __init__(self):
         self.current_pose_g = Odometry()
