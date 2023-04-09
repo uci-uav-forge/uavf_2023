@@ -41,12 +41,12 @@ class ShapeResult:
     tile: np.ndarray
 
 
-def logGeolocation(loop_index: int, location, heading):
+def logGeolocation(loop_index: int, location, angles):
     """
     Save location corresponding to the saved image index.
     """
     f = open(f"{output_folder_path}/locations.txt", "a+")
-    f.write(f"Loop index [{loop_index}] has location: [{location}] and heading [{heading}]\n")
+    f.write(f"Loop index [{loop_index}] has location: [{location}] and heading [{angles}]\n")
     f.close()
 
 
@@ -85,8 +85,19 @@ def patch_postprocess(self, pp):
     def pp2(*args):
         self.preds.append(args[0])
         return pp(*args)
-    return pp2
-        
+    return  
+
+class MockCamera:
+    def __init__(self, folder_name):
+        self.idx=0
+        self.folder_name = folder_name
+    def get_image(self):
+        img = cv.imread(f"{IMAGING_PATH}/../gopro_tests/{self.folder_name}/img{self.idx}.png")
+        if img is None:
+            print("ran out of images")
+            return None
+        self.idx+=1
+        return img
 
 class Pipeline:
     def __init__(self, localizer, img_size, img_file="gopro", targets_file="targets.csv", dry_run=False):
@@ -96,7 +107,10 @@ class Pipeline:
         self.localizer = localizer
         if self.img_file == "gopro":
             self.cam = GoProCamera()
-        
+        elif not self.img_file.endswith(".png") and not self.img_file.endswith(".jpg"):
+            self.cam = MockCamera(self.img_file)
+        else:
+            self.cam = None 
         if self.doing_dry_run:
             return
 
@@ -174,7 +188,7 @@ class Pipeline:
         """
         Returns: Source image to start the Imaging pipeline
         """
-        if self.img_file == "gopro":
+        if self.cam is not None:
             return self.cam.get_image()
         else:
             return cv.imread(self.img_file)
@@ -253,11 +267,10 @@ class Pipeline:
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
         try:
             cam_img = self._get_image()
-            cv.imwrite(f"{output_folder_path}/raw_full{loop_index}.png", cam_img)
+            cv.imwrite(f"{output_folder_path}/image{loop_index}.png", cam_img)
             print(f"got image {loop_index}")
-            curr_location = self.localizer.get_current_xyz()
-            curr_heading = self.localizer.get_current_heading()
-            logGeolocation(loop_index, curr_location, curr_heading)
+            curr_location, curr_angles = self.localizer.get_current_pos_and_angles()
+            logGeolocation(loop_index, curr_location, curr_angles)
             
             if self.doing_dry_run:
                 return
@@ -272,8 +285,8 @@ class Pipeline:
             self.geolocator.get_location(
                 res.global_bbox[0], 
                 res.global_bbox[1],
-                self.localizer.get_current_xyz(),
-                self.localizer.get_current_heading()
+                location = curr_location,
+                angles=curr_angles 
             )     
             for res in valid_results
         ]
