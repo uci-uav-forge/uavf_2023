@@ -11,8 +11,9 @@ dir_name = f"gopro_tests/{time.strftime(r'%m-%d|%H_%M_%S')}"
 os.makedirs(dir_name, exist_ok=True)
 drone = gnc_api()
 index = 0
-def camera_tests(num_tests):
-    global index
+camera_tests_done = False
+def capture_data(num_tests):
+    global index, camera_tests_done
     print(index)
     for i in range(num_tests):
         img = cam.get_image()
@@ -22,6 +23,8 @@ def camera_tests(num_tests):
             angles = drone.get_current_pitch_roll_yaw()
             f.write(f"{' '.join(map(str,location))}\n{' '.join(map(str,angles))}")
         index+=1
+        print(f"image {index} taken")
+    camera_tests_done = True
 
 def imaging_test_mission():
     # init drone api
@@ -38,15 +41,18 @@ def imaging_test_mission():
     print(drone.get_current_pitch_roll_yaw())
     drone.arm()
     drone.set_destination(
-        x=0, y=0, z=10, psi=0)
-    thread = Thread(target=camera_tests, args=(5,)) 
+        x=0, y=0, z=23, psi=0)
     while not drone.check_waypoint_reached():
         print('drone has not satisfied waypoint!')
         time.sleep(1)
+
+    camera_thread = Thread(target=capture_data, args=(3,)) 
     print("taking pics!")
-    thread.start()
-    for i in range(20):
-        print("pausing")
+    camera_thread.start()
+
+    # this is necessary so that QGroundControl doesn't see a lack of input and enter failsafe mode to land early
+    while not camera_tests_done:
+        print("hovering")
         drone.check_waypoint_reached()
         time.sleep(1)
     print("landing!")
@@ -56,6 +62,5 @@ def imaging_test_mission():
 if __name__ == '__main__':
     # initialize ROS node and get home position
     rospy.init_node("drone_GNC", anonymous=True)
-    camera_tests(1)
     # run control loop
     imaging_test_mission()
