@@ -18,7 +18,7 @@ COLORS_TO_RGB = {
     'black': (0, 0, 0),
     'gray': (128, 128, 128),
     'brown': (165, 42, 42),
-}    
+} 
 
 def gen_color_conf(rgb, cnames):
     r0 = {
