@@ -46,7 +46,7 @@ def logGeolocation(loop_index: int, location, angles):
     Save location corresponding to the saved image index.
     """
     f = open(f"{output_folder_path}/locations.txt", "a+")
-    f.write(f"Loop index [{loop_index}] has location: [{location}] and heading [{angles}]\n")
+    f.write(f"Loop index [{loop_index}] has location (xyz where z is height): [{location}] and angles (pitch,roll,yaw) [{angles}]\n")
     f.close()
 
 
@@ -79,13 +79,6 @@ def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh
             duplicate_indices.add(i)
             duplicates[j].append(i)
     return duplicate_indices,duplicates
-
-
-def patch_postprocess(self, pp):
-    def pp2(*args):
-        self.preds.append(args[0])
-        return pp(*args)
-    return  
 
 class MockCamera:
     def __init__(self, folder_name):

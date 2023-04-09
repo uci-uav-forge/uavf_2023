@@ -20,8 +20,9 @@ class MockLocalizer:
         return tuple([x,y,z]), tuple(angles)
     
 if __name__=="__main__":
+
     dir_name = "09-08|03_04_24"
-    img_number = 57
-    localizer = MockLocalizer(dir_name, index=57)
+    img_number = 57 
+    localizer = MockLocalizer(dir_name, index=img_number)
     imaging_pipeline = Pipeline(localizer, (5568, 4176), img_file=f"gopro_tests/{dir_name}/img{img_number}.png", targets_file='imaging/targets.csv')
     imaging_pipeline.run(num_loops=1)

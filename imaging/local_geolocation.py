@@ -7,26 +7,25 @@ class GeoLocation:
     def get_location(self, image_x, image_y, location, angles):
         '''
             Returns the location of a pixel in the image in the world frame.
-            location: assumed to be (x,z,y) where y is the height
-            angles: assumed to be (heading, tilt, roll)
-                    (-90,0,-90) is straight down with the top of the image up.
+            location: assumed to be (x,y,z) where z is the height
+            angles: assumed to be (pitch, roll, yaw)
 
-            returns (x,z,y) in the world frame where y is the height.
+            returns (x,y,z) in the world frame where z is the height.
         '''
-        heading, tilt, roll = angles
-        x,z,y = location
+        pitch, roll, yaw = angles
+        x,y,z = location
         cam = ct.Camera(
             ct.RectilinearProjection(
                 view_x_deg=67,
                 view_y_deg=41,
                 image=self.img_size),
             ct.SpatialOrientation(
-                elevation_m=y,
-                heading_deg=heading,
-                tilt_deg=tilt,
+                elevation_m=z,
+                heading_deg=yaw,
+                tilt_deg=pitch,
                 roll_deg=roll,
                 pos_x_m=x,
-                pos_y_m=z
+                pos_y_m=y
             )
         )
         return cam.spaceFromImage([(image_x, image_y)])
