@@ -11,6 +11,8 @@ class GeoLocation:
             angles: assumed to be (pitch, roll, yaw)
 
             returns (x,y,z) in the world frame where z is the height.
+
+            it assumes image plane is at z=0, the angle orientation at (0,0,0) corresponds to looking straight down with the drone pointed in the positive y direction, and the rotations are applied in this order: (yaw, pitch, roll)
         '''
         pitch, roll, yaw = angles
         x,y,z = location
