@@ -1,17 +1,28 @@
 from typing import *
 import csv
 from .best_match import *
-import webcolors
 
 
 def color_dist(rgbA, rgbB):
     #todo - possibly measure color distance in some more sophisticated way.
     return sum((a - b)**2 for (a,b) in zip(rgbA, rgbB))
-    
+
+COLORS_TO_RGB = {
+    'red': (255, 0, 0),
+    'green': (0, 255, 0),
+    'blue': (0, 0, 255),
+    'yellow': (255, 255, 0),
+    'orange': (255, 165, 0),
+    'purple': (128, 0, 128),
+    'white': (255, 255, 255),
+    'black': (0, 0, 0),
+    'gray': (128, 128, 128),
+    'brown': (165, 42, 42),
+}    
 
 def gen_color_conf(rgb, cnames):
     r0 = {
-        color : color_dist(rgb, webcolors.name_to_rgb(color))
+        color : color_dist(rgb, COLORS_TO_RGB[color])
         for color in cnames}
     
     mx = max(r0.values())
