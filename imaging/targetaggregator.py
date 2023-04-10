@@ -34,9 +34,9 @@ class TargetAggregator:
             self.targets = list(map(tuple, csv.reader(tf)))
         self.n_targets = len(self.targets)
         self.best_conf = [-1] * self.n_targets
-        self.target_gps = [None] * self.n_targets
+        self.target_coords = [None] * self.n_targets
     
-    def match_target_color(self, gps, letterColor, letterConf, shapeColor, shapeConf):
+    def match_target_color(self, coords, letterColor, letterConf, shapeColor, shapeConf):
         letterColorConf = gen_color_conf(letterColor, [x[0] for x in self.targets])
         shapeColorConf = gen_color_conf(shapeColor, [x[2] for x in self.targets])
 
@@ -44,16 +44,19 @@ class TargetAggregator:
         matchIndex = self.targets.index(match)
 
         if score > self.best_conf[matchIndex]:
-            self.target_gps[matchIndex] = gps
+            self.target_coords[matchIndex] = coords
             self.best_conf[matchIndex] = score
     
-    def match_target(self, gps, lC, sC):
+    def match_target(self, coords, lC, sC):
         match, score = best_match(self.targets, lC, sC)
         matchIndex = self.targets.index(match)
 
         if score > self.best_conf[matchIndex]:
-            self.target_gps[matchIndex] = gps
+            self.target_coords[matchIndex] = coords
             self.best_conf[matchIndex] = score
+
+    def get_target_coords(self):
+        return self.target_coords
 
 
 
