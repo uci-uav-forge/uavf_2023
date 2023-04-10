@@ -23,7 +23,7 @@ target_coords = None
 def run_pipeline():
     global target_coords 
     pipeline.run(num_loops=1)
-    target_coords = pipeline.target_aggregator.get_target_coords()
+    target_coords = pipeline.target_aggregator.get_target_coords()[0]
 
 def imaging_test_mission():
     # init drone api

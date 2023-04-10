@@ -3,6 +3,7 @@ import json
 import itertools
 import os
 from dataclasses import dataclass
+import traceback as tb
 
 
 import cv2 as cv
@@ -268,8 +269,8 @@ class Pipeline:
             if self.doing_dry_run:
                 return
         except Exception as e:
-            print(loop_index)
-            print(e)
+            print(f"Exception on pipeline loop {loop_index}")
+            tb.print_exc()
             return
 
         valid_results = self._get_shape_detections(cam_img, batch_size=1)
