@@ -54,6 +54,13 @@ def imaging_test_mission():
         print("hovering")
         drone.check_waypoint_reached()
         time.sleep(1)
+
+    print(f"target coords: {target_coords}")
+    if abs(target_coords[0])>20 or abs(target_coords[1])>20:
+        print("target out of range")
+        drone.land()
+        return 
+    
     print("moving to target")
     drone.set_destination(
         x=target_coords[0], y=target_coords[1], z=23, psi=0)
