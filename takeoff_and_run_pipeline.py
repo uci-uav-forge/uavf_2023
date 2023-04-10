@@ -56,7 +56,8 @@ def imaging_test_mission():
         time.sleep(1)
 
     print(f"target coords: {target_coords}")
-    if abs(target_coords[0])>20 or abs(target_coords[1])>20:
+
+    if abs(target_coords[0])>30 or abs(target_coords[1])>30 or not (0<abs(target_coords[2])<30):
         print("target out of range")
         drone.land()
         return 
