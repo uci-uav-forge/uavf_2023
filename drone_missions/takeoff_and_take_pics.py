@@ -29,17 +29,17 @@ def capture_data(num_tests):
 def imaging_test_mission():
     # init drone api
     drone.wait4connect()
-    drone.set_mode_px4('OFFBOARD')
     drone.initialize_local_frame()
 
     drone.arm()
+    drone.set_mode_px4('OFFBOARD')
     drone.set_destination(
         x=0, y=0, z=23, psi=0)
     while not drone.check_waypoint_reached():
         print('drone has not satisfied waypoint!')
         time.sleep(1)
 
-    camera_thread = Thread(target=capture_data, args=(3,)) 
+    camera_thread = Thread(target=capture_data, args=(2,)) 
     print("taking pics!")
     camera_thread.start()
 
