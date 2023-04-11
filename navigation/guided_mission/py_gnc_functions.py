@@ -12,7 +12,7 @@ from mavros_msgs.srv import CommandBool, CommandBoolRequest
 from mavros_msgs.srv import SetMode, SetModeRequest
 from mavros_msgs.srv import ParamSet
 from mavros_msgs.msg import ParamValue
-
+from scipy.spatial.transform import Rotation
 """Control Functions
 	This module is designed to make high level control programming simple.
 """
@@ -123,6 +123,11 @@ class gnc_api:
             self.current_pose_g.pose.pose.orientation.z,
         )
 
+        # TODO: verify this is correct then use it to replace the math below 
+        rot = Rotation.from_quat([[q1,q2,q3,q0]])
+        euler = rot.as_euler('zxz', degrees=True)
+        print(euler)
+        
         phi = atan2((2*(q0*q1+q2*q3)), (1-2*(pow(q1, 2)+pow(q2, 2))))
 
         theta = asin(2*(q0*q2-q1*q1))
