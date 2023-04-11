@@ -65,6 +65,10 @@ def imaging_test_mission():
         print("drone flying to target")
         time.sleep(1)
     print("target reached")
+    for _i in range(5):
+        print("hovering at target")
+        drone.check_waypoint_reached()
+        time.sleep(1)
     drone.land()
 
 
