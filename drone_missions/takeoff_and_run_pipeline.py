@@ -6,8 +6,6 @@ import os
 import cv2 as cv
 from threading import Thread
 
-dir_name = f"gopro_tests/{time.strftime(r'%m-%d|%H_%M_%S')}"
-os.makedirs(dir_name, exist_ok=True)
 drone = gnc_api()
 
 pipeline = Pipeline(
@@ -66,8 +64,7 @@ def imaging_test_mission():
         return 
     
     print("moving to target")
-    drone.set_destination(
-       x=target_coords[0], y=target_coords[1], z=5, psi=0)
+    drone.set_destination(x=target_coords[0], y=target_coords[1], z=5, psi=0)
     while not drone.check_waypoint_reached():
         print("drone flying to target")
         time.sleep(1)

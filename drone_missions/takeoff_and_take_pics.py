@@ -7,7 +7,7 @@ import cv2 as cv
 from threading import Thread
 
 cam = GoProCamera()
-dir_name = f"gopro_tests/{time.strftime(r'%m-%d|%H_%M_%S')}"
+dir_name = f"../gopro_tests/{time.strftime(r'%m-%d|%H_%M_%S')}"
 os.makedirs(dir_name, exist_ok=True)
 drone = gnc_api()
 index = 0
@@ -32,13 +32,6 @@ def imaging_test_mission():
     drone.set_mode_px4('OFFBOARD')
     drone.initialize_local_frame()
 
-    print('LOCAL HEADING TEST: ' + str(drone.get_current_heading()))
-    #print('COMPASS HEADING TEST: ' + str(drone.get_current_compass_hdg()))
-    print('LOCAL POSITION TEST: ')  
-    print(drone.get_current_location())
-    print('TAKEOFF TEST: ')
-    print(drone.get_current_xyz())
-    print(drone.get_current_pitch_roll_yaw())
     drone.arm()
     drone.set_destination(
         x=0, y=0, z=23, psi=0)
