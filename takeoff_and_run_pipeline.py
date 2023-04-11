@@ -4,6 +4,7 @@ from navigation.guided_mission.py_gnc_functions import *
 from imaging.pipeline import Pipeline
 import os
 import cv2 as cv
+import numpy as np
 from threading import Thread
 
 drone = gnc_api()
@@ -22,20 +23,20 @@ processing_done = False
 def run_pipeline():
     global target_coords, processing_done
     pipeline.run(num_loops=1)
-    target_coords = pipeline.target_aggregator.get_target_coords()[0]
+    target_coords = pipeline.target_aggregator.get_target_coords()[0][0]
     processing_done = True
     print("done running pipeline")
 
 def imaging_test_mission():
     # init drone api
     drone.wait4connect()
+    drone.set_mode_px4('OFFBOARD')
     drone.initialize_local_frame()
 
     print('Starting position:')
     print(drone.get_current_xyz())
     print(drone.get_current_pitch_roll_yaw())
     drone.arm()
-    drone.set_mode_px4('OFFBOARD')
     drone.set_destination(
         x=0, y=0, z=10, psi=0)
     while not drone.check_waypoint_reached():
@@ -54,8 +55,9 @@ def imaging_test_mission():
 
     print(f"target coords: {target_coords}")
 
-    if abs(target_coords[0])>30 or abs(target_coords[1])>30 or not (0<abs(target_coords[2])<30):
+    if np.linalg.norm(target_coords)>30 or target_coords[2]<0:
         print("target out of range")
+	print(np.linalg.norm(target_coords))
         drone.land()
         return 
     
