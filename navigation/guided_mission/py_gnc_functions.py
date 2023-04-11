@@ -130,7 +130,6 @@ class gnc_api:
         # TODO: verify this is correct then use it to replace the math below 
         rot = Rotation.from_quat([[q1,q2,q3,q0]])
         euler = rot.as_euler('zxz', degrees=True)
-        print(euler)
         
         phi = atan2((2*(q0*q1+q2*q3)), (1-2*(pow(q1, 2)+pow(q2, 2))))
 
