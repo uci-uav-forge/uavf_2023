@@ -19,11 +19,14 @@ pipeline = Pipeline(
 )
 
 target_coords = None
+processing_done = False
 
 def run_pipeline():
-    global target_coords 
+    global target_coords, processing_done
     pipeline.run(num_loops=1)
     target_coords = pipeline.target_aggregator.get_target_coords()[0]
+    processing_done = True
+    print("done running pipeline")
 
 def imaging_test_mission():
     # init drone api
@@ -40,7 +43,7 @@ def imaging_test_mission():
     print(drone.get_current_pitch_roll_yaw())
     drone.arm()
     drone.set_destination(
-        x=0, y=0, z=23, psi=0)
+        x=0, y=0, z=10, psi=0)
     while not drone.check_waypoint_reached():
         print('drone has not satisfied waypoint!')
         time.sleep(1)
@@ -50,7 +53,7 @@ def imaging_test_mission():
     camera_thread.start()
 
     # this is necessary so that QGroundControl doesn't see a lack of input and enter failsafe mode to land early
-    while target_coords is None:
+    while not processing_done:
         print("hovering")
         drone.check_waypoint_reached()
         time.sleep(1)
@@ -64,7 +67,7 @@ def imaging_test_mission():
     
     print("moving to target")
     drone.set_destination(
-        x=target_coords[0], y=target_coords[1], z=23, psi=0)
+       x=target_coords[0], y=target_coords[1], z=5, psi=0)
     while not drone.check_waypoint_reached():
         print("drone flying to target")
         time.sleep(1)

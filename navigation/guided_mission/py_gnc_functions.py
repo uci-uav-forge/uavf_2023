@@ -182,6 +182,9 @@ class gnc_api:
         '''returns the current x, y, z position of the drone in local frame in meters'''
         pos = self.get_current_location()
         return pos.x, pos.y, pos.z
+    
+    def get_current_pos_and_angles(self):
+        return self.get_current_xyz(), self.get_current_pitch_roll_yaw()
 
     def get_current_location(self):
         current_pos_local = Point()
