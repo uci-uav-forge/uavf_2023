@@ -1,13 +1,15 @@
 import pygame
 import os
 import math
-ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
+# ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
+ALPHABET = "A"
 import random
 class DataGenerator():
     
     
     def __init__(self, resolution=32, path=""):
         self.resolution = 128
+        self.letter_res = 16
         self.path = path
         pygame.init()
         self.screen = pygame.display.set_mode([self.resolution,resolution])
@@ -29,7 +31,7 @@ class DataGenerator():
     def generate_letters(self, font, distribution, numImages, startNum = 0):
         with open(f".{self.path}/dataset/labels.txt", "a") as file:
             currentDeg = 0
-            font = pygame.font.SysFont(font, self.resolution)
+            font = pygame.font.SysFont(font, self.letter_res)
             screen = pygame.display.set_mode([self.resolution,self.resolution])
             
             for index, x in enumerate(ALPHABET): 
@@ -41,6 +43,7 @@ class DataGenerator():
                     screen.fill((0,0,0)) # Fill screen with black
                     letter = font.render(text, True, (255,255,255), (0,0,0))
                     letter = pygame.transform.rotate(letter, currentDeg)
+                    letter = pygame.transform.scale(letter, (self.resolution, self.resolution))
                     textRect = letter.get_rect()
                     textRect.center = (self.resolution // 2, self.resolution // 2)
                     screen.blit(letter, textRect)

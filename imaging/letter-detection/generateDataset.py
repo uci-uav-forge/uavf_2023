@@ -7,8 +7,10 @@ class DataSet():
         self.createFilesAndDirectories()
         self.isDistributed = False
         self.size = size
-        self.labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
-        self.numLabels = 36
+        # self.labels = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789"
+        # self.numLabels = 36
+        self.labels = "A"
+        self.numLabels = 1
         self.distributions = dict()
         self.remaining = 1
         self.generater = DataGenerator.DataGenerator(128, path=path)
@@ -68,7 +70,7 @@ class DataSet():
 
 
 def main():
-    d = DataSet(1000, path="/test_32_32_3") # Change the number here to change the size of the dataset
+    d = DataSet(1000, path="/A") # Change the number here to change the size of the dataset
     custom_distributions = {}
     #add (key, 0 <= dist <= 1) to the custom_distributions
     #TODO Have them read from a file
