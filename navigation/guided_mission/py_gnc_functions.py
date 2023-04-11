@@ -34,6 +34,8 @@ class gnc_api:
         self.correction_heading_g = 0.0     
         self.local_desired_heading_g = 0.0
 
+        self.orientation_quaternion_wxyz = [0,0,0,0]
+        
         self.pitch = 0.0
         self.roll = 0.0
 
@@ -123,6 +125,8 @@ class gnc_api:
             self.current_pose_g.pose.pose.orientation.z,
         )
 
+        self.orientation_quaternion_wxyz = [q0, q1, q2, q3]
+
         # TODO: verify this is correct then use it to replace the math below 
         rot = Rotation.from_quat([[q1,q2,q3,q0]])
         euler = rot.as_euler('zxz', degrees=True)
@@ -165,6 +169,9 @@ class gnc_api:
         current_pos_local.z = z
 
         return current_pos_local
+    
+    def get_orientation_quaternion_wxyz(self):
+        return self.orientation_quaternion_wxyz
 
     
     def get_current_compass_hdg(self):
