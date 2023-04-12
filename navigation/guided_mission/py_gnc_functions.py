@@ -38,7 +38,7 @@ class gnc_api:
         self.correction_heading_g = 0.0     
         self.local_desired_heading_g = 0.0
 
-        self.orientation_quaternion_wxyz = [0,0,0,0]
+        self.orientation_quaternion_xyzw = np.array([1,0,0,0])
         
         self.pitch = 0.0
         self.roll = 0.0
@@ -130,7 +130,8 @@ class gnc_api:
         )
 
         orient = np.array([x, y, z, w])
-        roll, pitch, yaw = euler_from_quaternion(orient)
+        self.orientation_quaternion_xyzw = orient
+        roll, pitch, yaw = euler_from_quaternion(orient)# https://w3.cs.jmu.edu/spragunr/CS354_S14/labs/tf_lab/html/tf.transformations-module.html
 
         self.current_heading_g = degrees(yaw) - self.local_offset_g
         self.pitch = degrees(pitch)
@@ -162,8 +163,8 @@ class gnc_api:
 
         return current_pos_local
     
-    def get_orientation_quaternion_wxyz(self):
-        return self.orientation_quaternion_wxyz
+    def get_orientation_quaternion_xyzw(self):
+        return self.orientation_quaternion_xyzw
 
     
     def get_current_compass_hdg(self):
@@ -182,13 +183,20 @@ class gnc_api:
     def get_current_pitch_roll_yaw(self):
         return self.pitch, self.roll, self.current_heading_g
 
+    def get_current_camera_rotation(self):
+        '''
+        returns (heading, tilt, roll) in degrees
+        '''
+        heading, tilt, roll = euler_from_quaternion(self.orientation_quaternion_xyzw, axes="rzxz")# https://w3.cs.jmu.edu/spragunr/CS354_S14/labs/tf_lab/html/tf.transformations-module.html
+        return degrees(heading), degrees(tilt), degrees(roll)
+
     def get_current_xyz(self):
         '''returns the current x, y, z position of the drone in local frame in meters'''
         pos = self.get_current_location()
         return pos.x, pos.y, pos.z
     
     def get_current_pos_and_angles(self):
-        return self.get_current_xyz(), self.get_current_pitch_roll_yaw()
+        return self.get_current_xyz(), self.get_current_camera_rotation()
 
     def get_current_location(self):
         current_pos_local = Point()

@@ -9,13 +9,14 @@ class GeoLocation:
         '''
             Returns the location of a pixel in the image in the world frame.
             location: assumed to be (x,y,z) where z is the height
-            angles: assumed to be (pitch, roll, yaw)
+            angles: assumed to be (heading, tilt, roll)
 
             returns (x,y,z) in the world frame where z is the height.
 
             it assumes image plane is at z=0, the angle orientation at (0,0,0) corresponds to looking straight down with the drone pointed in the positive y direction, and the rotations are applied in this order: (yaw, pitch, roll) (rotation around z axis, then x axis, then z axis again)
+            https://cameratransform.readthedocs.io/en/latest/coordinate_systems.html#space
         '''
-        pitch, roll, yaw = angles
+        heading, tilt, roll = angles
         x,y,z = location
         cam = ct.Camera(
             ct.RectilinearProjection(
@@ -24,8 +25,8 @@ class GeoLocation:
                 image=self.img_size),
             ct.SpatialOrientation(
                 elevation_m=z,
-                heading_deg=yaw,
-                tilt_deg=pitch,
+                heading_deg=roll,
+                tilt_deg=tilt,
                 roll_deg=roll,
                 pos_x_m=x,
                 pos_y_m=y
