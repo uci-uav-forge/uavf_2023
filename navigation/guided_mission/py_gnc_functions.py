@@ -38,7 +38,7 @@ class gnc_api:
         self.correction_heading_g = 0.0     
         self.local_desired_heading_g = 0.0
 
-        self.orientation_quaternion_xyzw = np.array([1,0,0,0])
+        self.orientation_quaternion_xyzw = np.array([0,0,0,1])
         
         self.pitch = 0.0
         self.roll = 0.0
