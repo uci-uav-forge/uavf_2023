@@ -5,7 +5,7 @@ import cameratransform as ct# pip install cameratransform
 class GeoLocation:
     def __init__(self, img_size):
         self.img_size = img_size
-    def get_location(self, image_x, image_y, location, angles) -> np.ndarray:
+    def get_location(self, image_x, image_y, location, angles) -> "tuple[float]":
         '''
             Returns the location of a pixel in the image in the world frame.
             location: assumed to be (x,y,z) where z is the height
@@ -32,9 +32,12 @@ class GeoLocation:
                 pos_y_m=y
             )
         )
-        return cam.spaceFromImage([(image_x, image_y)])[0]
-    
+        camera_world_coords = cam.spaceFromImage([(image_x, image_y)])[0]
+	# in the drone's referenfce frame, the top of the image is positive x and the right side is negative y
+        offset_from_center = camera_world_coords-np.array(location)
+        return (location[0]+offset_from_center[1], location[1]-offset_from_center[0], 0)
+
 if __name__=="__main__":
     geolocator = GeoLocation((1000, 1000))
-    loc = geolocator.get_location(500,300,(0,0,0),(0,0,0))
+    loc = geolocator.get_location(1000,1000,(5,5,10),(0,0,0))
     print(loc, np.linalg.norm(loc), loc[2]>0, type(loc))
