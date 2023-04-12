@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 from .PrintColours import *
 import rospy
-from math import atan2, pow, sqrt, degrees, radians, sin, cos
+from math import atan2, pow, sqrt, degrees, radians, sin, cos, asin, pi
+import numpy as np
+from tf.transformations import euler_from_quaternion
+
 from std_msgs.msg import Float64
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 from nav_msgs.msg import Odometry
@@ -12,11 +15,12 @@ from mavros_msgs.srv import CommandBool, CommandBoolRequest
 from mavros_msgs.srv import SetMode, SetModeRequest
 from mavros_msgs.srv import ParamSet
 from mavros_msgs.msg import ParamValue
+from scipy.spatial.transform import Rotation
+
 
 """Control Functions
 	This module is designed to make high level control programming simple.
 """
-
 
 class gnc_api:
     def __init__(self):
@@ -33,6 +37,11 @@ class gnc_api:
         self.local_offset_g = 0.0
         self.correction_heading_g = 0.0     
         self.local_desired_heading_g = 0.0
+
+        self.orientation_quaternion_wxyz = [0,0,0,0]
+        
+        self.pitch = 0.0
+        self.roll = 0.0
 
         self.ns = rospy.get_namespace()
         if self.ns == "/":
@@ -113,17 +122,19 @@ class gnc_api:
         self.current_pose_g = msg
         self.enu_2_local()
 
-        q0, q1, q2, q3 = (
+        w, x, y, z = (
             self.current_pose_g.pose.pose.orientation.w,
             self.current_pose_g.pose.pose.orientation.x,
             self.current_pose_g.pose.pose.orientation.y,
             self.current_pose_g.pose.pose.orientation.z,
         )
 
-        psi = atan2((2 * (q0 * q3 + q1 * q2)),
-                    (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
+        orient = np.array([x, y, z, w])
+        roll, pitch, yaw = euler_from_quaternion(orient)
 
-        self.current_heading_g = degrees(psi) - self.local_offset_g
+        self.current_heading_g = degrees(yaw) - self.local_offset_g
+        self.pitch = degrees(pitch)
+        self.roll = degrees(roll)
 
 
     def compass_cb(self, msg):
@@ -150,6 +161,9 @@ class gnc_api:
         current_pos_local.z = z
 
         return current_pos_local
+    
+    def get_orientation_quaternion_wxyz(self):
+        return self.orientation_quaternion_wxyz
 
     
     def get_current_compass_hdg(self):
@@ -164,6 +178,17 @@ class gnc_api:
         """
         return self.current_heading_g
 
+
+    def get_current_pitch_roll_yaw(self):
+        return self.pitch, self.roll, self.current_heading_g
+
+    def get_current_xyz(self):
+        '''returns the current x, y, z position of the drone in local frame in meters'''
+        pos = self.get_current_location()
+        return pos.x, pos.y, pos.z
+    
+    def get_current_pos_and_angles(self):
+        return self.get_current_xyz(), self.get_current_pitch_roll_yaw()
 
     def get_current_location(self):
         current_pos_local = Point()

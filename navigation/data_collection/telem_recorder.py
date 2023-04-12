@@ -5,16 +5,18 @@ import message_filters
 from tf.transformations import euler_from_quaternion
 import numpy as np
 import time
+from datetime import datetime
 from math import degrees
 
 class GPS_Attitude_Recorder():
 
     def __init__ (self):
-        #reset file contents
-        self.file = open("GPS_record.txt", "w")
-        self.file.close()
-        self.file = open("GPS_record.txt", "w")
-
+        # write new file 
+        now = datetime.now()
+        dt_string = str(now.year)+'-'+str(now.month)+'-'+str(now.day)+'_'+str(now.hour)+':'+str(now.minute)
+        #dt_string = datetime.now.strftime("%d/%m/%Y %H:%M:%S")
+        self.file = open("telemetry_" + dt_string + ".txt", "w+")
+        
         # vehicle attitude stats and counter
         self.min = np.empty(3, dtype=np.float64)
         self.max = np.empty(3, dtype=np.float64)
@@ -22,18 +24,13 @@ class GPS_Attitude_Recorder():
         self.count = 1
 
         # initialize node and subs, sync subs into 1 callback
+        #rospy.init_node("GPS_telemetry_subscriber", anonymous=True)
+        
         rospy.init_node("GPS_Attitude_subscriber_node")
-        gps_sub = message_filters.Subscriber(
-            "/mavros/global_position/raw/fix", NavSatFix
+        pose_sub = rospy.Subscriber(
+            name='/mavros/local_position/pose', data_class=PoseStamped, queue_size=1, callback=self.callback,
         )
-        pose_sub = message_filters.Subscriber(
-            '/mavros/local_position/pose', PoseStamped
-        )
-        sync = message_filters.ApproximateTimeSynchronizer(
-            [gps_sub, pose_sub], 1, 1
-        )
-        sync.registerCallback(self.callback)
-
+        
         # record start time and start timer
         self.start = time.time()
         self.timer = self.start
@@ -43,14 +40,15 @@ class GPS_Attitude_Recorder():
         self.file.write(
             '\n' + 'Min Pitch, Roll, Yaw: ' + str(self.min) + '\n' +\
                    'Max Pitch, Roll, Yaw: ' + str(self.max) + '\n' +\
-                   'Avg Pitch, Roll, Yaw: ' + str(self.avg) + '\n'
-        )      
+                   'Avg Pitch, Roll, Yaw: ' + str(self.avg) + '\n' + str(self.count)
+        )
+        self.file.close()    
 
 
-    def callback(self, gps, pose):
+    def callback(self, pose):
         # time step at least 2 seconds
         curr = time.time()
-        if (curr - self.timer >= 2):
+        if (curr - self.timer >= 1):
             self.timer = time.time()
 
             # get euler angles from quaternion
@@ -63,6 +61,10 @@ class GPS_Attitude_Recorder():
                 degrees(roll), degrees(pitch), degrees(yaw)
             ))
 
+            print('Roll: ' + str(degrees(roll)))
+            print('Pitch: ' + str(degrees(pitch)))
+            print()
+
             # update vehicle attitude stats
             for i in range(3):
                 if att_arr[i] < self.min[i]:
@@ -71,10 +73,10 @@ class GPS_Attitude_Recorder():
                     self.max[i] = att_arr[i]
             self.avg = (self.count*self.avg + att_arr) / (self.count + 1)
             self.count += 1
-            
-            # write GPS info
-            info = 'Lat: '+str(round(gps.latitude,6)) + '    Long: '+str(round(gps.longitude,6)) +\
-                '    Alt: '+str(round(gps.altitude,6)) + '    Time: '+str(round(curr-self.start, 4))+' s'+ '\n'
+
+            # write telemetry info
+            info = 'Position: (' + str(round(pose.pose.position.x,3)) + ', ' + str(round(pose.pose.position.y,3)) +\
+                    ', ' + str(round(pose.pose.position.z,3)) + ')    Time: ' + str(round(curr-self.start,3)) + ' s\n'
             self.file.write(info)
 
 

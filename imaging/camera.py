@@ -49,7 +49,7 @@ class GoProCamera:
             statuses: dict = requests.get(f"{self.url}/gopro/camera/state").json()["status"]
             busy = statuses['8'] or statuses['10']
     
-    def get_image(self) -> cv.Mat:
+    def get_image(self, cb_fun = None) -> cv.Mat:
         '''
         Takes the picture roughly 30-50 ms after this function is called. If we really care about timing between this and the GPS, we can only poll the GPS immediately after the line in this function that presses the shutter.
         '''
@@ -57,6 +57,8 @@ class GoProCamera:
         if DEBUG:
             print(f"Setting shutter at {time.time()-start}")
         requests.get(f"{self.url}/gopro/camera/shutter/start")
+        if cb_fun is not None:
+            cb_fun()
         self._wait_on_busy()
         if DEBUG:
             print(f"Busy ended at {time.time()-start}")

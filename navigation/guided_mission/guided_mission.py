@@ -27,8 +27,8 @@ drop_signal = rospy.Publisher(
 def init_mission(mission_q, use_px4=False): 
     # mission parameters in SI units
     drop_alt = 25 # m
-    max_spd = 5 # m/s
-    drop_spd = 3 # m/s
+    max_spd = 15 # m/s
+    drop_spd = 5 # m/s
 
     print("waiting for mavros position message")
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
@@ -81,10 +81,11 @@ def init_mission(mission_q, use_px4=False):
     return drone, global_path, drop_alt, max_spd, drop_spd, avg_alt
 
 
-def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, dropzone_end: tuple, use_px4=False):
+def mission_loop(drone, mission_q: PriorityQueue, mission_q_assigner, max_spd, drop_spd, avg_alt, dropzone_end: tuple, use_px4=False):
     # init control loop refresh rate and dropzone signal 
     rate = rospy.Rate(30)
     in_dropzone = False
+    mission_q_assigner.drop_received = True
     
     if use_px4:
         drone.arm()
@@ -103,7 +104,7 @@ def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, dropzone_
         pass
     
     # outer loop: check if there are more waypoints to travel to
-    while mission_q.qsize() or not mission_q.drop_received:
+    while mission_q.qsize() or not mission_q_assigner.drop_received:
         curr_pos = drone.get_current_location()
 
         # get next waypoint
@@ -117,7 +118,7 @@ def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, dropzone_
             np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x))
 
         # slow down and tell imaging if in dropzone
-        if mission_q.queue[0][1] == dropzone_end and !in_dropzone:
+        if curr_wp == dropzone_end and not in_dropzone:
             in_dropzone = True
 
             bool_msg = Bool()
@@ -164,8 +165,12 @@ def mission_loop(mission_q: PriorityQueue, max_spd, drop_spd, avg_alt, dropzone_
         drone.set_speed_px4(max_spd)
     else:
         drone.set_speed(max_spd)
+
     drone.set_destination(
-        x=0, y=0, z=0, psi=0)
+        x=0, y=0, z=avg_alt, psi=0)
+    while not drone.check_waypoint_reached():
+        pass
+        
     drone.land()
 
 
@@ -237,7 +242,61 @@ def main():
 
     # run control loop
     print("running control loop")
-    mission_loop(drone, mission_q, max_spd, drop_spd, avg_alt, drop_start, use_px4)
+    mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4)
+
+
+class Localizer():
+    def __init__(self):
+        self.current_pose_g = Odometry()
+        self.current_heading_g = 0.0
+        self.local_offset_g = 0.0
+
+        self.currentPos = rospy.Subscriber(
+            name="mavros/global_position/local",
+            data_class=Odometry,
+            queue_size=1,
+            callback=self.pose_cb)
+
+
+    def pose_cb(self, msg):
+        self.current_pose_g = msg
+        self.enu_2_local()
+
+        q0, q1, q2, q3 = (
+            self.current_pose_g.pose.pose.orientation.w,
+            self.current_pose_g.pose.pose.orientation.x,
+            self.current_pose_g.pose.pose.orientation.y,
+            self.current_pose_g.pose.pose.orientation.z,)
+
+        psi = atan2((2 * (q0 * q3 + q1 * q2)),
+                    (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
+
+        self.current_heading_g = degrees(psi) - self.local_offset_g
+    
+
+    def enu_2_local(self):
+        x, y, z = (
+            self.current_pose_g.pose.pose.position.x,
+            self.current_pose_g.pose.pose.position.y,
+            self.current_pose_g.pose.pose.position.z)
+
+        current_pos_local = Point()
+        current_pos_local.x = x * cos(radians((self.local_offset_g - 90))) - y * sin(
+            radians((self.local_offset_g - 90)))
+        current_pos_local.y = x * sin(radians((self.local_offset_g - 90))) + y * cos(
+            radians((self.local_offset_g - 90)))
+        current_pos_local.z = z
+
+        return current_pos_local
+
+
+    def get_current_heading(self):
+        return self.current_heading_g
+
+
+    def get_current_location(self):
+        return self.enu_2_local()
+
 
 if __name__ == '__main__':
     main()
