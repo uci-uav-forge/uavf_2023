@@ -1,17 +1,28 @@
 from typing import *
 import csv
 from .best_match import *
-import webcolors
 
 
 def color_dist(rgbA, rgbB):
     #todo - possibly measure color distance in some more sophisticated way.
     return sum((a - b)**2 for (a,b) in zip(rgbA, rgbB))
-    
+
+COLORS_TO_RGB = {
+    'red': (255, 0, 0),
+    'green': (0, 255, 0),
+    'blue': (0, 0, 255),
+    'yellow': (255, 255, 0),
+    'orange': (255, 165, 0),
+    'purple': (128, 0, 128),
+    'white': (255, 255, 255),
+    'black': (0, 0, 0),
+    'gray': (128, 128, 128),
+    'brown': (165, 42, 42),
+} 
 
 def gen_color_conf(rgb, cnames):
     r0 = {
-        color : color_dist(rgb, webcolors.name_to_rgb(color))
+        color : color_dist(rgb, COLORS_TO_RGB[color])
         for color in cnames}
     
     mx = max(r0.values())
@@ -23,9 +34,9 @@ class TargetAggregator:
             self.targets = list(map(tuple, csv.reader(tf)))
         self.n_targets = len(self.targets)
         self.best_conf = [-1] * self.n_targets
-        self.target_gps = [None] * self.n_targets
+        self.target_coords = [None] * self.n_targets
     
-    def match_target_color(self, gps, letterColor, letterConf, shapeColor, shapeConf):
+    def match_target_color(self, coords, letterColor, letterConf, shapeColor, shapeConf):
         letterColorConf = gen_color_conf(letterColor, [x[0] for x in self.targets])
         shapeColorConf = gen_color_conf(shapeColor, [x[2] for x in self.targets])
 
@@ -33,16 +44,19 @@ class TargetAggregator:
         matchIndex = self.targets.index(match)
 
         if score > self.best_conf[matchIndex]:
-            self.target_gps[matchIndex] = gps
+            self.target_coords[matchIndex] = coords
             self.best_conf[matchIndex] = score
     
-    def match_target(self, gps, lC, sC):
+    def match_target(self, coords, lC, sC):
         match, score = best_match(self.targets, lC, sC)
         matchIndex = self.targets.index(match)
 
         if score > self.best_conf[matchIndex]:
-            self.target_gps[matchIndex] = gps
+            self.target_coords[matchIndex] = coords
             self.best_conf[matchIndex] = score
+
+    def get_target_coords(self):
+        return self.target_coords
 
 
 
