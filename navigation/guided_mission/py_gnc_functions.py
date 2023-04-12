@@ -16,10 +16,11 @@ from mavros_msgs.srv import SetMode, SetModeRequest
 from mavros_msgs.srv import ParamSet
 from mavros_msgs.msg import ParamValue
 from scipy.spatial.transform import Rotation
+
+
 """Control Functions
 	This module is designed to make high level control programming simple.
 """
-
 
 class gnc_api:
     def __init__(self):
@@ -128,17 +129,12 @@ class gnc_api:
             self.current_pose_g.pose.pose.orientation.z,
         )
 
-        phi = atan2((2*(q0*q1+q2*q3)), (1-2*(pow(q1, 2)+pow(q2, 2))))
+        orient = np.array([x, y, z, w])
+        roll, pitch, yaw = euler_from_quaternion(orient)
 
-        theta = asin(2*(q0*q2-q1*q1))
-
-        psi = atan2((2 * (q0 * q3 + q1 * q2)),
-                    (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
-
-        self.current_heading_g = degrees(psi) - self.local_offset_g
-
-        self.pitch = degrees(theta)
-        self.roll = degrees(phi)
+        self.current_heading_g = degrees(yaw) - self.local_offset_g
+        self.pitch = degrees(pitch)
+        self.roll = degrees(roll)
 
 
     def compass_cb(self, msg):
