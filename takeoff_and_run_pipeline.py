@@ -23,7 +23,7 @@ processing_done = False
 def run_pipeline():
     global target_coords, processing_done
     pipeline.run(num_loops=1)
-    target_coords = pipeline.target_aggregator.get_target_coords()[0][0]
+    target_coords = pipeline.target_aggregator.get_target_coords()[0]
     processing_done = True
     print("done running pipeline")
 
@@ -57,7 +57,7 @@ def imaging_test_mission():
 
     if np.linalg.norm(target_coords)>30 or target_coords[2]<0:
         print("target out of range")
-	print(np.linalg.norm(target_coords))
+        print(np.linalg.norm(target_coords))
         drone.land()
         return 
     

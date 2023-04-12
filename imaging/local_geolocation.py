@@ -1,10 +1,11 @@
+import numpy as np
 import cameratransform as ct# pip install cameratransform
 
 
 class GeoLocation:
     def __init__(self, img_size):
         self.img_size = img_size
-    def get_location(self, image_x, image_y, location, angles):
+    def get_location(self, image_x, image_y, location, angles) -> np.ndarray:
         '''
             Returns the location of a pixel in the image in the world frame.
             location: assumed to be (x,y,z) where z is the height
@@ -30,4 +31,9 @@ class GeoLocation:
                 pos_y_m=y
             )
         )
-        return cam.spaceFromImage([(image_x, image_y)])
+        return cam.spaceFromImage([(image_x, image_y)])[0]
+    
+if __name__=="__main__":
+    geolocator = GeoLocation((1000, 1000))
+    loc = geolocator.get_location(500,300,(0,0,0),(0,0,0))
+    print(loc, np.linalg.norm(loc), loc[2]>0, type(loc))
