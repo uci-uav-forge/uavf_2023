@@ -19,5 +19,5 @@ if __name__ == "__main__":
             data_class=Float32MultiArray,
             queue_size=1)
     
-    imaging_pipeline = Pipeline(loc_api(), (5568, 4176), drop_pub, img_file="gopro", targets_file='imaging/targets.csv')
+    imaging_pipeline = Pipeline(gnc_api(), (5568, 4176), drop_pub, img_file="gopro", targets_file='imaging/targets.csv')
     imaging_pipeline.run(num_loops=50)
