@@ -27,8 +27,8 @@ drop_signal = rospy.Publisher(
 def init_mission(mission_q, use_px4=False): 
     # mission parameters in SI units
     drop_alt = 25 # m
-    max_spd = 5 # m/s
-    drop_spd = 3 # m/s
+    max_spd = 15 # m/s
+    drop_spd = 5 # m/s
 
     print("waiting for mavros position message")
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 

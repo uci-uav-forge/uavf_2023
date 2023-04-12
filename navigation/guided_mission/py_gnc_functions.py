@@ -2,6 +2,9 @@
 from .PrintColours import *
 import rospy
 from math import atan2, pow, sqrt, degrees, radians, sin, cos, asin, pi
+import numpy as np
+from tf.transformations import euler_from_quaternion
+
 from std_msgs.msg import Float64
 from geometry_msgs.msg import Pose, PoseStamped, Point, Quaternion
 from nav_msgs.msg import Odometry
@@ -12,6 +15,7 @@ from mavros_msgs.srv import CommandBool, CommandBoolRequest
 from mavros_msgs.srv import SetMode, SetModeRequest
 from mavros_msgs.srv import ParamSet
 from mavros_msgs.msg import ParamValue
+
 
 """Control Functions
 	This module is designed to make high level control programming simple.
@@ -116,24 +120,19 @@ class gnc_api:
         self.current_pose_g = msg
         self.enu_2_local()
 
-        q0, q1, q2, q3 = (
+        w, x, y, z = (
             self.current_pose_g.pose.pose.orientation.w,
             self.current_pose_g.pose.pose.orientation.x,
             self.current_pose_g.pose.pose.orientation.y,
             self.current_pose_g.pose.pose.orientation.z,
         )
-
-        phi = atan2((2*(q0*q1+q2*q3)), (1-2*(pow(q1, 2)+pow(q2, 2))))
-
-        theta = asin(2*(q0*q2-q1*q1))
-
-        psi = atan2((2 * (q0 * q3 + q1 * q2)),
-                    (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
-
-        self.current_heading_g = degrees(psi) - self.local_offset_g
-
-        self.pitch = degrees(theta)
-        self.roll = degrees(phi)
+        
+        orient = np.array([x, y, z, w])
+        roll, pitch, yaw = euler_from_quaternion(orient)
+        
+        self.pitch = degrees(pitch)
+        self.roll = degrees(roll)
+        self.current_heading_g = degrees(yaw) - self.local_offset_g
 
 
     def compass_cb(self, msg):

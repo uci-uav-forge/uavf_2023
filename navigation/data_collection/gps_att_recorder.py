@@ -5,6 +5,7 @@ import message_filters
 from tf.transformations import euler_from_quaternion
 import numpy as np
 import time
+from math import degrees
 
 class GPS_Attitude_Recorder():
 
@@ -58,7 +59,9 @@ class GPS_Attitude_Recorder():
                 pose.pose.orientation.z, pose.pose.orientation.w]
             )
             roll, pitch, yaw = euler_from_quaternion(orient)
-            att_arr = np.asarray((roll, pitch, yaw))
+            att_arr = np.asarray((
+                degrees(roll), degrees(pitch), degrees(yaw)
+            ))
 
             # update vehicle attitude stats
             for i in range(3):
