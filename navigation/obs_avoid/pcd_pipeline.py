@@ -3,6 +3,7 @@ import numpy as np
 import time
 import timeit
 from numba import njit, prange
+from math import radians, cos, sin
 
 
 def segment_clusters(num_cluster: int, points: np.ndarray, labels: np.ndarray) -> tuple:
@@ -35,30 +36,68 @@ def segment_clusters(num_cluster: int, points: np.ndarray, labels: np.ndarray) -
     return centr_arr, box_arr, box_list
 
 
-def process_pcd(pcd):
+def process_pcd(pcd, drone):
     '''Will downsample, filter, cluster, and segment a pointcloud. Returns an array of coordinates 
     for the centroid of each cluster as well as an array of dimensions for each bounding box.'''
     
     # downsample
-    st = time.time()
-    down_pcd = pcd.voxel_down_sample(voxel_size=60)
+    down_pcd = pcd.voxel_down_sample(voxel_size=600)#200
     # radius outlier removal
-    fil_cl, ind = down_pcd.remove_radius_outlier(nb_points=40, radius=240)
+    fil_cl, ind = down_pcd.remove_radius_outlier(nb_points=24, radius=2100)#15,400
     #fil_cl, ind = down_pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
-    '''
+    
     # DBSCAN clustering
-    labels = np.array(fil_cl.cluster_dbscan(eps=0.14, min_points=14, print_progress=False))
+    labels = np.array(fil_cl.cluster_dbscan(eps=600, min_points=10, print_progress=False))
 
     
     # cluster segmentation
-    N = labels.max() + 1
+    try:
+        N = labels.max() + 1
+    except ValueError:
+        return False
     centroids, box_dims, boxes = segment_clusters(N, fil_cl.points, labels)
     
-    print(len(boxes))
-    o3d.visualization.draw_geometries(boxes)
-    '''
-    return fil_cl
-    return centroids, box_dims, fil_cl
+    #print(boxes)
+    #o3d.visualization.draw_geometries(boxes, zoom=0.5)
+    
+    return fil_cl   
+
+    # rotation from realsense coords to standard attitude coord frame
+    std_rot = np.array([
+        [0, 1, 0],
+        [0, 0, -1],
+        [-1 ,0, 0]
+    ])
+    std_centroids = centroids @ std_rot
+    std_box_dims = box_dims @ std_rot
+
+    pitch, roll, yaw = drone.get_pitch_roll_yaw()
+    pitch = radians(pitch)
+    roll = radians(roll)
+
+    # correction rotation due to drone attitude
+    pitch_rot = np.array([
+        [cos(pitch), 0, sin(pitch)],
+        [0, 1, 0],
+        [-sin(pitch), 0, cos(pitch)]
+    ])
+    roll_rot = np.array([
+        [1, 0, 0],
+        [0, cos(roll), -sin(roll)],
+        [0, sin(roll), cos(roll)]
+    ])
+    tilt_centroids = std_centroids @ pitch_rot.T @ roll_rot.T
+
+    # rotation from standard attitude coord frame to obstacle avoidance coord frame
+    avoidance_rot = np.array([
+        [0, 1, 0],
+        [1, 0, 0],
+        [0, 0, -1]
+    ])
+    centr_arr = tilt_centroids @ avoidance_rot.T
+    box_arr = std_box_dims @ avoidance_rot.T
+    
+    return centr_arr, box_arr, fil_cl
 
 
 if __name__ == '__main__':
