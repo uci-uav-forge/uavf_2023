@@ -36,7 +36,7 @@ def segment_clusters(num_cluster: int, points: np.ndarray, labels: np.ndarray) -
     return centr_arr, box_arr, box_list
 
 
-def apply_rotations(centroids, box_dims, drone)
+def apply_rotations(centroids, box_dims, pitch, roll)
     # rotation from realsense coords to standard attitude coord frame
     std_rot = np.array([
         [0, 0, -1],
@@ -46,20 +46,19 @@ def apply_rotations(centroids, box_dims, drone)
     std_centroids = centroids @ std_rot.T
     std_box_dims = box_dims @ std_rot.T
 
-    pitch, roll, yaw = drone.get_pitch_roll_yaw()
-    pitch = radians(pitch)
-    roll = radians(roll)    
+    rad_pitch = radians(pitch)
+    rad_roll = radians(roll)    
 
     # correction rotation due to drone attitude
     pitch_rot = np.array([
-        [cos(pitch), 0, sin(pitch)],
+        [cos(rad_pitch), 0, sin(rad_pitch)],
         [0, 1, 0],
-        [-sin(pitch), 0,    cos(pitch)]
+        [-sin(rad_pitch), 0,    cos(rad_pitch)]
     ])
     roll_rot = np.array([
         [1, 0, 0],
-        [0, cos(roll), -sin(roll)],
-        [0, sin(roll), cos(roll)]
+        [0, cos(rad_roll), -sin(rad_roll)],
+        [0, sin(rad_roll), cos(rad_roll)]
     ])
     tilt_centroids = std_centroids @ pitch_rot.T @ roll_rot.T
 
@@ -74,7 +73,7 @@ def apply_rotations(centroids, box_dims, drone)
 
     return centr_arr, box_arr
 
-def process_pcd(pcd, drone):
+def process_pcd(pcd, pitch, roll):
     '''Will downsample, filter, cluster, and segment a pointcloud. Returns an array of coordinates 
     for the centroid of each cluster as well as an array of dimensions for each bounding box.'''
     
@@ -87,7 +86,6 @@ def process_pcd(pcd, drone):
     # DBSCAN clustering
     labels = np.array(fil_cl.cluster_dbscan(eps=600, min_points=10, print_progress=False))
 
-    
     # cluster segmentation
     try:
         N = labels.max() + 1
@@ -100,7 +98,7 @@ def process_pcd(pcd, drone):
     
     return fil_cl   
 
-    centr_arr, box_arr = apply_rotations(centroids, box_dims)
+    centr_arr, box_arr = apply_rotations(centroids, box_dims, pitch, roll)
     return centr_arr, box_arr, fil_cl
 
 

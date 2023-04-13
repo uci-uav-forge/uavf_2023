@@ -102,7 +102,8 @@ def rs_stream(res_width, res_height, frame_rate, o3d_vis):
     try: 
         while True:
             frames = pipe.wait_for_frames()
-            
+            pitch, roll, yaw = drone.get_pitch_roll_yaw()    #pitch, roll, yaw in degrees
+
             st = time.time()
             depth_frame = post_process_filters(
                 frames.get_depth_frame(), 
@@ -130,7 +131,7 @@ def rs_stream(res_width, res_height, frame_rate, o3d_vis):
                               [0, 0, -1, 0], 
                               [0, 0,  0,  1]])
             
-            fil_cl = process_pcd(o3d_pcd, drone)
+            fil_cl = process_pcd(o3d_pcd, pitch, roll)
             print(time.time()-st)
 
             if fil_cl == False: pass
