@@ -19,6 +19,7 @@ from .camera import GoProCamera
 from .colordetect.color_segment import color_segmentation
 from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
 from .targetaggregator import TargetAggregator
+from .shape_detection.src import plot_functions as plot_fns
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -26,7 +27,6 @@ IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 PLOT_RESULT = True
 output_folder_path = os.path.join(os.path.dirname(IMAGING_PATH), "flight_data", f"{time.strftime(r'%m-%d-%H-%M-%S')}")
 os.makedirs(output_folder_path, exist_ok=True)
-from .shape_detection.src import plot_functions as plot_fns
 
 
 @dataclass
@@ -37,16 +37,6 @@ class ShapeResult:
     global_bbox: np.ndarray  # [min_y, min_x, max_y, max_x] relative to global image coordinates
     mask: np.ndarray
     tile: np.ndarray
-
-
-def logGeolocation(loop_index: int, location, angles):
-    """
-    Save location corresponding to the saved image index.
-    """
-    f = open(f"{output_folder_path}/locations.txt", "a+")
-    f.write(
-        f"Loop index [{loop_index}] has location (xyz where z is height): [{location}] and angles (pitch,roll,yaw) [{angles}]\n")
-    f.close()
 
 
 def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh=0.01):
@@ -267,10 +257,7 @@ class Pipeline:
             cv.imwrite(f"{output_folder_path}/image{loop_index}.png", cam_img)
             print(f"got image {loop_index}")
             curr_location, curr_angles = self.localizer.get_current_pos_and_angles()
-            logGeolocation(loop_index, curr_location, curr_angles)
-
-            if self.doing_dry_run:
-                return
+            if self.doing_dry_run: return
         except Exception as e:
             print(f"Exception on pipeline loop {loop_index}")
             tb.print_exc()
@@ -314,6 +301,7 @@ class Pipeline:
 
         letter_crops = np.array(
             [self._crop_img(cv.copyTo(res.tile, res.mask), res.local_bbox, pad="resize") for res in valid_results])
+
         USE_UNET = False
         if USE_UNET:
             masks = self._get_seg_masks(letter_crops).astype(np.uint8)
