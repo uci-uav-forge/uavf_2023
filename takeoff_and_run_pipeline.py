@@ -26,6 +26,7 @@ def run_pipeline():
         pipeline.run(num_loops=1)
     except Exception as e:
         print(f"Encountered error while running imaging pipeline: {e}")
+        return
     all_coords = pipeline.target_aggregator.get_target_coords()
     print(f"All coordinates: {all_coords}")
     target_coord = all_coords[0]
@@ -58,6 +59,7 @@ def imaging_test_mission():
         time.sleep(1)
 
     print(f"target coords: {target_coord}")
+    if target_coord is None: return
 
     if np.linalg.norm(target_coord) > 30 or target_coord[2] < 0:
         print("target out of range")
