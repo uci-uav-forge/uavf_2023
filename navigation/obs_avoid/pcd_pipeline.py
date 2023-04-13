@@ -36,6 +36,44 @@ def segment_clusters(num_cluster: int, points: np.ndarray, labels: np.ndarray) -
     return centr_arr, box_arr, box_list
 
 
+def apply_rotations(centroids, box_dims, drone)
+    # rotation from realsense coords to standard attitude coord frame
+    std_rot = np.array([
+        [0, 0, -1],
+        [1, 0, 0],
+        [0 ,-1, 0]
+    ])
+    std_centroids = centroids @ std_rot.T
+    std_box_dims = box_dims @ std_rot.T
+
+    pitch, roll, yaw = drone.get_pitch_roll_yaw()
+    pitch = radians(pitch)
+    roll = radians(roll)    
+
+    # correction rotation due to drone attitude
+    pitch_rot = np.array([
+        [cos(pitch), 0, sin(pitch)],
+        [0, 1, 0],
+        [-sin(pitch), 0,    cos(pitch)]
+    ])
+    roll_rot = np.array([
+        [1, 0, 0],
+        [0, cos(roll), -sin(roll)],
+        [0, sin(roll), cos(roll)]
+    ])
+    tilt_centroids = std_centroids @ pitch_rot.T @ roll_rot.T
+
+    # rotation from standard attitude coord frame to obstacle avoidance coord frame
+    avoidance_rot = np.array([
+        [0, 1, 0],
+        [1, 0, 0],
+        [0, 0, -1]
+    ])
+    centr_arr = tilt_centroids @ avoidance_rot.T
+    box_arr = std_box_dims @ avoidance_rot.T
+
+    return centr_arr, box_arr
+
 def process_pcd(pcd, drone):
     '''Will downsample, filter, cluster, and segment a pointcloud. Returns an array of coordinates 
     for the centroid of each cluster as well as an array of dimensions for each bounding box.'''
@@ -62,41 +100,7 @@ def process_pcd(pcd, drone):
     
     return fil_cl   
 
-    # rotation from realsense coords to standard attitude coord frame
-    std_rot = np.array([
-        [0, 1, 0],
-        [0, 0, -1],
-        [-1 ,0, 0]
-    ])
-    std_centroids = centroids @ std_rot
-    std_box_dims = box_dims @ std_rot
-
-    pitch, roll, yaw = drone.get_pitch_roll_yaw()
-    pitch = radians(pitch)
-    roll = radians(roll)
-
-    # correction rotation due to drone attitude
-    pitch_rot = np.array([
-        [cos(pitch), 0, sin(pitch)],
-        [0, 1, 0],
-        [-sin(pitch), 0, cos(pitch)]
-    ])
-    roll_rot = np.array([
-        [1, 0, 0],
-        [0, cos(roll), -sin(roll)],
-        [0, sin(roll), cos(roll)]
-    ])
-    tilt_centroids = std_centroids @ pitch_rot.T @ roll_rot.T
-
-    # rotation from standard attitude coord frame to obstacle avoidance coord frame
-    avoidance_rot = np.array([
-        [0, 1, 0],
-        [1, 0, 0],
-        [0, 0, -1]
-    ])
-    centr_arr = tilt_centroids @ avoidance_rot.T
-    box_arr = std_box_dims @ avoidance_rot.T
-    
+    centr_arr, box_arr = apply_rotations(centroids, box_dims)
     return centr_arr, box_arr, fil_cl
 
 
