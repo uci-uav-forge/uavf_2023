@@ -83,7 +83,7 @@ def init_mission(mission_q, use_px4=False):
 
 def mission_loop(drone, mission_q: PriorityQueue, mission_q_assigner, max_spd, drop_spd, avg_alt, dropzone_end: tuple, use_px4=False):
     # init control loop refresh rate and dropzone signal 
-    rate = rospy.Rate(30)
+    rate = rospy.Rate(60)
     in_dropzone = False
     mission_q_assigner.drop_received = True
     
@@ -157,6 +157,7 @@ def mission_loop(drone, mission_q: PriorityQueue, mission_q_assigner, max_spd, d
             #else:
                 #curr_pos = drone.get_current_location()
                 #print('current position: ' + str((curr_pos.x, curr_pos.y, curr_pos.z)))
+                #print(drone.get_current_pitch_roll_yaw())
             rate.sleep()
         mission_q.get()
     
