@@ -4,8 +4,9 @@ from .best_match import *
 
 
 def color_dist(rgbA, rgbB):
-    #todo - possibly measure color distance in some more sophisticated way.
-    return sum((a - b)**2 for (a,b) in zip(rgbA, rgbB))
+    # todo - possibly measure color distance in some more sophisticated way.
+    return sum((a - b) ** 2 for (a, b) in zip(rgbA, rgbB))
+
 
 COLORS_TO_RGB = {
     'red': (255, 0, 0),
@@ -18,15 +19,17 @@ COLORS_TO_RGB = {
     'black': (0, 0, 0),
     'gray': (128, 128, 128),
     'brown': (165, 42, 42),
-} 
+}
+
 
 def gen_color_conf(rgb, cnames):
     r0 = {
-        color : color_dist(rgb, COLORS_TO_RGB[color])
+        color: color_dist(rgb, COLORS_TO_RGB[color])
         for color in cnames}
-    
+
     mx = max(r0.values())
-    return {k: v/mx for k,v in r0.items()} 
+    return {k: v / mx for k, v in r0.items()}
+
 
 class TargetAggregator:
     def __init__(self, targets_file):
@@ -34,8 +37,8 @@ class TargetAggregator:
             self.targets = list(map(tuple, csv.reader(tf)))
         self.n_targets = len(self.targets)
         self.best_conf = [-1] * self.n_targets
-        self.target_coords = [None] * self.n_targets
-    
+        self.target_coords = [None] * self.n_targets  # coord @ ith index --> target @ ith index in CSV
+
     def match_target_color(self, coords, letterColor, letterConf, shapeColor, shapeConf):
         letterColorConf = gen_color_conf(letterColor, [x[0] for x in self.targets])
         shapeColorConf = gen_color_conf(shapeColor, [x[2] for x in self.targets])
@@ -46,7 +49,7 @@ class TargetAggregator:
         if score > self.best_conf[matchIndex]:
             self.target_coords[matchIndex] = coords
             self.best_conf[matchIndex] = score
-    
+
     def match_target(self, coords, lC, sC):
         match, score = best_match(self.targets, lC, sC)
         matchIndex = self.targets.index(match)
@@ -57,7 +60,6 @@ class TargetAggregator:
 
     def get_target_coords(self):
         return self.target_coords
-
 
 
 if __name__ == '__main__':

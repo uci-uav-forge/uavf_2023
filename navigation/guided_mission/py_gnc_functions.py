@@ -132,7 +132,6 @@ class gnc_api:
         orient = np.array([x, y, z, w])
         self.orientation_quaternion_xyzw = orient
         roll, pitch, yaw = euler_from_quaternion(orient)# https://w3.cs.jmu.edu/spragunr/CS354_S14/labs/tf_lab/html/tf.transformations-module.html
-
         self.current_heading_g = degrees(yaw) - self.local_offset_g
         self.pitch = degrees(pitch)
         self.roll = degrees(roll)
@@ -180,8 +179,9 @@ class gnc_api:
         return self.current_heading_g
 
 
-    def get_current_pitch_roll_yaw(self):
-        return self.pitch, self.roll, self.current_heading_g
+    def get_pitch_roll_yaw(self):
+        return -self.pitch, self.roll, 90 - self.current_heading_g
+
 
     def get_current_camera_rotation(self):
         '''

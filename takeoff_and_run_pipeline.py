@@ -2,8 +2,6 @@ import rospy
 import time
 from navigation.guided_mission.py_gnc_functions import *
 from imaging.pipeline import Pipeline
-import os
-import cv2 as cv
 import numpy as np
 from threading import Thread
 import sys
@@ -11,14 +9,15 @@ import sys
 drone = gnc_api()
 
 pipeline = Pipeline(
-    localizer = drone,
-    img_size = (5568, 4176),
-    img_file = "gopro",
-    targets_file = "test_mission_targets.csv",
-    dry_run = False
+    localizer=drone,
+    img_size=(5568, 4176),
+    img_file="gopro",
+    targets_file="test_mission_targets.csv",
+    dry_run=False
 )
 
 target_coords = None
+
 
 
 def run_pipeline():
@@ -28,6 +27,7 @@ def run_pipeline():
     print(pipeline.target_aggregator.get_target_coords())
     target_coords = pipeline.target_aggregator.get_target_coords()[0] 
     print("done running pipeline")
+
 
 def imaging_test_mission():
     # init drone api
@@ -45,7 +45,7 @@ def imaging_test_mission():
         print('drone has not satisfied waypoint!')
         time.sleep(1)
 
-    pipeline_thread = Thread(target=run_pipeline) 
+    pipeline_thread = Thread(target=run_pipeline)
     print("taking pics!")
     pipeline_thread.start()
 
@@ -58,12 +58,12 @@ def imaging_test_mission():
 
     print(f"target coords: {target_coords}")
 
-    if np.linalg.norm(target_coords)>30 or target_coords[2]<0:
+    if np.linalg.norm(target_coords) > 30 or target_coords[2] < 0:
         print("target out of range")
         print(np.linalg.norm(target_coords))
         drone.land()
-        return 
-    
+        return
+
     print("moving to target")
     drone.set_destination(x=target_coords[0], y=target_coords[1], z=5, psi=0)
     while not drone.check_waypoint_reached():
