@@ -16,16 +16,19 @@ pipeline = Pipeline(
     dry_run=False
 )
 
-target_coords = None
-
+target_coord = None
 
 
 def run_pipeline():
-    global target_coords
+    global target_coord
     print("start pipeline")
-    pipeline.run(num_loops=1)
-    print(pipeline.target_aggregator.get_target_coords())
-    target_coords = pipeline.target_aggregator.get_target_coords()[0] 
+    try:
+        pipeline.run(num_loops=1)
+    except Exception as e:
+        print(f"Encountered error while running imaging pipeline: {e}")
+    all_coords = pipeline.target_aggregator.get_target_coords()
+    print(f"All coordinates: {all_coords}")
+    target_coord = all_coords[0]
     print("done running pipeline")
 
 
@@ -35,12 +38,10 @@ def imaging_test_mission():
     drone.set_mode_px4('OFFBOARD')
     drone.initialize_local_frame()
 
-    print('Starting position:')
-    print(drone.get_current_xyz())
-    print(drone.get_current_pitch_roll_yaw())
+    print(f'Starting position: {drone.get_current_xyz()}')
+    print(f"Current pitch roll yaw: {drone.get_current_pitch_roll_yaw()}")
     drone.arm()
-    drone.set_destination(
-        x=0, y=0, z=10, psi=0)
+    drone.set_destination(x=0, y=0, z=10, psi=0)
     while not drone.check_waypoint_reached():
         print('drone has not satisfied waypoint!')
         time.sleep(1)
@@ -52,20 +53,20 @@ def imaging_test_mission():
     # this is necessary so that QGroundControl doesn't see a lack of input and enter failsafe mode to land early
     while pipeline_thread.is_alive():
         print("hovering")
-	sys.stdout.flush()
+        sys.stdout.flush()
         drone.check_waypoint_reached()
         time.sleep(1)
 
-    print(f"target coords: {target_coords}")
+    print(f"target coords: {target_coord}")
 
-    if np.linalg.norm(target_coords) > 30 or target_coords[2] < 0:
+    if np.linalg.norm(target_coord) > 30 or target_coord[2] < 0:
         print("target out of range")
-        print(np.linalg.norm(target_coords))
+        print(np.linalg.norm(target_coord))
         drone.land()
         return
 
     print("moving to target")
-    drone.set_destination(x=target_coords[0], y=target_coords[1], z=5, psi=0)
+    drone.set_destination(x=target_coord[0], y=target_coord[1], z=5, psi=0)
     while not drone.check_waypoint_reached():
         print("drone flying to target")
         time.sleep(1)
