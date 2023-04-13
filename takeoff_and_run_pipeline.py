@@ -4,6 +4,7 @@ from navigation.guided_mission.py_gnc_functions import *
 from imaging.pipeline import Pipeline
 import numpy as np
 from threading import Thread
+import sys
 
 drone = gnc_api()
 
@@ -16,14 +17,15 @@ pipeline = Pipeline(
 )
 
 target_coords = None
-processing_done = False
+
 
 
 def run_pipeline():
-    global target_coords, processing_done
+    global target_coords
+    print("start pipeline")
     pipeline.run(num_loops=1)
-    target_coords = pipeline.target_aggregator.get_target_coords()[0]
-    processing_done = True
+    print(pipeline.target_aggregator.get_target_coords())
+    target_coords = pipeline.target_aggregator.get_target_coords()[0] 
     print("done running pipeline")
 
 
@@ -48,8 +50,9 @@ def imaging_test_mission():
     pipeline_thread.start()
 
     # this is necessary so that QGroundControl doesn't see a lack of input and enter failsafe mode to land early
-    while not processing_done:
+    while pipeline_thread.is_alive():
         print("hovering")
+	sys.stdout.flush()
         drone.check_waypoint_reached()
         time.sleep(1)
 
