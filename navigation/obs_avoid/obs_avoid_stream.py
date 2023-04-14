@@ -7,16 +7,17 @@ import pyrealsense2 as rs
 import open3d as o3d
 import numpy as np
 import time
-from math import cos, sin, arctan
+from math import cos, sin, atan, radians
 import rospy
 from geometry_msgs.msg import Point
 
 
 def yaw_rotation(raw_wp, yaw):
-    theta = 90 - yaw
+    theta = -yaw
+    rad_theta = radians(theta)
     yaw_rot = np.array([
-        [cos(theta), -sin(theta)],
-        [sin(theta), cos(theta)]
+        [cos(rad_theta), -sin(rad_theta)],
+        [sin(rad_theta), cos(rad_theta)]
     ])
     return yaw_rot @ raw_wp
 
@@ -66,7 +67,7 @@ def rs_stream(res_width, res_height, frame_rate):
             if fil_cl == False: continue
 
             hdg = obstacle_avoidance(centr_arr, box_arr)
-            raw_wp = np.array([max_dist * arctan(hdg), max_dist])
+            raw_wp = np.array([max_dist * atan(hdg), max_dist])
             corrected_wp = yaw_rotation(raw_wp, yaw)
             
             rel_coord = Point()
