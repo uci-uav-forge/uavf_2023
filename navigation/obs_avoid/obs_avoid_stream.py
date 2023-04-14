@@ -66,6 +66,9 @@ def rs_stream(res_width, res_height, frame_rate):
             centr_arr, box_arr, fil_cl = process_pcd(o3d_pcd, pitch, roll) # this is in mm
             if fil_cl == False: continue
 
+            centr_arr = centr_arr / 1000 # convert from mm to m
+            box_arr = box_arr / 1000
+
             hdg = obstacle_avoidance(centr_arr, box_arr)
             raw_wp = np.array([max_dist * atan(hdg), max_dist])
             corrected_wp = yaw_rotation(raw_wp, yaw)
