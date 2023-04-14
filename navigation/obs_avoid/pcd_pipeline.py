@@ -36,7 +36,7 @@ def segment_clusters(num_cluster: int, points: np.ndarray, labels: np.ndarray) -
     return centr_arr, box_arr, box_list
 
 
-def apply_rotations(centroids, box_dims, pitch, roll)
+def apply_rotations(centroids, box_dims, pitch, roll):
     # rotation from realsense coords to standard attitude coord frame
     std_rot = np.array([
         [0, 0, -1],
@@ -84,21 +84,21 @@ def process_pcd(pcd, pitch, roll):
     #fil_cl, ind = down_pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
     
     # DBSCAN clustering
-    labels = np.array(fil_cl.cluster_dbscan(eps=600, min_points=10, print_progress=False))
+    labels = np.array(fil_cl.cluster_dbscan(eps=900, min_points=12, print_progress=False))
 
     # cluster segmentation
     try:
         N = labels.max() + 1
     except ValueError:
-        return False
+        return False, False, False
+
     centroids, box_dims, boxes = segment_clusters(N, fil_cl.points, labels)
-    
+    centr_arr, box_arr = apply_rotations(centroids, box_dims, pitch, roll)
+
+    print(centr_arr)
+    #print(np.asarray(fil_cl.points))
     #print(boxes)
     #o3d.visualization.draw_geometries(boxes, zoom=0.5)
-    
-    return fil_cl   
-
-    centr_arr, box_arr = apply_rotations(centroids, box_dims, pitch, roll)
     return centr_arr, box_arr, fil_cl
 
 

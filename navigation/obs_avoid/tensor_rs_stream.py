@@ -1,11 +1,10 @@
 import pyrealsense2 as rs
 import open3d as o3d
+import open3d.core as o3c
 import numpy as np
 import json 
 from pcd_pipeline import process_pcd
 from numba import njit, prange
-import time
-import math
 
 
 class O3d_Visualizer():
@@ -63,36 +62,24 @@ def rgbd_to_pcd(depth_frame, color_frame, intr):
     return pcd
 
 
-def depth_to_pcd(depth_frame):
-    prof = depth_frame.get_profile()
-    intr = prof.as_video_stream_profile().get_intrinsics()
-    pinhole_intr = o3d.camera.PinholeCameraIntrinsic(
-        intr.width, intr.height, intr.fx, intr.fy, intr.ppx, intr.ppy
-    )
-
+def depth_to_pcd(depth_frame, intr):
     depth_arr = np.asanyarray(depth_frame.get_data())
-    depth_img = o3d.geometry.Image(depth_arr.astype(np.float32))
-    
-    pcd = o3d.geometry.PointCloud.create_from_depth_image(depth_img, pinhole_intr)
-    pcd.transform([[1, 0, 0, 0], 
-                   [0, -1, 0, 0], 
-                   [0, 0, -1, 0], 
-                   [0, 0,  0,  1]])
+    depth_img = o3d.t.geometry.Image(o3c.Tensor(
+        depth_arr.astype(np.float32), device=o3c.Device(":0")
+    ), device=o3c.Device("CUDA:0"))
+    pcd = o3d.t.geometry.PointCloud.create_from_depth_image(depth_img, intr, device=o3c.Device("CUDA:0"))
     return pcd
 
 
 # start the camera stream
-def test_rs_stream(res_width, res_height, frame_rate, o3d_vis):
-    #drone = gnc_api()
-
+def rs_stream(res_width, res_height, frame_rate, o3d_vis):
     config = rs.config()
     config.enable_stream(
         rs.stream.depth, int(res_width), int(res_height), rs.format.z16, frame_rate
     )
-    '''
     config.enable_stream(
         rs.stream.color, int(res_width), int(res_height), rs.format.rgb8, frame_rate
-    )'''
+    )
 
     pipe = rs.pipeline()
     profile = pipe.start(config)
@@ -100,8 +87,8 @@ def test_rs_stream(res_width, res_height, frame_rate, o3d_vis):
     #max_range = sensor.set_option(sensor.set_option(rs.option.max_distance, 20))
 
     # initialize filters
-    #align = rs.align(rs.stream.depth)
-    threshold = rs.threshold_filter(min_dist=0.01, max_dist=16.0)
+    align = rs.align(rs.stream.depth)
+    threshold = rs.threshold_filter(min_dist=0.1, max_dist=16.0)
     decimation = rs.decimation_filter(6)
     spatial = rs.spatial_filter()
     temporal = rs.temporal_filter()
@@ -112,29 +99,39 @@ def test_rs_stream(res_width, res_height, frame_rate, o3d_vis):
     try: 
         while True:
             frames = pipe.wait_for_frames()
-            pitch, roll = 0, 0
+            aligned_frames = align.process(frames)
 
-            st = time.time()
             depth_frame = post_process_filters(
-                frames.get_depth_frame(), 
+                aligned_frames.get_depth_frame(), 
                 threshold, decimation, spatial, temporal, hole_filling,
                 to_disparity, to_depth
             )
-            
-            o3d_pcd = depth_to_pcd(depth_frame)   
-            '''
-            crop_pcd = o3d.geometry.crop_point_cloud(o3d_pcd, 
-                min_bound=np.array([-math.inf, -math.inf, -math.inf]), 
-                max_bound=np.array([math.inf, math.inf, math.inf])
-            )'''
-            
-            centr_arr, box_arr, fil_cl = process_pcd(o3d_pcd, pitch, roll)
-            print(time.time()-st)
 
-            if fil_cl == False: pass
-            else: 
-                o3d_vis.update_pcd(fil_cl)
-                #print(np.asarray(fil_cl.points))
+            '''
+            color_frame = post_process_filters(
+                aligned_frames.get_color_frame(), 
+                threshold, decimation, spatial, temporal, hole_filling,
+                to_disparity, to_depth
+            )'''
+
+            prof = depth_frame.get_profile()
+            intr = prof.as_video_stream_profile().get_intrinsics()
+            pinhole_intr = o3d.camera.PinholeCameraIntrinsic(
+                intr.width, intr.height, intr.fx, intr.fy, intr.ppx, intr.ppy
+            )
+
+            '''
+            o3d_pcd = rgbd_to_pcd(depth_frame, color_frame, pinhole_intr)'''
+            o3d_pcd = depth_to_pcd(depth_frame, pinhole_intr)
+            o3d_pcd.transform(o3c.Tensor(
+                [[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -1, 0], [0, 0, 0, 1]]
+            ), device=o3c.Device("CUDA:0"))
+            fil_cl = process_pcd(o3d_pcd)
+
+            '''
+            centroids, box_dims, fil_cl = process_pcd(o3d_pcd)
+            o3d.visualization.draw_geometries([fil_cl])'''
+            o3d_vis.update_pcd(fil_cl)
             #o3d_vis.update_img(depth_img)
 
     except KeyboardInterrupt:
@@ -151,4 +148,4 @@ if __name__=='__main__':
 
     o3d_vis = O3d_Visualizer()
 
-    test_rs_stream(width, height, frame_rate, o3d_vis)
+    rs_stream(width, height, frame_rate, o3d_vis)

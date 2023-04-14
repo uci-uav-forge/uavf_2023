@@ -24,12 +24,7 @@ drop_signal = rospy.Publisher(
     queue_size=1,
 )
 
-def init_mission(mission_q, use_px4=False): 
-    # mission parameters in SI units
-    drop_alt = 25 # m
-    max_spd = 15 # m/s
-    drop_spd = 5 # m/s
-
+def init_mission(mission_q, drop_alt, use_px4=False): 
     print("waiting for mavros position message")
     home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
     home = (home_fix.latitude, home_fix.longitude)
@@ -78,7 +73,7 @@ def init_mission(mission_q, use_px4=False):
         drone.wait4start()
     drone.initialize_local_frame()
 
-    return drone, global_path, drop_alt, max_spd, drop_spd, avg_alt
+    return drone, global_path, avg_alt
 
 
 def mission_loop(drone, mission_q: PriorityQueue, mission_q_assigner, max_spd, drop_spd, avg_alt, dropzone_end: tuple, use_px4=False):
@@ -103,6 +98,9 @@ def mission_loop(drone, mission_q: PriorityQueue, mission_q_assigner, max_spd, d
     while not drone.check_waypoint_reached():
         pass
     
+    # start obstacle avoidance
+    mission_q_assigner.run_obs_avoid = True
+
     # outer loop: check if there are more waypoints to travel to
     while mission_q.qsize() or not mission_q_assigner.drop_received:
         curr_pos = drone.get_current_location()
@@ -182,6 +180,7 @@ class PriorityAssigner():
         self.dropzone_end = dropzone_end
         self.drop_alt = drop_alt
         self.drop_received = False
+        self.run_obs_avoid = False
         
         self.avoid_sub = rospy.Subscriber(
             name="obs_avoid_rel_coord",
@@ -198,17 +197,18 @@ class PriorityAssigner():
     
 
     def avoid_cb(self, avoid_coord):
-        prio = int(-1000000000)
-        curr_pos = self.drone.get_current_location()
-        
-        wp_x = curr_pos.x + avoid_coord.x
-        wp_y = curr_pos.y + avoid_coord.y
-        wp_z = curr_pos.z + avoid_coord.z
+        if self.run_obs_avoid:
+            prio = int(-1000000000)
+            curr_pos = self.drone.get_current_location()
+            
+            wp_x = curr_pos.x + avoid_coord.x
+            wp_y = curr_pos.y + avoid_coord.y
+            wp_z = curr_pos.z
 
-        if self.mission_q.queue[0][0] == prio:
-            self.mission_q.queue[0][1] = (wp_x, wp_y, wp_z)
-        else:
-            self.mission_q.put((prio, (wp_x, wp_y, wp_z)))
+            if self.mission_q.queue[0][0] == prio:
+                self.mission_q.queue[0][1] = (wp_x, wp_y, wp_z)
+            else:
+                self.mission_q.put((prio, (wp_x, wp_y, wp_z)))
     
 
     def drop_cb(self, drop_wps):
@@ -234,7 +234,10 @@ def main():
     use_px4 = True
 
     # init mission
-    drone, global_path, drop_alt, max_spd, drop_spd, avg_alt = init_mission(mission_q, use_px4)
+    drop_alt = 25 # m
+    max_spd = 15 # m/s
+    drop_spd = 5 # m/s
+    drone, global_path, avg_alt = init_mission(mission_q, drop_alt, use_px4)
 
     # init priority assigner with mission queue and dropzone wp
     drop_start = global_path[len(global_path) - 2]
