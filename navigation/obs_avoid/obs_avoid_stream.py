@@ -22,8 +22,8 @@ def yaw_rotation(raw_wp, yaw):
     return yaw_rot @ raw_wp
 
 
-# start the camera stream
 def rs_stream(res_width, res_height, frame_rate):
+    # drone api for attitude feedback, publisher to send waypoints
     drone = gnc_api()
     avoid_pub = rospy.Publisher(
         name="obs_avoid_rel_coord",
@@ -31,11 +31,13 @@ def rs_stream(res_width, res_height, frame_rate):
         queue_size=1,
     )
 
+    # enable depth stream
     config = rs.config()
     config.enable_stream(
         rs.stream.depth, int(res_width), int(res_height), rs.format.z16, frame_rate
     )
 
+    # start the pipeline
     pipe = rs.pipeline()
     profile = pipe.start(config)
     sensor = profile.get_device().first_depth_sensor()
@@ -51,6 +53,7 @@ def rs_stream(res_width, res_height, frame_rate):
     to_depth = rs.disparity_transform(False)
 
     try: 
+        # continuously run the depth stream
         while True:
             frames = pipe.wait_for_frames()
             pitch, roll, yaw = drone.get_pitch_roll_yaw()    #pitch, roll, yaw in degrees
@@ -61,14 +64,18 @@ def rs_stream(res_width, res_height, frame_rate):
                 spatial, temporal, hole_filling, to_disparity, to_depth
             )
             
+            # generate point cloud
             o3d_pcd = depth_to_pcd(depth_frame)
             
+            # get N x 3 arrays of object centroids and their bounding volume dimensions
             centr_arr, box_arr, fil_cl = process_pcd(o3d_pcd, pitch, roll) # this is in mm
             if fil_cl == False: continue
-
+            
             centr_arr = centr_arr / 1000 # convert from mm to m
             box_arr = box_arr / 1000
 
+            # obstacle avoidance returns heading angle within FOV, correspond to waypoint at edge of FOV
+            # rotate to waypoint corresponding to yaw to get true relative coordinates
             hdg = obstacle_avoidance(centr_arr, box_arr)
             raw_wp = np.array([max_dist * atan(hdg), max_dist])
             corrected_wp = yaw_rotation(raw_wp, yaw)
