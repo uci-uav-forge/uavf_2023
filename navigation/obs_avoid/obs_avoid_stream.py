@@ -1,7 +1,7 @@
 from ..guided_mission.py_gnc_functions import gnc_api
 from rs_stream import post_process_filters, rgbd_to_pcd, depth_to_pcd
 from pcd_pipeline import process_pcd
-from 3d_obstacle_avoidance import obstacle_avoidance
+from threeD_obstacle_avoidance import obstacle_avoidance
 
 import pyrealsense2 as rs
 import open3d as o3d
