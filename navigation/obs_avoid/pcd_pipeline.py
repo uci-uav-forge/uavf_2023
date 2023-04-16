@@ -106,6 +106,7 @@ def process_pcd(pcd, pitch, roll):
     centroids, box_dims, boxes = segment_clusters(N, fil_cl.points, labels)
     centr_arr, box_arr = apply_rotations(centroids, box_dims, pitch, roll)
 
+    #print(centroids)
     #print(centr_arr)
     #print(np.asarray(fil_cl.points))
     #print(boxes)
