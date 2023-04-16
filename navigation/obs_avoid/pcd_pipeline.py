@@ -73,6 +73,17 @@ def apply_rotations(centroids, box_dims, pitch, roll):
 
     return centr_arr, box_arr
 
+
+def yaw_rotation(raw_wp, yaw):
+    theta = -yaw
+    rad_theta = radians(theta)
+    yaw_rot = np.array([
+        [cos(rad_theta), -sin(rad_theta)],
+        [sin(rad_theta), cos(rad_theta)]
+    ])
+    return yaw_rot @ raw_wp
+
+
 def process_pcd(pcd, pitch, roll):
     '''Will downsample, filter, cluster, and segment a pointcloud. Returns an array of coordinates 
     for the centroid of each cluster as well as an array of dimensions for each bounding box.'''
@@ -84,7 +95,7 @@ def process_pcd(pcd, pitch, roll):
     #fil_cl, ind = down_pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
     
     # DBSCAN clustering
-    labels = np.array(fil_cl.cluster_dbscan(eps=900, min_points=12, print_progress=False))
+    labels = np.array(fil_cl.cluster_dbscan(eps=1200, min_points=12, print_progress=False))
 
     # cluster segmentation
     try:
@@ -95,7 +106,7 @@ def process_pcd(pcd, pitch, roll):
     centroids, box_dims, boxes = segment_clusters(N, fil_cl.points, labels)
     centr_arr, box_arr = apply_rotations(centroids, box_dims, pitch, roll)
 
-    print(centr_arr)
+    #print(centr_arr)
     #print(np.asarray(fil_cl.points))
     #print(boxes)
     #o3d.visualization.draw_geometries(boxes, zoom=0.5)
