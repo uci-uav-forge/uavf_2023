@@ -249,58 +249,5 @@ def main():
     mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4)
 
 
-class Localizer():
-    def __init__(self):
-        self.current_pose_g = Odometry()
-        self.current_heading_g = 0.0
-        self.local_offset_g = 0.0
-
-        self.currentPos = rospy.Subscriber(
-            name="mavros/global_position/local",
-            data_class=Odometry,
-            queue_size=1,
-            callback=self.pose_cb)
-
-
-    def pose_cb(self, msg):
-        self.current_pose_g = msg
-        self.enu_2_local()
-
-        q0, q1, q2, q3 = (
-            self.current_pose_g.pose.pose.orientation.w,
-            self.current_pose_g.pose.pose.orientation.x,
-            self.current_pose_g.pose.pose.orientation.y,
-            self.current_pose_g.pose.pose.orientation.z,)
-
-        psi = atan2((2 * (q0 * q3 + q1 * q2)),
-                    (1 - 2 * (pow(q2, 2) + pow(q3, 2))))
-
-        self.current_heading_g = degrees(psi) - self.local_offset_g
-    
-
-    def enu_2_local(self):
-        x, y, z = (
-            self.current_pose_g.pose.pose.position.x,
-            self.current_pose_g.pose.pose.position.y,
-            self.current_pose_g.pose.pose.position.z)
-
-        current_pos_local = Point()
-        current_pos_local.x = x * cos(radians((self.local_offset_g - 90))) - y * sin(
-            radians((self.local_offset_g - 90)))
-        current_pos_local.y = x * sin(radians((self.local_offset_g - 90))) + y * cos(
-            radians((self.local_offset_g - 90)))
-        current_pos_local.z = z
-
-        return current_pos_local
-
-
-    def get_current_heading(self):
-        return self.current_heading_g
-
-
-    def get_current_location(self):
-        return self.enu_2_local()
-
-
 if __name__ == '__main__':
     main()
