@@ -8,8 +8,8 @@
 # to attach to one of the tmux sessions run: "tmux attach -t session_name"
 # to kill tmux session run: "tmux kill-session -t session_name"
 
-tmux new -d -s mavros_roslaunch ./launch_scripts/start_mavros_sim.sh
+tmux new -d -s mavros_roslaunch ./launch_scripts/mavros_sim.sh
 
-tmux new -s mission_script ./launch_scripts/start_mission.sh
+tmux new -s mission_script ./launch_scripts/mission.sh
 
-tmux new -d -s attitude_recorder ./launch_scripts/start_recorder.sh
+tmux new -d -s attitude_recorder ./launch_scripts/recorder.sh
