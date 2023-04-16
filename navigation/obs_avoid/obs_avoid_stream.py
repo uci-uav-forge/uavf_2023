@@ -1,28 +1,20 @@
-from ..guided_mission.py_gnc_functions import gnc_api
-from rs_stream import post_process_filters, rgbd_to_pcd, depth_to_pcd
-from pcd_pipeline import process_pcd
-from threeD_obstacle_avoidance import obstacle_avoidance
-
 import pyrealsense2 as rs
-import open3d as o3d
 import numpy as np
 import time
 from math import cos, sin, atan, radians
+import os
+
 import rospy
 from geometry_msgs.msg import Point
 
-
-def yaw_rotation(raw_wp, yaw):
-    theta = -yaw
-    rad_theta = radians(theta)
-    yaw_rot = np.array([
-        [cos(rad_theta), -sin(rad_theta)],
-        [sin(rad_theta), cos(rad_theta)]
-    ])
-    return yaw_rot @ raw_wp
+from .rs_stream import post_process_filters, depth_to_pcd
+from .pcd_pipeline import process_pcd, yaw_rotation
+from .threeD_obstacle_avoidance import obstacle_avoidance
+from ..guided_mission.py_gnc_functions import gnc_api
+os.chdir("navigation")
 
 
-def rs_stream(res_width, res_height, frame_rate):
+def rs_stream(res_width, res_height, frame_rate, max_range):
     # drone api for attitude feedback, publisher to send waypoints
     drone = gnc_api()
     avoid_pub = rospy.Publisher(
@@ -57,8 +49,9 @@ def rs_stream(res_width, res_height, frame_rate):
         while True:
             frames = pipe.wait_for_frames()
             pitch, roll, yaw = drone.get_pitch_roll_yaw()    #pitch, roll, yaw in degrees
+            #pitch, roll, yaw = 0, 0, 0
 
-            #st = time.time()
+            st = time.time()
             depth_frame = post_process_filters(
                 frames.get_depth_frame(), threshold, decimation, 
                 spatial, temporal, hole_filling, to_disparity, to_depth
@@ -71,20 +64,28 @@ def rs_stream(res_width, res_height, frame_rate):
             centr_arr, box_arr, fil_cl = process_pcd(o3d_pcd, pitch, roll) # this is in mm
             if fil_cl == False: continue
             
-            centr_arr = centr_arr / 1000 # convert from mm to m
+            # convert from mm to m
+            centr_arr = centr_arr / 1000 
             box_arr = box_arr / 1000
 
-            # obstacle avoidance returns heading angle within FOV, correspond to waypoint at edge of FOV
-            # rotate to waypoint corresponding to yaw to get true relative coordinates
+            # obstacle avoidance returns heading angle within FOV -> waypoint at edge of FOV
+            # rotate to waypoint corresponding to yaw to get relative coordinates in local frame
             hdg = obstacle_avoidance(centr_arr, box_arr)
-            raw_wp = np.array([max_dist * atan(hdg), max_dist])
-            corrected_wp = yaw_rotation(raw_wp, yaw)
+            if hdg:
+                raw_wp = np.array([max_range * atan(hdg), max_range])
+                corrected_wp = yaw_rotation(raw_wp, yaw)
+
+                print(hdg)
+                print(corrected_wp)
+                
+                # create and publish point message
+                rel_coord = Point()
+                rel_coord.x = corrected_wp[0]
+                rel_coord.y = corrected_wp[1]
+                avoid_pub.publish(rel_coord)
             
-            rel_coord = Point()
-            rel_coord.x = corrected_wp[0]
-            rel_coord.y = corrected_wp[1]
-            avoid_pub.publish(rel_coord)
-            #print(time.time()-st)
+            print(time.time()-st)
+            print()
 
     except KeyboardInterrupt:
         pipe.stop()
@@ -94,7 +95,8 @@ if __name__=='__main__':
     #o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
     width = 424
     height = 240
-    frame_rate = 30
+    frame_rate = 15
     max_range = 16 # m
     
+    rospy.init_node("obstacle_detection_avoidance", anonymous=True)
     rs_stream(width, height, frame_rate, max_range)
