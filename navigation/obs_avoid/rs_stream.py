@@ -2,7 +2,7 @@ import pyrealsense2 as rs
 import open3d as o3d
 import numpy as np
 import json 
-from pcd_pipeline import process_pcd
+from .pcd_pipeline import process_pcd
 from numba import njit, prange
 import time
 import math
@@ -147,7 +147,7 @@ if __name__=='__main__':
     #o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
     width = 424
     height = 240
-    frame_rate = 30
+    frame_rate = 15
 
     o3d_vis = O3d_Visualizer()
 
