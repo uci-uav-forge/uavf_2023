@@ -3,6 +3,7 @@ import numpy as np
 import random
 from time import time
 
+
 def obstacle_avoidance(centeroids, dimensions):
   R = 16     # m
   angle = 43 # deg
@@ -25,8 +26,11 @@ def obstacle_avoidance(centeroids, dimensions):
   dimensions = np.array(d_new)
   #remove that object from the obstacle list
 
+  try:
+    radius_list = np.amax(dimensions, axis=1) #list of all the radius's, max of all the dimensions
+  except np.AxisError:
+    return False
 
-  radius_list = np.amax(dimensions, axis=1) #list of all the radius's, max of all the dimensions
   distance_list = np.linalg.norm(centeroids, axis=1) #distance of all the objects
   path_dist = np.abs(centeroids[:,0]) #list of all the abs(x) values
   if(np.any(path_dist< radius_list+path_distance) or np.any(distance_list < radius_list + drone_distance)):
@@ -35,7 +39,6 @@ def obstacle_avoidance(centeroids, dimensions):
   while obstacle_avoidance and cur_heading < angle:
     cur_heading += 10
     obstacle_avoidance = False
-
 
     radius_list = np.amax(dimensions, axis=1) #list of all the radius's
     distance_list = np.linalg.norm(centeroids, axis=1) #distance of all the objects
@@ -49,9 +52,11 @@ def obstacle_avoidance(centeroids, dimensions):
   else:
     return cur_heading
 
+
 def main(centers, dimensions):
   drone_heading = obstacle_avoidance(centers, dimensions)
   print(drone_heading)
+
 
 def function3():
     centers = []
