@@ -6,7 +6,7 @@ class GeoLocation:
     def __init__(self, img_size):
         self.img_size = img_size
 
-    def get_location(self, image_x, image_y, location, angles) -> tuple[int, int, int]:
+    def get_location(self, image_x, image_y, location, angles) -> "tuple[float,float,float]":
         """
         Returns the location of a pixel in the image in the world frame.
         location: assumed to be (x,y,z) where z is the height
