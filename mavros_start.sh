@@ -1,3 +1,3 @@
 #!/bin/bash
 ./launch_scripts/mavros_irl.sh
-# this script exists as an alias to make it more convenient to launch mavros
+# this script exists to make it 0.5 seconds faster to launch mavros
