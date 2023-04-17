@@ -35,14 +35,19 @@ def run_pipeline():
 
 def imaging_test_mission():
     # init drone api
+    print("waiting to connect...")
     drone.wait4connect()
+    print("drone connected")
     drone.set_mode_px4('OFFBOARD')
+    print("offboard mode set")
     drone.initialize_local_frame()
+    print("local frame initialized")
 
     print(f'Starting position: {drone.get_current_xyz()}')
-    print(f"Current pitch roll yaw: {drone.get_current_pitch_roll_yaw()}")
+    # print(f"Current pitch roll yaw: {drone.get_current_pitch_roll_yaw()}")
     drone.arm()
-    drone.set_destination(x=0, y=0, z=10, psi=0)
+    drone.set_destination(x=0, y=0, z=15, psi=0)
+    print("destination set. taking off...")
     while not drone.check_waypoint_reached():
         print('drone has not satisfied waypoint!')
         time.sleep(1)
@@ -59,7 +64,10 @@ def imaging_test_mission():
         time.sleep(1)
 
     print(f"target coords: {target_coord}")
-    if target_coord is None: return
+    if target_coord is None:
+        print("Target coordinate is None\nLanding...")
+        drone.land() 
+        return
 
     if np.linalg.norm(target_coord) > 30 or target_coord[2] < 0:
         print("target out of range")
