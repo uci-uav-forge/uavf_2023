@@ -16,21 +16,21 @@ pipeline = Pipeline(
     dry_run=False
 )
 
-# target_coord = None
+target_coord = None
 
 
-# def run_pipeline():
-#     global target_coord
-#     print("start pipeline")
-#     try:
-#         pipeline.run(num_loops=1)
-#     except Exception as e:
-#         print(f"Encountered error while running imaging pipeline: {e}")
-#         return
-#     all_coords = pipeline.target_aggregator.get_target_coords()
-#     print(f"All coordinates: {all_coords}")
-#     target_coord = all_coords[0]
-#     print("done running pipeline")
+def run_pipeline():
+    global target_coord
+    print("start pipeline")
+    try:
+        pipeline.run(num_loops=1)
+    except Exception as e:
+        print(f"Encountered error while running imaging pipeline: {e}")
+        return
+    all_coords = pipeline.target_aggregator.get_target_coords()
+    print(f"All coordinates: {all_coords}")
+    target_coord = all_coords[0]
+    print("done running pipeline")
 
 
 def imaging_test_mission():
@@ -52,23 +52,16 @@ def imaging_test_mission():
         print('drone has not satisfied waypoint!')
         time.sleep(1)
 
-    # pipeline_thread = Thread(target=run_pipeline)
-    # print("taking pics!")
-    # pipeline_thread.start()
+    pipeline_thread = Thread(target=run_pipeline)
+    print("taking pics!")
+    pipeline_thread.start()
 
     # this is necessary so that QGroundControl doesn't see a lack of input and enter failsafe mode to land early
-    # while pipeline_thread.is_alive():
-    #     print("hovering")
-    #     sys.stdout.flush()
-    #     drone.check_waypoint_reached()
-    #     time.sleep(1)
-
-    print("taking pics!")
-    pipeline.run(num_loops=1)
-    all_coords = pipeline.target_aggregator.get_target_coords()
-    print(f"All coordinates: {all_coords}")
-    target_coord = all_coords[0] if len(all_coords) > 0 else None
-    print("done running pipeline")
+    while pipeline_thread.is_alive():
+        print("hovering")
+        sys.stdout.flush()
+        drone.check_waypoint_reached()
+        time.sleep(1)
 
     print(f"target coords: {target_coord}")
     if target_coord is None:
