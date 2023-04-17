@@ -16,7 +16,7 @@ pipeline = Pipeline(
     dry_run=False
 )
 
-target_coord = None
+# target_coord = None
 
 
 # def run_pipeline():
@@ -67,7 +67,7 @@ def imaging_test_mission():
     pipeline.run(num_loops=1)
     all_coords = pipeline.target_aggregator.get_target_coords()
     print(f"All coordinates: {all_coords}")
-    target_coord = all_coords[0]
+    target_coord = all_coords[0] if len(all_coords) > 0 else None
     print("done running pipeline")
 
     print(f"target coords: {target_coord}")
