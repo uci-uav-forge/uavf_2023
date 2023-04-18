@@ -22,9 +22,11 @@ class GeoLocation:
         heading, tilt, roll = angles
         x, y, z = location
         cam = ct.Camera(
-            ct.RectilinearProjection(
-                view_x_deg=67,
-                view_y_deg=41,
+            #https://community.gopro.com/s/article/HERO10-Black-Digital-Lenses-FOV-Informations?language=en_US
+            #we're on 4:3 ratio narrow mode no hypersmooth 
+            ct.RectilinearProjection(                
+                view_x_deg=73,
+                view_y_deg=58,
                 image=self.img_size),
             ct.SpatialOrientation(
                 elevation_m=z,
