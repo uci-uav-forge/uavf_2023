@@ -22,14 +22,13 @@ if __name__ == "__main__":
     datagen_dir = os.path.dirname(os.path.abspath(__file__))
     categories_to_shapes = json.load(open(f"{datagen_dir}/shape_name_labels.json","r"))
     shapes_to_categories = {shape:category for category, shape in categories_to_shapes.items()}
-    input_dir = "/home/holden/code/uavf_2023/imaging/godot_data"
+    input_dir = "/tmp/godot_data"
     output_dir = f"{datagen_dir}/data"
     os.makedirs(output_dir, exist_ok=True)
     for split_name in ["train", "validation", "test"]:
         os.makedirs(f"{output_dir}/labels/{split_name}", exist_ok=True)
         os.makedirs(f"{output_dir}/images/{split_name}", exist_ok=True)
     for num in tqdm(range(10_000)):
-        print(num)
         if int(num)<8500:
             split_name = "train"
         elif int(num)<9500:
@@ -38,7 +37,7 @@ if __name__ == "__main__":
             split_name = "test" 
         img = cv2.imread(f"{input_dir}/images/image{num}.png")
         if img is None:
-            print(f"image read error for {img}")
+            tqdm.write(f"image read error for {img}")
             continue
         img = preprocess_img(img)
         cv2.imwrite(f"{output_dir}/images/{split_name}/image{num}.png", img)
@@ -50,7 +49,7 @@ if __name__ == "__main__":
             polygon = get_polygon(mask)
 
             if len(polygon) <= 2:
-                print(f"no polygon found for {mask_path}")
+                tqdm.write(f"no polygon found for {mask_path}")
                 continue
             normalized_polygon = polygon / np.array([mask.shape[1], mask.shape[0]])
             f.write(f"{shapes_to_categories[shape_name]} {' '.join(map(str, normalized_polygon.flatten()))}\n")
