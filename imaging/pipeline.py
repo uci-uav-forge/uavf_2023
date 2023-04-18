@@ -283,6 +283,11 @@ class Pipeline:
             font_scale=1, thickness=2, box_color=(0, 0, 255), text_color=(0, 0, 0),
             color_results=color_results
         )
+    
+    def _logLocation(self, coords, angles):
+        with open(f"{output_folder_path}/coords.txt", "a") as f:
+            f.write(f"Coords: {coords[0]}, {coords[1]}, {coords[2]}\n")
+            f.write(f"Angles: {angles[0]}, {angles[1]}, {angles[2]}\n")
 
     def loop(self, loop_index: int):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
@@ -292,6 +297,7 @@ class Pipeline:
             cv.imwrite(f"{output_folder_path}/image{loop_index}.png", cam_img)
             print(f"got image {loop_index}")
             curr_location, curr_angles = self.localizer.get_current_pos_and_angles()
+            self._logLocation(curr_location, curr_angles)
             if self.doing_dry_run: return
         except Exception as e:
             print(f"Exception on pipeline loop {loop_index} with error {e}")
