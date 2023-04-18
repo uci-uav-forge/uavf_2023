@@ -293,6 +293,7 @@ class Pipeline:
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
         self.loop_index = loop_index
         try:
+            print(f"Getting image {loop_index}")
             cam_img = self._get_image()
             cv.imwrite(f"{output_folder_path}/image{loop_index}.png", cam_img)
             print(f"got image {loop_index}")
@@ -355,7 +356,6 @@ class Pipeline:
 
         letter_results = self.letter_detector.predict(np.mean(letter_image_buffer, axis=-1))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
-        print(self.labels_to_names_dict)
         letter_confidences = [list(zip(self.letter_detector.labels, row)) for row in letter_results]
         shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates]
                              for res in self.valid_results]

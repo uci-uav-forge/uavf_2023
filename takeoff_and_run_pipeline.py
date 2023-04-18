@@ -1,23 +1,38 @@
-import rospy
 import time
-from navigation.guided_mission.py_gnc_functions import *
-from imaging.pipeline import Pipeline
-import numpy as np
 from threading import Thread
-import sys
+
+import numpy as np
+
+ACTUALLY_FLY_DRONE = False
+USE_GOPRO = False
+
+if ACTUALLY_FLY_DRONE:
+    from navigation.guided_mission.py_gnc_functions import gnc_api
+else:
+    from tests.mock_drone import MockDrone as gnc_api
+from imaging.pipeline import Pipeline
 
 drone = gnc_api()
 
 pipeline = Pipeline(
     localizer=drone,
     img_size=(5568, 4176),
-    img_file="gopro",
+    img_file="gopro" if USE_GOPRO else "image0.png",
     targets_file="test_mission_targets.csv",
     dry_run=False
 )
 
 target_coord = None
 
+def print_color(text, color, *args, **kwargs):
+    colors_dict = {
+        'red': '41',
+        'green': '42',
+        'yellow': '43',
+        'blue': '44',
+        'magenta': '45'
+    }
+    print(f'\x1b[6;30;{colors_dict[color]}m{text}\x1b[0m', *args, **kwargs)
 
 def run_pipeline():
     global target_coord
@@ -51,22 +66,25 @@ def imaging_test_mission():
     drone.set_mode_px4('OFFBOARD')
     print("destination set. taking off...")
 
-    i = 0
+    i = 1
     while not drone.check_waypoint_reached():
-        print(f'drone flying to initial hover spot (checked {i} times)', end='\r')
+        print_color(f'drone flying to initial hover spot (checked {i} times)', color="red", end='\r')
+        i+=1
         time.sleep(1)
+    print()
 
     pipeline_thread = Thread(target=run_pipeline)
-    print("\nStarting pipeline!")
+    print("Starting pipeline!")
     pipeline_thread.start()
 
     # this is necessary so that QGroundControl doesn't see a lack of input and enter failsafe mode to land early
-    i=0
+    i = 1
     while pipeline_thread.is_alive():
-        print(f'waiting for pipeline to finish (checked {i} times)', end='\r')
-        sys.stdout.flush()
+        print_color(f'waiting for pipeline to finish (checked {i} times)', color="blue",end='\r')
+        i+=1
         drone.check_waypoint_reached()
         time.sleep(1)
+    print()
 
     print(f"target coords: {target_coord}")
     if target_coord is None:
@@ -82,21 +100,26 @@ def imaging_test_mission():
 
     print("moving to target")
     drone.set_destination(x=target_coord[0], y=target_coord[1], z=5, psi=0)
-    i=0
+    i = 1
     while not drone.check_waypoint_reached():
-        print(f'flying to target (checked {i} times)', end='\r')
+        print_color(f'flying to target (checked {i} times)', color = "green", end='\r')
+        i+=1
         time.sleep(1)
+    print()
+
     print("target reached")
     for i in range(5):
-        print(f'flying to target (checked {i} times)', end='\r')
+        print(f'hovering over target for {i} secs', end='\r')
+        i+=1
         drone.check_waypoint_reached()
         time.sleep(1)
+    print()
     print("Landing after mission...")
     drone.land()
 
 
 if __name__ == '__main__':
     # initialize ROS node and get home position
-    rospy.init_node("drone_GNC", anonymous=True)
+    #rospy.init_node("drone_GNC", anonymous=True)
     # run control loop
     imaging_test_mission()
