@@ -28,7 +28,7 @@ class GeoLocation:
                 image=self.img_size),
             ct.SpatialOrientation(
                 elevation_m=z,
-                heading_deg=roll,
+                heading_deg=heading,
                 tilt_deg=tilt,
                 roll_deg=roll,
                 pos_x_m=x,
@@ -42,6 +42,6 @@ class GeoLocation:
 
 
 if __name__ == "__main__":
-    geolocator = GeoLocation((1000, 1000))
-    loc = geolocator.get_location(1000, 1000, (5, 5, 10), (0, 0, 0))
+    geolocator = GeoLocation((5568, 4176))
+    loc = geolocator.get_location(0, 0, (5, 5, 10), (90, 0, 0))
     print(loc, np.linalg.norm(loc), loc[2] > 0, type(loc))

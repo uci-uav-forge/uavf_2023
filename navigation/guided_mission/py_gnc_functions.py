@@ -188,7 +188,7 @@ class gnc_api:
         returns (heading, tilt, roll) in degrees
         '''
         heading, tilt, roll = euler_from_quaternion(self.orientation_quaternion_xyzw, axes="rzxz")# https://w3.cs.jmu.edu/spragunr/CS354_S14/labs/tf_lab/html/tf.transformations-module.html
-        return degrees(heading), degrees(tilt), degrees(roll)
+        return -degrees(heading), degrees(tilt), degrees(roll)
 
     def get_current_xyz(self):
         '''returns the current x, y, z position of the drone in local frame in meters'''
