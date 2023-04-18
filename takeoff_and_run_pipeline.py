@@ -4,9 +4,13 @@ from threading import Thread
 import numpy as np
 
 ACTUALLY_FLY_DRONE = False
-USE_GOPRO = False
+USE_GOPRO = True
+
+print(f"Actually flying drone: {ACTUALLY_FLY_DRONE}")
+print(f"Using gopro: {USE_GOPRO}")
 
 if ACTUALLY_FLY_DRONE:
+    import rospy
     from navigation.guided_mission.py_gnc_functions import gnc_api
 else:
     from tests.mock_drone import MockDrone as gnc_api
@@ -121,6 +125,7 @@ def imaging_test_mission():
 
 if __name__ == '__main__':
     # initialize ROS node and get home position
-    #rospy.init_node("drone_GNC", anonymous=True)
+    if ACTUALLY_FLY_DRONE:
+        rospy.init_node("drone_GNC", anonymous=True)
     # run control loop
     imaging_test_mission()
