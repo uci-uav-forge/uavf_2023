@@ -30,9 +30,10 @@ def print_color(text, color, *args, **kwargs):
         'green': '42',
         'yellow': '43',
         'blue': '44',
-        'magenta': '45'
+        'magenta': '45',
+        'cyan': '46'
     }
-    print(f'\x1b[6;30;{colors_dict[color]}m{text}\x1b[0m', *args, **kwargs)
+    print(f'\x1b[0;30;{colors_dict[color]}m{text}\x1b[0m', *args, **kwargs)
 
 def run_pipeline():
     global target_coord
@@ -68,7 +69,7 @@ def imaging_test_mission():
 
     i = 1
     while not drone.check_waypoint_reached():
-        print_color(f'drone flying to initial hover spot (checked {i} times)', color="red", end='\r')
+        print_color(f'drone flying to initial hover spot (checked {i} times)', color="magenta", end='\r')
         i+=1
         time.sleep(1)
     print()
@@ -80,7 +81,7 @@ def imaging_test_mission():
     # this is necessary so that QGroundControl doesn't see a lack of input and enter failsafe mode to land early
     i = 1
     while pipeline_thread.is_alive():
-        print_color(f'waiting for pipeline to finish (checked {i} times)', color="blue",end='\r')
+        print_color(f'waiting for pipeline to finish (checked {i} times)', color="cyan",end='\r')
         i+=1
         drone.check_waypoint_reached()
         time.sleep(1)
