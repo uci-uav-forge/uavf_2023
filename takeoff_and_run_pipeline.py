@@ -44,21 +44,26 @@ def imaging_test_mission():
     print("local frame initialized")
 
     print(f'Starting position: {drone.get_current_xyz()}')
+    input("Press enter to launch drone")
     # print(f"Current pitch roll yaw: {drone.get_current_pitch_roll_yaw()}")
     drone.arm()
-    drone.set_destination(x=0, y=0, z=15, psi=0)
+    drone.set_destination(x=0, y=0, z=23, psi=0)
+    drone.set_mode_px4('OFFBOARD')
     print("destination set. taking off...")
+
+    i = 0
     while not drone.check_waypoint_reached():
-        print('drone has not satisfied waypoint!')
+        print(f'drone flying to initial hover spot (checked {i} times)', end='\r')
         time.sleep(1)
 
     pipeline_thread = Thread(target=run_pipeline)
-    print("taking pics!")
+    print("\nStarting pipeline!")
     pipeline_thread.start()
 
     # this is necessary so that QGroundControl doesn't see a lack of input and enter failsafe mode to land early
+    i=0
     while pipeline_thread.is_alive():
-        print("hovering")
+        print(f'waiting for pipeline to finish (checked {i} times)', end='\r')
         sys.stdout.flush()
         drone.check_waypoint_reached()
         time.sleep(1)
@@ -77,14 +82,16 @@ def imaging_test_mission():
 
     print("moving to target")
     drone.set_destination(x=target_coord[0], y=target_coord[1], z=5, psi=0)
+    i=0
     while not drone.check_waypoint_reached():
-        print("drone flying to target")
+        print(f'flying to target (checked {i} times)', end='\r')
         time.sleep(1)
     print("target reached")
-    for _i in range(5):
-        print("hovering at target")
+    for i in range(5):
+        print(f'flying to target (checked {i} times)', end='\r')
         drone.check_waypoint_reached()
         time.sleep(1)
+    print("Landing after mission...")
     drone.land()
 
 
