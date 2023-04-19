@@ -19,7 +19,56 @@ from .servo_controller import ServoController
 os.chdir("navigation")
 
 
+class PriorityAssigner():
+    def __init__(self, mission_q: PriorityQueue, drone: gnc_api, drop_end: tuple, drop_alt: int):
+        self.mission_q = mission_q
+        self.drone = drone
+        self.drop_end = drop_end
+        self.drop_alt = drop_alt
+        self.drop_received = False
+        self.run_obs_avoid = False
+        
+        self.avoid_sub = rospy.Subscriber(
+            name="obs_avoid_rel_coord",
+            data_class=Point,
+            queue_size=1,
+            callback=self.avoid_cb
+        )
+        self.drop_sub = rospy.Subscriber(
+            name="drop_waypoints",
+            data_class=Float32MultiArray,
+            queue_size=1,
+            callback=self.drop_cb
+        )
+    
 
+    def avoid_cb(self, avoid_coord):
+        if self.run_obs_avoid:
+            prio = int(-1000000000)
+            curr_pos = self.drone.get_current_location()
+            
+            wp_x = curr_pos.x + avoid_coord.x
+            wp_y = curr_pos.y + avoid_coord.y
+
+            if self.mission_q.queue[0][0] == prio:
+                self.mission_q.queue[0][1] = (wp_x, wp_y, curr_pos.z)
+            else:
+                self.mission_q.put((prio, (wp_x, wp_y, curr_pos.z)))
+    
+
+    def drop_cb(self, drop_wps):
+        prio = int(1000000000)
+
+        for i in len(drop_wps):
+            wp_x = drop_wps[i][0]
+            wp_y = drop_wps[i][1]
+            wp_z = self.drop_alt
+            servo_num = drop_wps[i][2]
+
+            add_prio = int( (wp_x - self.drop_end[0])**2 + (wp_y - self.drop_end[1])**2 )
+            self.mission_q.put((prio + add_prio, (wp_x, wp_y, wp_z, servo_num)))
+
+        self.drop_received = True
 
 
 def drop_payload(actuator, servo_num):
@@ -90,7 +139,6 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
     in_dropzone = False
     at_drop_pt  = False
     servo_num = -1
-    mission_q_assigner.drop_received = True
     
     # init imaging signal publisher
     img_signal = rospy.Publisher(
@@ -117,8 +165,9 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
     while not drone.check_waypoint_reached():
         pass
     
-    # start obstacle avoidance
-    mission_q_assigner.run_obs_avoid = True
+    # change these states to turn on or off avoidance and drop reception
+    mission_q_assigner.run_obs_avoid = False # True by default
+    mission_q_assigner.drop_received = True # False by default
 
     # outer loop: check if there are more waypoints to travel to
     while mission_q.qsize():
