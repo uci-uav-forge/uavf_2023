@@ -19,6 +19,9 @@ from .servo_controller import ServoController
 os.chdir("navigation")
 
 
+
+
+
 def drop_payload(actuator, servo_num):
     time.sleep(3)
     actuator.openServo(servo_num)
@@ -81,8 +84,8 @@ def init_mission(mission_q, use_px4=False):
     return drone, drop_end, drop_alt, avg_alt
 
 
-def mission_loop(drone, mission_q, mission_q_assigner, actuator, max_spd, drop_spd, avg_alt, drop_end, use_px4=False):
-    # init control loop refresh rate, dropzone state, payload states 
+def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False):
+    # init control loop refresh rate, dropzone state, payload state 
     rate = rospy.Rate(60)
     in_dropzone = False
     at_drop_pt  = False
@@ -95,6 +98,9 @@ def mission_loop(drone, mission_q, mission_q_assigner, actuator, max_spd, drop_s
         data_class=Bool,
         queue_size=1,
     )
+
+    # servo actuator object
+    actuator = ServoController()
     
     # takeoff
     if use_px4:
@@ -183,58 +189,6 @@ def mission_loop(drone, mission_q, mission_q_assigner, actuator, max_spd, drop_s
     drone.land()
 
 
-class PriorityAssigner():
-    def __init__(self, mission_q: PriorityQueue, drone: gnc_api, drop_end: tuple, drop_alt: int):
-        self.mission_q = mission_q
-        self.drone = drone
-        self.drop_end = drop_end
-        self.drop_alt = drop_alt
-        self.drop_received = False
-        self.run_obs_avoid = False
-        
-        self.avoid_sub = rospy.Subscriber(
-            name="obs_avoid_rel_coord",
-            data_class=Point,
-            queue_size=1,
-            callback=self.avoid_cb
-        )
-        self.drop_sub = rospy.Subscriber(
-            name="drop_waypoints",
-            data_class=Float32MultiArray,
-            queue_size=1,
-            callback=self.drop_cb
-        )
-    
-
-    def avoid_cb(self, avoid_coord):
-        if self.run_obs_avoid:
-            prio = int(-1000000000)
-            curr_pos = self.drone.get_current_location()
-            
-            wp_x = curr_pos.x + avoid_coord.x
-            wp_y = curr_pos.y + avoid_coord.y
-
-            if self.mission_q.queue[0][0] == prio:
-                self.mission_q.queue[0][1] = (wp_x, wp_y, curr_pos.z)
-            else:
-                self.mission_q.put((prio, (wp_x, wp_y, curr_pos.z)))
-    
-
-    def drop_cb(self, drop_wps):
-        prio = int(1000000000)
-
-        for i in len(drop_wps):
-            wp_x = drop_wps[i][0]
-            wp_y = drop_wps[i][1]
-            wp_z = self.drop_alt
-            servo_num = drop_wps[i][2]
-
-            add_prio = int( (wp_x - self.drop_end[0])**2 + (wp_y - self.drop_end[1])**2 )
-            self.mission_q.put((prio + add_prio, (wp_x, wp_y, wp_z, servo_num)))
-
-        self.drop_received = True
-
-
 if __name__ == '__main__':
     # initialize ROS node and get home position
     rospy.init_node("drone_GNC", anonymous=True)
@@ -251,9 +205,6 @@ if __name__ == '__main__':
     # init priority assigner with mission queue and dropzone wp
     mission_q_assigner = PriorityAssigner(mission_q, drone, drop_end, drop_alt)
 
-    # init servo actuator
-    actuator = ServoController()
-
     # run online trajectory planner
     print("running trajectory planner")
-    mission_loop(drone, mission_q, mission_q_assigner, actuator, max_spd, drop_spd, avg_alt, drop_end, use_px4)
+    mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4)
