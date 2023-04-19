@@ -546,3 +546,18 @@ class gnc_api:
             return 1
         else:
             return 0
+
+
+    def distance_from_wp(self):
+        dx = abs(
+            self.waypoint_g.pose.position.x - self.current_pose_g.pose.pose.position.x
+        )
+        dy = abs(
+            self.waypoint_g.pose.position.y - self.current_pose_g.pose.pose.position.y
+        )
+        dz = abs(
+            self.waypoint_g.pose.position.z - self.current_pose_g.pose.pose.position.z
+        )
+
+        dMag = sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2))
+        return dMag
