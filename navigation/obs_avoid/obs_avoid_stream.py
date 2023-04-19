@@ -14,7 +14,7 @@ from ..guided_mission.py_gnc_functions import gnc_api
 os.chdir("navigation")
 
 
-def rs_stream(res_width, res_height, frame_rate, max_range):
+def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range):
     # drone api for attitude feedback, publisher to send waypoints
     drone = gnc_api()
     avoid_pub = rospy.Publisher(
@@ -72,7 +72,7 @@ def rs_stream(res_width, res_height, frame_rate, max_range):
             # rotate to waypoint corresponding to yaw to get relative coordinates in local frame
             hdg = obstacle_avoidance(centr_arr, box_arr)
             if hdg:
-                raw_wp = np.array([max_range * atan(hdg), max_range])
+                raw_wp = np.array([avoid_range * atan(hdg), avoid_range])
                 corrected_wp = yaw_rotation(raw_wp, yaw)
 
                 print(hdg)
@@ -97,6 +97,7 @@ if __name__=='__main__':
     height = 240
     frame_rate = 15
     max_range = 16 # m
+    avoid_range = 16 # m     the range at which the avoidance waypoint is published
     
     rospy.init_node("obstacle_detection_avoidance", anonymous=True)
-    rs_stream(width, height, frame_rate, max_range)
+    rs_stream(width, height, frame_rate, max_range, avoid_range)
