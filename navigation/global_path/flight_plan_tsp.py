@@ -180,7 +180,6 @@ class FlightPlan():
         # waypoints to cross the dropzone
         drop_pts = self.process_dropzone(drop_bds)
         waypts.extend(drop_pts)
-        waypts.append((0, 0, self.avg_alt)) # return to home
 
         # get optimal order from tsp
         if want_tsp:
@@ -262,6 +261,9 @@ class FlightPlan():
         if want_tsp:
             order, dist = self.run_tsp(global_path)
             global_path = [global_path[i] for i in order]
+
+        # return to home after everything
+        global_path.append((0, 0, self.avg_alt))
         
         print('\nWould you like to visualize the route? (Need GUI access) (y/n)')
         while True:
