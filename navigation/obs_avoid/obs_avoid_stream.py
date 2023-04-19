@@ -97,7 +97,7 @@ if __name__=='__main__':
     height = 240
     frame_rate = 15
     max_range = 16 # m
-    avoid_range = 16 # m     the range at which the avoidance waypoint is published
+    avoid_range = 6 # m     the range at which the avoidance waypoint is published
     
     rospy.init_node("obstacle_detection_avoidance", anonymous=True)
     rs_stream(width, height, frame_rate, max_range, avoid_range)
