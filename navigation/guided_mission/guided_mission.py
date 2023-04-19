@@ -89,8 +89,8 @@ def mission_loop(drone, mission_q, mission_q_assigner, actuator, max_spd, drop_s
     servo_num = -1
     mission_q_assigner.drop_received = True
     
-    # init dropzone signal publisher
-    drop_signal = rospy.Publisher(
+    # init imaging signal publisher
+    img_signal = rospy.Publisher(
         name="drop_signal",
         data_class=Bool,
         queue_size=1,
@@ -130,7 +130,7 @@ def mission_loop(drone, mission_q, mission_q_assigner, actuator, max_spd, drop_s
             in_dropzone = True
             bool_msg = Bool()
             bool_msg.data = in_dropzone
-            drop_signal.publish(bool_msg)
+            img_signal.publish(bool_msg)
 
             if use_px4: drone.set_speed_px4(drop_spd)
             else: drone.set_speed(drop_spd)
