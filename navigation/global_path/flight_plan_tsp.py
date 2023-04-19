@@ -19,8 +19,7 @@ def total_dist(waypts: list) -> float:
 
 # FLIGHT PLAN PARAMETERS: minimum altitude and 'normal' altitude in meters AGL
 class FlightPlan():
-    def __init__(self, bound_coords: list, home: tuple, min_alt=25, avg_alt=30):
-        self.min_alt = min_alt 
+    def __init__(self, bound_coords: list, home: tuple, avg_alt=30):
         self.avg_alt = avg_alt
 
         self.ref_pt = utm.from_latlon(home[0], home[1])
@@ -73,8 +72,15 @@ class FlightPlan():
     def process_dropzone(self, drop_bds: list) -> list:
         if len(drop_bds) == 0:
             return []
+        
+        # get drop bounds in local frame
+        drop_bd_pts = [self.GPS_to_local(gps) for gps in drop_bds]
 
-        drop_bd_pts = [np.array(self.GPS_to_local(gps)) for gps in drop_bds]
+        # counterclockwise sorter only accepts 2D points
+        xy_drop_bds = []
+        for pt in drop_bd_pts: xy_drop_bds.append((pt[0], pt[1]))
+        drop_bd_pts = np.array(self.sort_counterclockwise(xy_drop_bds))
+
         delt1 = drop_bd_pts[0] - drop_bd_pts[len(drop_bds)-1]
         delt2 = delt1
 
@@ -97,8 +103,8 @@ class FlightPlan():
                 shortest2 = length
                 pair2 = (drop_bd_pts[i+1], drop_bd_pts[i])
         
-        wp1 = ((pair1[0][0] + pair1[1][0]) / 2, (pair1[0][1] + pair1[1][1]) / 2, self.min_alt)
-        wp2 = ((pair2[0][0] + pair2[1][0]) / 2, (pair2[0][1] + pair2[1][1]) / 2, self.min_alt)
+        wp1 = ((pair1[0][0] + pair1[1][0]) / 2, (pair1[0][1] + pair1[1][1]) / 2, drop_bds[0][2])
+        wp2 = ((pair2[0][0] + pair2[1][0]) / 2, (pair2[0][1] + pair2[1][1]) / 2, drop_bds[0][2])
         return [wp1, wp2]
 
 
@@ -166,14 +172,15 @@ class FlightPlan():
         return order, dist
 
 
-    def gen_globalpath(self, wps: list, drop_bds=[], want_tsp=True) -> list:
-        # waypoints to cross the dropzone
-        drop_pts = self.process_dropzone(drop_bds)
-
+    def gen_globalpath(self, wps: list, drop_bds=[], want_tsp=True) -> tuple:
         # convert gps waypoints to xy
         waypts = [(0, 0, 0)]
         for gps in wps: waypts.append(self.GPS_to_local(gps))
+
+        # waypoints to cross the dropzone
+        drop_pts = self.process_dropzone(drop_bds)
         waypts.extend(drop_pts)
+        waypts.append((0, 0, self.avg_alt)) # return to home
 
         # get optimal order from tsp
         if want_tsp:
@@ -267,7 +274,9 @@ class FlightPlan():
             else:
                 print('Not a valid option. Please try again.')
         print()
-        return global_path
+
+        drop_end = drop_pts[1]
+        return global_path, drop_end
 
 
 if __name__ == '__main__':
@@ -289,16 +298,15 @@ if __name__ == '__main__':
         (38.31729702009844, -76.55617670782419),
     ]
     drop_bds = [
-        (38.31461655840247, -76.54516814545798),
-        (38.31442098816458, -76.54523151910101),
-        (38.31440638590367, -76.54394559930905),
-        (38.314208221753645, -76.54400447836372)
+        (38.31461655840247, -76.54516814545798, 25),
+        (38.31442098816458, -76.54523151910101, 25),
+        (38.31440638590367, -76.54394559930905, 25),
+        (38.314208221753645, -76.54400447836372, 25)
     ]
 
     home = (38.316376, -76.556096) 
-    min_alt = 25
     avg_alt = 30
-    test_map = FlightPlan(bound_coords, home, min_alt, avg_alt)
+    test_map = FlightPlan(bound_coords, home, avg_alt)
 
     wps = [ #LLA, example wps at 30 meters AGL
         ( 38.31652512851874,   -76.553698306299, 30), 
