@@ -19,13 +19,6 @@ from .servo_controller import ServoController
 os.chdir("navigation")
 
 
-drop_signal = rospy.Publisher(
-    name="drop_signal",
-    data_class=Bool,
-    queue_size=1,
-)
-
-
 def drop_payload(actuator, servo_num):
     time.sleep(3)
     actuator.openServo(servo_num)
@@ -89,13 +82,21 @@ def init_mission(mission_q, use_px4=False):
 
 
 def mission_loop(drone, mission_q, mission_q_assigner, actuator, max_spd, drop_spd, avg_alt, drop_end, use_px4=False):
-    # init control loop refresh rate and dropzone signal 
+    # init control loop refresh rate, dropzone state, payload states 
     rate = rospy.Rate(60)
     in_dropzone = False
     at_drop_pt  = False
     servo_num = -1
     mission_q_assigner.drop_received = True
     
+    # init dropzone signal publisher
+    drop_signal = rospy.Publisher(
+        name="drop_signal",
+        data_class=Bool,
+        queue_size=1,
+    )
+    
+    # takeoff
     if use_px4:
         drone.arm()
         drone.set_destination(
