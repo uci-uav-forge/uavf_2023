@@ -12,4 +12,6 @@ tmux new -d -s mavros_roslaunch ./launch_scripts/mavros_irl.sh
 
 tmux new -s mission_script ./launch_scripts/mission.sh
 
+tmux new -d -s obs_avoid ./launch_scripts/obs_avoid.sh
+
 tmux new -d -s attitude_recorder ./launch_scripts/recorder.sh
