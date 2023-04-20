@@ -9,3 +9,4 @@ lib64
 include
 share
 pyvenv.cfg
+telemetry_*
