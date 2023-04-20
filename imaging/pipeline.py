@@ -20,6 +20,7 @@ from .colordetect.color_segment import color_segmentation
 from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
 from .targetaggregator import TargetAggregator
 from .shape_detection.src import plot_functions as plot_fns
+from tqdm import tqdm
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -199,10 +200,10 @@ class Pipeline:
 
         all_shape_results: list[ShapeResult] = []
         tile_index = 0
-        for batch in np.split(
+        for batch in tqdm(np.split(
                 ary=all_tiles,
                 indices_or_sections=range(batch_size, len(all_tiles), batch_size),
-                axis=0):
+                axis=0)):
             predictions: list[Results] = self.shape_model.predict(list(batch), verbose=False, conf=MATCH_THRESHOLD)
             prediction_tensors: list[Boxes] = [x.to('cpu') for x in predictions]
             for batch_result, tile_img in zip(prediction_tensors, batch):
