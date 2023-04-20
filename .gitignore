@@ -16,3 +16,4 @@ devel
 logs
 *.engine
 .rosinstall*
+*.MP4
