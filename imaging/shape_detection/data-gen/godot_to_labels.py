@@ -9,7 +9,10 @@ from tqdm import tqdm
 def preprocess_img(img):
     # blur image with random kernel size
     kernel_size = 3 + 2*np.random.randint(0, 2)
-    img = cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
+    if np.random.randint(0,2)==0:
+        img = cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
+    else:
+        img = cv2.boxFilter(img, -1, (kernel_size, kernel_size), normalize=False)
     # add random noise with random variance
     variance = np.random.randint(0, 10)
     img = img + np.random.normal(0, variance, img.shape)
@@ -28,10 +31,11 @@ if __name__ == "__main__":
     for split_name in ["train", "validation", "test"]:
         os.makedirs(f"{output_dir}/labels/{split_name}", exist_ok=True)
         os.makedirs(f"{output_dir}/images/{split_name}", exist_ok=True)
-    for num in tqdm(range(10_000)):
-        if int(num)<8500:
+    num_images = len(os.listdir(f"{input_dir}/images"))
+    for num in tqdm(range(num_images)):
+        if int(num)<0.85*num_images:
             split_name = "train"
-        elif int(num)<9500:
+        elif int(num)<0.95*num_images:
             split_name = "validation"
         else:
             split_name = "test" 
