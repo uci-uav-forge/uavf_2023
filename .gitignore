@@ -10,3 +10,9 @@ include
 share
 pyvenv.cfg
 telemetry_*
+.catkin_tools
+build
+devel
+logs
+*.engine
+.rosinstall*
