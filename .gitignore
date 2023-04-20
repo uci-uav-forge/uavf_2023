@@ -18,3 +18,6 @@ logs
 .rosinstall*
 *.MP4
 src
+
+# yolov8m (medium size) model weights are too big to upload
+yolov8m*
