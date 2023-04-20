@@ -18,7 +18,7 @@ class FakeLocalizer:
         return self.get_current_xyz(), self.get_current_pitch_roll_yaw()
 
 if __name__ == "__main__":
-    USE_GOPRO = True 
+    USE_GOPRO = False 
     imaging_pipeline = Pipeline(FakeLocalizer(), (5568, 4176), img_file="gopro" if USE_GOPRO else "imaging/gopro-image-5k.png", targets_file='imaging/targets.csv')
     start = time.perf_counter()
     imaging_pipeline.run(num_loops=1)
