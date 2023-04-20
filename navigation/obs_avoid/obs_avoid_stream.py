@@ -14,7 +14,7 @@ from ..guided_mission.py_gnc_functions import gnc_api
 os.chdir("navigation")
 
 
-def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range):
+def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range, max_hdg):
     # drone api for attitude feedback, publisher to send waypoints
     drone = gnc_api()
     avoid_pub = rospy.Publisher(
@@ -70,12 +70,16 @@ def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range):
 
             # obstacle avoidance returns heading angle within FOV -> waypoint at edge of FOV
             # rotate to waypoint corresponding to yaw to get relative coordinates in local frame
-            hdg = obstacle_avoidance(centr_arr, box_arr)
-            if hdg:
-                raw_wp = np.array([avoid_range * atan(hdg), avoid_range])
+            hdg_change = obstacle_avoidance(centr_arr, box_arr, max_hdg)
+            if hdg_change:
+                # change range of waypoint depending on if a safe path is found
+                if hdg_change > max_hdg: 
+                    raw_wp = np.array([danger_range * atan(hdg_change), danger_range])
+                else: 
+                    raw_wp = np.array([avoid_range * atan(hdg_change), avoid_range])
                 corrected_wp = yaw_rotation(raw_wp, yaw)
 
-                print(hdg)
+                print(hdg_change)
                 print(corrected_wp)
                 
                 # create and publish point message
@@ -96,8 +100,11 @@ if __name__=='__main__':
     width = 424
     height = 240
     frame_rate = 15
+    
     max_range = 16 # m
-    avoid_range = 6 # m     the range at which the avoidance waypoint is published
+    avoid_range = 8 # m, the range at which the avoidance waypoint is published
+    danger_range = 4 # m, range when no safe path is found
+    max_hdg = 43 # degrees, the angle of the FOV in 1 quadrant
     
     rospy.init_node("obstacle_detection_avoidance", anonymous=True)
-    rs_stream(width, height, frame_rate, max_range, avoid_range)
+    rs_stream(width, height, frame_rate, max_range, avoid_range, max_hdg)
