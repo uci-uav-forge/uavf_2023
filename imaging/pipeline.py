@@ -136,7 +136,7 @@ class Pipeline:
         self.localizer = localizer
         self.drop_pub = drop_pub
         if drop_sub:
-            self.drop_sub = rospy.Subscriber("drop_signal", Bool, self.drop_sub_cb)
+            self.drop_sub = rospy.Subscriber(name="drop_signal", data_class=Bool, callback=self.drop_sub_cb)
             self.drop = False
         else:
             self.drop_sub = None
@@ -390,14 +390,16 @@ class Pipeline:
             for index in range(num_loops):
                 self.loop(index)
         else:
-            print("Listening for drop signal")
-            while not self.drop:
-                time.sleep(0.1)
-            print("Drop signal received")
-            index = 0
-            while self.drop:
-                self.loop(index)
-                index += 1
+            while 1:
+                print("Listening for drop signal")
+                while not self.drop:
+                    time.sleep(0.1)
+                print("Drop signal received")
+                index = 0
+                while self.drop:
+                    self.loop(index)
+                    index += 1
+            
 
         msg = String()
         valid_target_coords = filter(lambda x: x is not None, self.target_aggregator.get_target_coords())
