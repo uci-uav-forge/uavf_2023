@@ -11,9 +11,12 @@ import rospy
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import Point, Pose
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Bool, Float32MultiArray
+from std_msgs.msg import Bool, String
 
-from .py_gnc_functions import *
+if os.getenv("MOCK_DRONE") is not None:
+    from ..mock_drone import MockDrone as gnc_api
+else:
+    from .py_gnc_functions import gnc_api
 from ..global_path.flight_plan_tsp import FlightPlan
 from .servo_controller import ServoController
 os.chdir("navigation")
@@ -36,7 +39,7 @@ class PriorityAssigner():
         )
         self.drop_sub = rospy.Subscriber(
             name="drop_waypoints",
-            data_class=Float32MultiArray,
+            data_class=String,
             queue_size=1,
             callback=self.drop_cb
         )
@@ -56,14 +59,12 @@ class PriorityAssigner():
                 self.mission_q.put((prio, (wp_x, wp_y, curr_pos.z)))
     
 
-    def drop_cb(self, drop_wps):
+    def drop_cb(self, drop_wps: str):
+        waypoints: list[float] = json.loads(drop_wps)
         prio = int(1000000000)
 
-        for i in len(drop_wps):
-            wp_x = drop_wps[i][0]
-            wp_y = drop_wps[i][1]
+        for wp_x, wp_y, servo_num in waypoints:
             wp_z = self.drop_alt
-            servo_num = drop_wps[i][2]
 
             add_prio = int( (wp_x - self.drop_end[0])**2 + (wp_y - self.drop_end[1])**2 )
             self.mission_q.put((prio + add_prio, (wp_x, wp_y, wp_z, servo_num)))
@@ -79,9 +80,9 @@ def drop_payload(actuator, servo_num):
 
 def init_mission(mission_q, use_px4=False): 
     print("waiting for mavros position message")
-    home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
-    home = (home_fix.latitude, home_fix.longitude)
-    #home = (33.642608, -117.824574) # gps coordinate on arc field
+    #home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
+    #home = (home_fix.latitude, home_fix.longitude)
+    home = (33.642608, -117.824574) # gps coordinate on arc field
     
     # read mission objectives from json file
     print('\nList of mission objective files:\n')
@@ -133,7 +134,7 @@ def init_mission(mission_q, use_px4=False):
     return drone, drop_end, drop_alt, avg_alt
 
 
-def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False):
+def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: PriorityAssigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False):
     # init control loop refresh rate, dropzone state, payload state 
     rate = rospy.Rate(60)
     in_dropzone = False
@@ -154,7 +155,7 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
     bool_msg = Bool()
 
     # servo actuator object
-    #actuator = ServoController()
+    actuator = ServoController()
     
     # takeoff
     if use_px4:
@@ -183,13 +184,12 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
 
         # slow down and tell imaging if in dropzone
         if curr_wp == drop_end and not in_dropzone: 
+            print("reached dropzone")
             in_dropzone = True
             bool_msg.data = True
             img_signal.publish(bool_msg)
             if use_px4: drone.set_speed_px4(drop_spd)
             else: drone.set_speed(drop_spd)
-            print('going to dropzone')
-            print(curr_wp[2])
 
         # speed up if going home
         elif prio == 2000000000 and mission_q_assigner.drop_received:
@@ -203,11 +203,12 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
         drone.set_destination(     
             x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg
         )
-
+        print(f'DROP END: {drop_end}')
         # check if waypoint has changed
         while not drone.check_waypoint_reached():
             prio = mission_q.queue[0][0]
             next_wp = mission_q.queue[0][1]
+            print(curr_wp, next_wp)
 
             # interrupt current waypoint for obstacle avoidance
             if next_wp != curr_wp:
