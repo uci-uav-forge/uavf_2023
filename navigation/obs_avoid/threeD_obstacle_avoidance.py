@@ -19,25 +19,20 @@ def obstacle_avoidance(centroids, dimensions, max_hdg):
   path_dist = 1 # m
   drone_dist = 1
   z_dist = 1 # m
-
-  print(centroids)
-  print()
-
+  
   #check if any z coordinates are above the boundry and also check if half the z dimension is intersecting the boundry
   c_new = []
   d_new = []
 
-  #for coords, dims in zip(centroids[:], dimensions[:]):
+  # VECTORIZE THIS FOR LOOP
   for i in range(len(centroids)):
     if (centroids[i][2] >= 0 and centroids[i][2]-dimensions[i][2] < z_dist)\
     or (centroids[i][2] < 0 and centroids[i][2]+dimensions[i][2] > -z_dist):
       c_new.append(centroids[i])
       d_new.append(dimensions[i])
-
   centr_arr = np.array(c_new)
   dim_arr = np.array(d_new)
-  print(centr_arr)
-
+  
   # approximate max len dimension as sphereical radius
   # if no dangers present, skip obstacle avoidance
   try:
@@ -47,6 +42,7 @@ def obstacle_avoidance(centroids, dimensions, max_hdg):
   
   twoD_centroids = np.delete(centr_arr, 2, axis=1)
   mag_arr = np.zeros(len(twoD_centroids))
+  # VECTORIZE THIS FOR LOOP
   for i in range(len(twoD_centroids)):
     mag_arr[i] = np.sqrt(twoD_centroids[i].dot(twoD_centroids[i]))
   
@@ -67,8 +63,6 @@ def obstacle_avoidance(centroids, dimensions, max_hdg):
       break
     left_hdg -= increment
 
-  print(left_hdg)
-  print(right_hdg)
   if abs(left_hdg) < right_hdg: return left_hdg
   else: return right_hdg
 
@@ -76,7 +70,7 @@ def obstacle_avoidance(centroids, dimensions, max_hdg):
 if __name__=='__main__':
   #centr_arr = np.array([[2, 16, 0]] )
   #dim_arr = np.array([[8, 8, 8]])
-  n=50
+  n=10
   centr_arr = 6*np.abs(np.random.randn(n,3))
   dim_arr = np.full((n,3), 2)
 
