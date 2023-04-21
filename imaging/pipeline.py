@@ -3,6 +3,7 @@ import json
 import itertools
 import os
 from dataclasses import dataclass
+import rospy
 import traceback as tb
 
 import cv2 as cv
@@ -11,6 +12,8 @@ import tensorflow as tf
 from keras.utils import normalize
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
+from std_msgs.msg import Float32MultiArray, Bool
+
 
 from .local_geolocation import GeoLocation
 from .color_knn.color_classify import ColorClassifier
@@ -70,7 +73,6 @@ def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh
             duplicates[j].append(i)
     return duplicate_indices, duplicates
 
-
 class MockCamera:
     def __init__(self, folder_name):
         self.idx = 0
@@ -125,13 +127,19 @@ def crop_image(img: cv.Mat, bbox: 'list[int]', pad="resize"):
 
 
 class Pipeline:
-    def __init__(self, localizer, img_size, img_file="gopro", targets_file="targets.csv", dry_run=False):
-        """
-        dry_run being true will just make the pipeline only record the raw images and coordinates and not run any inference
+    def __init__(self, localizer, img_size, drop_pub, drop_sub = False, img_file="gopro", targets_file="targets.csv", dry_run=False):
+        """ dry_run being true will just make the pipeline only record the raw images and coordinates and
+        not run any inference
         """
         self.doing_dry_run = dry_run
         self.img_file = img_file
         self.localizer = localizer
+        self.drop_pub = drop_pub
+        if drop_sub:
+            self.drop_sub = rospy.Subscriber("drop_signal", Bool, self.drop_sub_cb)
+            self.drop = False
+        else:
+            self.drop_sub = None
         if self.img_file == "gopro":
             self.cam = GoProCamera()
         elif not self.img_file.endswith(".png") and not self.img_file.endswith(".jpg"):
@@ -146,7 +154,8 @@ class Pipeline:
         if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
             tf.config.set_logical_device_configuration(
                 gpus[0],
-                [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
+                [tf.config.LogicalDeviceConfiguration(memory_limit=1024)]
+            )
 
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
         self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt", )
@@ -240,9 +249,9 @@ class Pipeline:
         return list(filter(lambda x: x.confidence > CONF_THRESHOLD, valid_results))
 
     def _get_seg_masks(self, images: np.ndarray) -> np.ndarray:
-        '''
-        images is of shape (batch_size, 128, 128, 3) 
-        '''
+        """
+        images is of shape (batch_size, 128, 128, 3)
+        """
         model_input = normalize(images)
         prediction_raw = self.color_seg_model.predict(model_input)
         prediction = np.argmax(prediction_raw, axis=3)
@@ -265,8 +274,7 @@ class Pipeline:
             cv.imwrite(f"{seg_folder_path}/mask{i}.png", masks[i] * 127)
             cv.imwrite(f"{seg_folder_path}/letter{i}.png", letter_image_buffer[i])
 
-    def _plotPipelineResults(self, cam_img, letter_labels, shape_color_names, coords,
-                             letter_color_names, color_results):
+    def _plotPipelineResults(self, cam_img, letter_labels, shape_color_names, coords, letter_color_names, color_results):
         image_file_name = f"{output_folder_path}/det{self.loop_index}.png"
         plot_fns.show_image_cv(
             cam_img,
@@ -306,7 +314,7 @@ class Pipeline:
             tb.print_exc()
             return
 
-        self.valid_results = self._get_shape_detections(cam_img, batch_size=1)
+        valid_results = self._get_shape_detections(cam_img, batch_size=1)
         coords = [
             self.geolocator.get_location(
                 res.global_bbox[0],
@@ -317,17 +325,16 @@ class Pipeline:
             for res in self.valid_results
         ]
 
-        if len(self.valid_results) < 1:
+        if len(valid_results) < 1:
             print("no shape detections on index", loop_index)
             return
         print("Finished shape detections")
 
-        if PLOT_RESULT:
-            os.makedirs(f"{output_folder_path}/color_seg{loop_index}", exist_ok=True)
+        if PLOT_RESULT: os.makedirs(f"{output_folder_path}/color_seg{loop_index}", exist_ok=True)
 
         color_results = [
             color_segmentation(
-                crop_image(cv.copyTo(res.tile, res.mask), res.local_bbox, pad=None),
+                self._crop_img(cv.copyTo(res.tile, res.mask), res.local_bbox, pad=None),
                 f"{output_folder_path}/color_seg{loop_index}/{res.shape_label}.png" if PLOT_RESULT else None
             )
             for res in self.valid_results
@@ -358,10 +365,9 @@ class Pipeline:
         letter_results = self.letter_detector.predict(np.mean(letter_image_buffer, axis=-1))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
         letter_confidences = [list(zip(self.letter_detector.labels, row)) for row in letter_results]
-        shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates]
-                             for res in self.valid_results]
+        shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates] for res in valid_results]
 
-        for i in range(len(self.valid_results)):
+        for i in range(len(valid_results)):
             self.target_aggregator.match_target_color(
                 coords[i],
                 color_results[i].letter_color, letter_confidences[i],
@@ -370,15 +376,31 @@ class Pipeline:
         # shape_colors, letter_colors = self._get_colors_rgb(letter_crops, masks)
 
         if PLOT_RESULT:
-            self._plotPipelineResults(cam_img, letter_labels, shape_color_names, coords, letter_color_names,
-                                      color_results)
+            self._plotPipelineResults(cam_img, letter_labels, shape_color_names, coords, letter_color_names, color_results)
+
+    def drop_sub_cb(self, data):
+        self.drop = data.data
 
     def run(self, num_loops=50):
         """
         Main run loop for the Imaging pipeline.
         """
-        for index in range(num_loops):
-            self.loop(index)
+        if self.drop_sub is None:
+            for index in range(num_loops):
+                self.loop(index)
+        else:
+            while not self.drop:
+                time.sleep(0.1)
+            index = 0
+            while self.drop:
+                self.loop(index)
+                index += 1
+
+        msg = Float32MultiArray()
+        msg.data = np.array([[gps[0], gps[1], idx] for gps, idx in enumerate(self.target_aggregator.target_gps)])
+        self.drop_pub.publish(msg)
+
+
 
 
 '''
