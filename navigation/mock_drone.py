@@ -1,6 +1,14 @@
 import time
 from threading import Thread
 import numpy as np
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: float
+    y: float
+    z: float
+
 class MockDrone:
     def __init__(self):
         self.location = [0, 0, 0]
@@ -10,8 +18,14 @@ class MockDrone:
         time.sleep(0.2)
     def set_mode_px4(self, mode):
         time.sleep(0.2)
+        print(f"set mode to {mode}")
+    def set_speed_px4(self, speed):
+        time.sleep(0.2)
+        print(f"set speed to {speed}")
     def initialize_local_frame(self):
         time.sleep(0.2)
+    def get_current_location(self):
+        return Point(*self.location)
     def get_current_xyz(self):
         return self.location
     def arm(self):
