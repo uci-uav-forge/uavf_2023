@@ -154,7 +154,7 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
     bool_msg = Bool()
 
     # servo actuator object
-    actuator = ServoController()
+    #actuator = ServoController()
     
     # takeoff
     if use_px4:
@@ -188,6 +188,8 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
             img_signal.publish(bool_msg)
             if use_px4: drone.set_speed_px4(drop_spd)
             else: drone.set_speed(drop_spd)
+            print('going to dropzone')
+            print(curr_wp[2])
 
         # speed up if going home
         elif prio == 2000000000 and mission_q_assigner.drop_received:
@@ -259,8 +261,8 @@ if __name__ == '__main__':
     use_px4 = True
 
     # init mission
-    max_spd = 15 # m/s
-    drop_spd = 5 # m/s
+    max_spd = 7 # m/s
+    drop_spd = 3 # m/s
     drone, drop_end, drop_alt, avg_alt = init_mission(mission_q, use_px4)
 
     # init priority assigner with mission queue and dropzone wp
