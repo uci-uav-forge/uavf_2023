@@ -120,7 +120,7 @@ def init_mission(mission_q, use_px4=False):
 
     # initialize priority queue and put home last
     for i in range(1, len(global_path)): mission_q.put((int(i), global_path[i]))
-    mission_q.put((2000000000), (0, 0, avg_alt))
+    mission_q.put(((2000000000), (0, 0, avg_alt)))
 
     drone = gnc_api()
     drone.wait4connect()
@@ -137,15 +137,21 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
     # init control loop refresh rate, dropzone state, payload state 
     rate = rospy.Rate(60)
     in_dropzone = False
+    at_drop_end = False
     at_drop_pt  = False
     servo_num = -1
+    
+    # change these states to turn on or off avoidance and drop reception
+    mission_q_assigner.run_obs_avoid = False # True by default
+    mission_q_assigner.drop_received = True # False by default
     
     # init imaging signal publisher
     img_signal = rospy.Publisher(
         name="drop_signal",
         data_class=Bool,
-        queue_size=1,
+        queue_size=1
     )
+    bool_msg = Bool()
 
     # servo actuator object
     actuator = ServoController()
@@ -161,13 +167,8 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
     # initialize maximum speed
     if use_px4: drone.set_speed_px4(max_spd)
     else: drone.set_speed(max_spd)
-
     while not drone.check_waypoint_reached():
         pass
-    
-    # change these states to turn on or off avoidance and drop reception
-    mission_q_assigner.run_obs_avoid = False # True by default
-    mission_q_assigner.drop_received = True # False by default
 
     # outer loop: check if there are more waypoints to travel to
     while mission_q.qsize():
@@ -183,10 +184,8 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
         # slow down and tell imaging if in dropzone
         if curr_wp == drop_end and not in_dropzone: 
             in_dropzone = True
-            bool_msg = Bool()
-            bool_msg.data = in_dropzone
+            bool_msg.data = True
             img_signal.publish(bool_msg)
-
             if use_px4: drone.set_speed_px4(drop_spd)
             else: drone.set_speed(drop_spd)
 
@@ -203,7 +202,7 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
             x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg
         )
 
-        # get next waypoint
+        # check if waypoint has changed
         while not drone.check_waypoint_reached():
             prio = mission_q.queue[0][0]
             next_wp = mission_q.queue[0][1]
@@ -222,17 +221,30 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
                     x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg
                 )
             
+            # if going towards dropzone end, save status
+            if next_wp == drop_end and not at_drop_end:
+                at_drop_end = True
+                at_drop_pt = False
             # if going towards drop, save status and servo number
-            if prio > 1000000000 and prio < 2000000000: 
+            elif prio > 1000000000 and prio < 2000000000: 
+                at_drop_end = False
                 at_drop_pt = True
                 servo_num = next_wp[3]
-            else: at_drop_pt = False
+            else: 
+                at_drop_end = False
+                at_drop_pt = False
 
             # maintain loop frequency
             rate.sleep()
 
-        # drop payload if reached drop waypoint, pop waypoint off queue
-        if at_drop_pt: drop_payload(actuator, servo_num)
+        # tell imaging to stop taking photos when dropzone end reached
+        if at_drop_end: 
+            bool_msg.data = False
+            img_signal.publish(bool_msg)
+        # drop payload if reached drop waypoint
+        elif at_drop_pt: 
+            drop_payload(actuator, servo_num)
+        #pop waypoint off queue
         mission_q.get()
 
     drone.land()
