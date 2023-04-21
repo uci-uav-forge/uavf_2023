@@ -1,46 +1,60 @@
-from adafruit_servokit import ServoKit
+import os
+if os.getenv("MOCK_PAYLOAD") is not None:
+    class ServoController:
+        def __init__(self):
+            pass
+        def openServo(self, servoIndex : int):
+            print("Opening servo {}".format(servoIndex)) 
+        def closeServo(self, servoIndex : int):
+            print("Closing servo {}".format(servoIndex)) 
+        def openAllServos(self):
+            print("Opening all servos") 
+        def closeAllServos(self):
+            print("Closing all servos") 
+else:
+    from adafruit_servokit import ServoKit
 
-# max range of servo in degrees
-servoMax = 26
+    # max range of servo in degrees
+    servoMax = 26
 
-#We're using a 16 channel servo controller
-kit = ServoKit(channels=16)
+    #We're using a 16 channel servo controller
+    kit = ServoKit(channels=16)
 
-#Initializes the servo controller
-def setupController():
-    for i in range(16):
-        kit.servo[i].actuation_range = servoMax
-        kit.servo[0].set_pulse_width_range(1000, 2000)
+    #Initializes the servo controller
+    def setupController():
+        for i in range(16):
+            kit.servo[i].actuation_range = servoMax
+            kit.servo[0].set_pulse_width_range(1000, 2000)
 
-#Open specified servo
-def openServo(servoIndex : int):
-    kit.servo[servoIndex].angle = servoMax
+    #Open specified servo
+    def openServo(servoIndex : int):
+        kit.servo[servoIndex].angle = servoMax
 
-#Close specified servo
-def closeServo(servoIndex : int):
-    kit.servo[servoIndex].angle = 0
+    #Close specified servo
+    def closeServo(servoIndex : int):
+        kit.servo[servoIndex].angle = 0
 
-#Open all servos
-def openAllServos():
-    for i in range(5):
-        kit.servo[i].angle = servoMax
+    #Open all servos
+    def openAllServos():
+        for i in range(5):
+            kit.servo[i].angle = servoMax
 
-#Close all servos
-def closeAllServos():
-    for i in range(5):
-        kit.servo[i].angle = 0
+    #Close all servos
+    def closeAllServos():
+        for i in range(5):
+            kit.servo[i].angle = 0
 
-class ServoController:
-    def __init__(self):
-        setupController()
-    def openServo(self, servoIndex : int):
-        openServo(servoIndex)
-    def closeServo(self, servoIndex : int):
-        closeServo(servoIndex)
-    def openAllServos(self):
-        openAllServos()
-    def closeAllServos(self):
-        closeAllServos()
+    class ServoController:
+        def __init__(self):
+            setupController()
+        def openServo(self, servoIndex : int):
+            openServo(servoIndex)
+        def closeServo(self, servoIndex : int):
+            closeServo(servoIndex)
+        def openAllServos(self):
+            openAllServos()
+        def closeAllServos(self):
+            closeAllServos()
 
 if __name__=="__main__":
     servoController = ServoController()
