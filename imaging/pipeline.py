@@ -12,7 +12,7 @@ import tensorflow as tf
 from keras.utils import normalize
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
-from std_msgs.msg import Float32MultiArray, Bool
+from std_msgs.msg import String, Bool
 
 
 from .local_geolocation import GeoLocation
@@ -399,8 +399,9 @@ class Pipeline:
                 self.loop(index)
                 index += 1
 
-        msg = Float32MultiArray()
-        msg.data = np.array([[gps[0], gps[1], idx] for gps, idx in enumerate(self.target_aggregator.get_target_coords())])
+        msg = String()
+        valid_target_coords = filter(lambda x: x is not None, self.target_aggregator.get_target_coords())
+        msg.data = json.dumps([(coord[0], coord[1], idx) for idx, coord in enumerate(valid_target_coords)])
         self.drop_pub.publish(msg)
 
 

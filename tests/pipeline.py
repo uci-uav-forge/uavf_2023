@@ -4,9 +4,10 @@ Master script to run Imaging and Navigation pipelines.
 Currently only running Imaging pipeline to test for Feb. 16 flight day.
 """
 
+import json
 from imaging.pipeline import Pipeline
 import rospy
-from std_msgs.msg import Bool, Float32MultiArray
+from std_msgs.msg import Bool, String 
 import time
 from threading import Thread
 
@@ -34,16 +35,16 @@ if __name__ == "__main__":
         data_class=Bool,
         queue_size=1,
     ) 
-    def receive_targets(targets: Float32MultiArray):
-        print(f"Received targets: targets") 
+    def receive_targets(targets: String):
+        print(f"Received targets: {json.loads(targets.data)}") 
     targets_subscriber = rospy.Subscriber(
         name="targets",
-        data_class=Float32MultiArray,
+        data_class=String,
         callback=receive_targets
     )
     targets_publisher = rospy.Publisher(
         name="targets",
-        data_class=Float32MultiArray,
+        data_class=String,
         queue_size=1
     )
     imaging_pipeline = Pipeline(
