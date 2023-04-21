@@ -120,7 +120,7 @@ def init_mission(mission_q, use_px4=False):
 
     # initialize priority queue and put home last
     for i in range(1, len(global_path)): mission_q.put((int(i), global_path[i]))
-    mission_q.put((2000000000), (0, 0, avg_alt))
+    mission_q.put(((2000000000), (0, 0, avg_alt)))
 
     drone = gnc_api()
     drone.wait4connect()
@@ -148,7 +148,7 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
     )
 
     # servo actuator object
-    actuator = ServoController()
+    #actuator = ServoController()
     
     # takeoff
     if use_px4:
@@ -189,6 +189,8 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
 
             if use_px4: drone.set_speed_px4(drop_spd)
             else: drone.set_speed(drop_spd)
+            print('going to dropzone')
+            print(curr_wp[2])
 
         # speed up if going home
         elif prio == 2000000000 and mission_q_assigner.drop_received:
@@ -232,7 +234,7 @@ def mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_al
             rate.sleep()
 
         # drop payload if reached drop waypoint, pop waypoint off queue
-        if at_drop_pt: drop_payload(actuator, servo_num)
+        #if at_drop_pt: drop_payload(actuator, servo_num)
         mission_q.get()
 
     drone.land()
@@ -247,8 +249,8 @@ if __name__ == '__main__':
     use_px4 = True
 
     # init mission
-    max_spd = 15 # m/s
-    drop_spd = 5 # m/s
+    max_spd = 7 # m/s
+    drop_spd = 3 # m/s
     drone, drop_end, drop_alt, avg_alt = init_mission(mission_q, use_px4)
 
     # init priority assigner with mission queue and dropzone wp
