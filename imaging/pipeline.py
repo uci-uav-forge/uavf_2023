@@ -32,6 +32,7 @@ PLOT_RESULT = True
 output_folder_path = os.path.join(os.path.dirname(IMAGING_PATH), "flight_data", f"{time.strftime(r'%m-%d-%H-%M-%S')}")
 os.makedirs(output_folder_path, exist_ok=True)
 
+index=0 # defined globally so we don't get overlaps on file names when the pipeline starts, stops, then restarts itself
 
 @dataclass
 class ShapeResult:
@@ -383,19 +384,20 @@ class Pipeline:
         self.drop = data.data
 
     def run(self, num_loops=1):
+        global index
         """
         Main run loop for the Imaging pipeline.
         """
         if self.drop_sub is None:
-            for index in range(num_loops):
+            for _i in range(num_loops):
                 self.loop(index)
+                index+=1
         else:
             while 1:
                 print("Listening for drop signal")
                 while not self.drop:
                     time.sleep(0.1)
                 print("Drop signal received")
-                index = 0
                 while self.drop:
                     self.loop(index)
                     index += 1
