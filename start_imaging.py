@@ -20,15 +20,16 @@ img_signal = rospy.Publisher(
 def receive_targets(targets: String):
     print(f"Received targets: {json.loads(targets.data)}") 
 targets_subscriber = rospy.Subscriber(
-    name="targets",
+    name="drop_waypoints",
     data_class=String,
     callback=receive_targets
 )
 targets_publisher = rospy.Publisher(
-    name="targets",
+    name="drop_waypoints",
     data_class=String,
     queue_size=1
 )
+rospy.init_node("imaging_pipeline")
 imaging_pipeline = Pipeline(
     localizer=FakeLocalizer(), 
     img_size=(5568, 4176), 
