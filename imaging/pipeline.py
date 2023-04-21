@@ -240,13 +240,13 @@ class Pipeline:
             [x.confidence for x in all_shape_results]
         )
 
-        valid_results: "list[ShapeResult]" = list()
+        self.valid_results: "list[ShapeResult]" = list()
         for i, shape_result in enumerate(all_shape_results):
             if i in duplicate_indices: continue
-            valid_results.append(shape_result)
+            self.valid_results.append(shape_result)
             shape_result.duplicates = [all_shape_results[d] for d in duplicates[i]]
 
-        return list(filter(lambda x: x.confidence > CONF_THRESHOLD, valid_results))
+        return list(filter(lambda x: x.confidence > CONF_THRESHOLD, self.valid_results))
 
     def _get_seg_masks(self, images: np.ndarray) -> np.ndarray:
         """
@@ -314,7 +314,7 @@ class Pipeline:
             tb.print_exc()
             return
 
-        valid_results = self._get_shape_detections(cam_img, batch_size=1)
+        self.valid_results = self._get_shape_detections(cam_img, batch_size=1)
         coords = [
             self.geolocator.get_location(
                 res.global_bbox[0],
@@ -325,7 +325,7 @@ class Pipeline:
             for res in self.valid_results
         ]
 
-        if len(valid_results) < 1:
+        if len(self.valid_results) < 1:
             print("no shape detections on index", loop_index)
             return
         print("Finished shape detections")
@@ -334,7 +334,7 @@ class Pipeline:
 
         color_results = [
             color_segmentation(
-                self._crop_img(cv.copyTo(res.tile, res.mask), res.local_bbox, pad=None),
+                crop_image(cv.copyTo(res.tile, res.mask), res.local_bbox, pad=None),
                 f"{output_folder_path}/color_seg{loop_index}/{res.shape_label}.png" if PLOT_RESULT else None
             )
             for res in self.valid_results
@@ -365,9 +365,9 @@ class Pipeline:
         letter_results = self.letter_detector.predict(np.mean(letter_image_buffer, axis=-1))
         letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
         letter_confidences = [list(zip(self.letter_detector.labels, row)) for row in letter_results]
-        shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates] for res in valid_results]
+        shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates] for res in self.valid_results]
 
-        for i in range(len(valid_results)):
+        for i in range(len(self.valid_results)):
             self.target_aggregator.match_target_color(
                 coords[i],
                 color_results[i].letter_color, letter_confidences[i],
@@ -379,9 +379,10 @@ class Pipeline:
             self._plotPipelineResults(cam_img, letter_labels, shape_color_names, coords, letter_color_names, color_results)
 
     def drop_sub_cb(self, data):
+        print(f"Drop sub received with data: {data}")
         self.drop = data.data
 
-    def run(self, num_loops=50):
+    def run(self, num_loops=1):
         """
         Main run loop for the Imaging pipeline.
         """
@@ -389,15 +390,17 @@ class Pipeline:
             for index in range(num_loops):
                 self.loop(index)
         else:
+            print("Listening for drop signal")
             while not self.drop:
                 time.sleep(0.1)
+            print("Drop signal received")
             index = 0
             while self.drop:
                 self.loop(index)
                 index += 1
 
         msg = Float32MultiArray()
-        msg.data = np.array([[gps[0], gps[1], idx] for gps, idx in enumerate(self.target_aggregator.target_gps)])
+        msg.data = np.array([[gps[0], gps[1], idx] for gps, idx in enumerate(self.target_aggregator.get_target_coords())])
         self.drop_pub.publish(msg)
 
 
