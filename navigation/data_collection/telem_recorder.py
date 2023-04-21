@@ -48,7 +48,7 @@ class GPS_Attitude_Recorder():
     def callback(self, pose):
         # time step at least 2 seconds
         curr = time.time()
-        if (curr - self.timer >= 1):
+        if (curr - self.timer >= 0.2):
             self.timer = time.time()
 
             # get euler angles from quaternion

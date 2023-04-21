@@ -73,7 +73,7 @@ class GPS_Attitude_Recorder():
             self.count += 1
             
             # write GPS info
-            info = 'Lat: '+str(round(gps.latitude,6)) + '    Long: '+str(round(gps.longitude,6)) +\
+            info = 'Lat, Long: '+str(round(gps.latitude,6)) + ', '+str(round(gps.longitude,6)) +\
                 '    Alt: '+str(round(gps.altitude,6)) + '    Time: '+str(round(curr-self.start, 4))+' s'+ '\n'
             self.file.write(info)
 
