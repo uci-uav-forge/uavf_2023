@@ -67,8 +67,9 @@ class PriorityAssigner():
                 self.mission_q.put((prio, (wp_x, wp_y, curr_pos.z)))
     
 
-    def drop_cb(self, drop_wps: str):
-        waypoints: list[float] = json.loads(drop_wps)
+    def drop_cb(self, drop_wps: String):
+        print(f"Received drop waypoints: {drop_wps.data}")
+        waypoints: list[float] = json.loads(drop_wps.data)
         prio = WaypointPriorities.DROP_MIN_PRIORITY
 
         for wp_x, wp_y, servo_num in waypoints:
@@ -193,6 +194,7 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
         if prio == WaypointPriorities.HOME_PRIORITY and not mission_q_assigner.drop_received:
             print("waiting for drop waypoints")
             curr_wp = (curr_pos.x, curr_pos.y, curr_pos.z)
+            time.sleep(1)
             mission_q.put((prio, curr_wp))# enqueue home wp again
 
         # slow down and tell imaging if in dropzone
@@ -241,7 +243,6 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
                 at_drop_pt = False
             # if going towards drop, save status and servo number
             elif WaypointPriorities.DROP_MIN_PRIORITY < prio < WaypointPriorities.HOME_PRIORITY:
-                print("going toward drop waypoint") 
                 at_drop_end = False
                 at_drop_pt = True
                 servo_num = top_wp[3]
