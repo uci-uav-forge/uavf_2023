@@ -6,6 +6,7 @@ import numpy as np
 import time
 import json
 import os
+from enum import IntEnum
 
 import rospy
 from sensor_msgs.msg import NavSatFix
@@ -21,6 +22,13 @@ from ..global_path.flight_plan_tsp import FlightPlan
 from .servo_controller import ServoController
 os.chdir("navigation")
 
+class WaypointPriorities(IntEnum):
+    '''
+    Obstacle avoidance has a super low number so it goes first in the queue. Drops have super high numbers so they go last, but home is even higher so it goes last.
+    '''
+    DROP_MIN_PRIORITY = 1000000000
+    OBS_AVOID_PRIORITY = -1000000000
+    HOME_PRIORITY = 2000000000
 
 class PriorityAssigner():
     def __init__(self, mission_q: PriorityQueue, drone: gnc_api, drop_end: tuple, drop_alt: int):
@@ -47,7 +55,7 @@ class PriorityAssigner():
 
     def avoid_cb(self, avoid_coord):
         if self.run_obs_avoid:
-            prio = int(-1000000000)
+            prio = WaypointPriorities.OBS_AVOID_PRIORITY
             curr_pos = self.drone.get_current_location()
             
             wp_x = curr_pos.x + avoid_coord.x
@@ -61,13 +69,13 @@ class PriorityAssigner():
 
     def drop_cb(self, drop_wps: str):
         waypoints: list[float] = json.loads(drop_wps)
-        prio = int(1000000000)
+        prio = WaypointPriorities.DROP_MIN_PRIORITY
 
         for wp_x, wp_y, servo_num in waypoints:
             wp_z = self.drop_alt
 
-            add_prio = int( (wp_x - self.drop_end[0])**2 + (wp_y - self.drop_end[1])**2 )
-            self.mission_q.put((prio + add_prio, (wp_x, wp_y, wp_z, servo_num)))
+            dist_to_drop_end = int( (wp_x - self.drop_end[0])**2 + (wp_y - self.drop_end[1])**2 )
+            self.mission_q.put((prio + dist_to_drop_end, (wp_x, wp_y, wp_z, servo_num)))
 
         self.drop_received = True
 
@@ -78,11 +86,15 @@ def drop_payload(actuator, servo_num):
     time.sleep(3)
 
 
-def init_mission(mission_q, use_px4=False): 
+def init_mission(mission_q: PriorityQueue, use_px4=False): 
     print("waiting for mavros position message")
-    home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
-    home = (home_fix.latitude, home_fix.longitude)
-    #home = (33.642608, -117.824574) # gps coordinate on arc field
+    if os.getenv("MOCK_DRONE") is not None:
+        home = (33.646070, -117.837994) # middle earth field
+        #home = (33.642608, -117.824574) # gps coordinate on arc field
+    else:
+        home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
+        home = (home_fix.latitude, home_fix.longitude)
+
     
     # read mission objectives from json file
     print('\nList of mission objective files:\n')
@@ -120,8 +132,8 @@ def init_mission(mission_q, use_px4=False):
     print(global_path)
 
     # initialize priority queue and put home last
-    for i in range(1, len(global_path)): mission_q.put((int(i), global_path[i]))
-    mission_q.put(((2000000000), (0, 0, avg_alt)))
+    for i in range(1, len(global_path)): mission_q.put((i, global_path[i]))
+    mission_q.put((WaypointPriorities.HOME_PRIORITY, (0, 0, avg_alt)))
 
     drone = gnc_api()
     drone.wait4connect()
@@ -134,7 +146,7 @@ def init_mission(mission_q, use_px4=False):
     return drone, drop_end, drop_alt, avg_alt
 
 
-def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: PriorityAssigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False):
+def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: PriorityAssigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False, wait_for_imaging=True, run_obs_avoid=True):
     # init control loop refresh rate, dropzone state, payload state 
     rate = rospy.Rate(60)
     in_dropzone = False
@@ -144,7 +156,7 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
     
     # change these states to turn on or off avoidance and drop reception
     mission_q_assigner.run_obs_avoid = False # True by default
-    mission_q_assigner.drop_received = True # False by default
+    mission_q_assigner.drop_received = not wait_for_imaging # False for real mission
     
     # init imaging signal publisher
     img_signal = rospy.Publisher(
@@ -172,15 +184,16 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
         pass
 
     # outer loop: check if there are more waypoints to travel to
-    while mission_q.qsize():
-        prio = mission_q.queue[0][0]
+    while not mission_q.empty():
+        prio, curr_wp = mission_q.queue[0]
         curr_pos = drone.get_current_location()
 
         # if only home wp is left and drop wps not received, hover
         # else get next waypoint
-        if prio == 2000000000 and not mission_q_assigner.drop_received:
-            curr_wp = (curr_pos.x, curr_pos.y)
-        else: curr_wp = mission_q.queue[0][1]
+        if prio == WaypointPriorities.HOME_PRIORITY and not mission_q_assigner.drop_received:
+            print("waiting for drop waypoints")
+            curr_wp = (curr_pos.x, curr_pos.y, curr_pos.z)
+            mission_q.put((prio, curr_wp))# enqueue home wp again
 
         # slow down and tell imaging if in dropzone
         if curr_wp == drop_end and not in_dropzone: 
@@ -192,7 +205,7 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
             else: drone.set_speed(drop_spd)
 
         # speed up if going home
-        elif prio == 2000000000 and mission_q_assigner.drop_received:
+        elif prio == WaypointPriorities.HOME_PRIORITY and mission_q_assigner.drop_received:
             if use_px4: drone.set_speed_px4(max_spd)
             else: drone.set_speed(max_spd)
         
@@ -206,44 +219,44 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
         print(f'DROP END: {drop_end}')
         # check if waypoint has changed
         while not drone.check_waypoint_reached():
-            prio = mission_q.queue[0][0]
-            next_wp = mission_q.queue[0][1]
-            print(curr_wp, next_wp)
+            top_prio, top_wp = mission_q.queue[0]
+            # these should be the same as prio and curr_wp unless PriorityAssigner has enqueued an obstacle avoidance waypoint in between the top of the loop and here
 
             # interrupt current waypoint for obstacle avoidance
-            if next_wp != curr_wp:
+            if top_wp != curr_wp:
                 print('waypoint interrupted!\n')
-                curr_wp = next_wp
                 curr_pos = drone.get_current_location()
 
                 # calc heading and send position to drone
                 hdg = -90 + np.degrees(
-                    np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x)
+                    np.arctan2(top_wp[1] - top_wp.y, top_wp[0] - curr_pos.x)
                 )
                 drone.set_destination(
-                    x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg
+                    x=top_wp[0], y=top_wp[1], z=top_wp[2], psi=hdg
                 )
             
             # if going towards dropzone end, save status
-            if next_wp == drop_end and not at_drop_end:
+            if top_wp == drop_end:
                 at_drop_end = True
                 at_drop_pt = False
             # if going towards drop, save status and servo number
-            elif prio > 1000000000 and prio < 2000000000: 
+            elif WaypointPriorities.DROP_MIN_PRIORITY < prio < WaypointPriorities.HOME_PRIORITY:
+                print("going toward drop waypoint") 
                 at_drop_end = False
                 at_drop_pt = True
-                servo_num = next_wp[3]
+                servo_num = top_wp[3]
             else: 
                 at_drop_end = False
                 at_drop_pt = False
 
             # maintain loop frequency
             rate.sleep()
-
         # tell imaging to stop taking photos when dropzone end reached
         if at_drop_end: 
+            print("Signaling imaging to stop")
             bool_msg.data = False
             img_signal.publish(bool_msg)
+            at_drop_end=False
         # drop payload if reached drop waypoint
         elif at_drop_pt: 
             drop_payload(actuator, servo_num)
@@ -271,4 +284,4 @@ if __name__ == '__main__':
 
     # run online trajectory planner
     print("running trajectory planner")
-    mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4)
+    mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4, wait_for_imaging=True, run_obs_avoid=False)

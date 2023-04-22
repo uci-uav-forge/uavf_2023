@@ -2,15 +2,8 @@ import rospy
 from std_msgs.msg import Bool, String
 import json
 from imaging.pipeline import Pipeline
-class FakeLocalizer:
-    def __init__(self):
-        pass
-    def get_current_xyz(self):
-        return (69,-1337,23)
-    def get_current_pitch_roll_yaw(self):
-        return (0,0,0)
-    def get_current_pos_and_angles(self):
-        return self.get_current_xyz(), self.get_current_pitch_roll_yaw()
+from navigation.mock_drone import MockDrone
+
 USE_GOPRO = False 
 img_signal = rospy.Publisher(
     name="drop_signal",
@@ -31,8 +24,7 @@ targets_publisher = rospy.Publisher(
 )
 rospy.init_node("imaging_pipeline")
 imaging_pipeline = Pipeline(
-    localizer=FakeLocalizer(), 
-    img_size=(5568, 4176), 
+    drone=MockDrone(), 
     img_file="gopro" if USE_GOPRO else "tests/image0_crop_smaller.png", 
     targets_file='imaging/targets.csv',
     dry_run=False,

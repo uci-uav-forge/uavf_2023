@@ -160,7 +160,7 @@ class Pipeline:
             )
 
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n-people-v3.pt")
+        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt")
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
         self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
         self.color_classifier = ColorClassifier()

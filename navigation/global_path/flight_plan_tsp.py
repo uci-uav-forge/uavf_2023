@@ -193,12 +193,12 @@ class FlightPlan():
         waypt_order = [waypts[order[0]]]
         temp_bd_pts = [pt for pt in self.bd_pts]
 
-        polygon = Polygon(self.bd_pts)
-        polygon_ext = LineString(list(polygon.exterior.coords))
+        boundary_polygon = Polygon(self.bd_pts)
+        polygon_ext = LineString(list(boundary_polygon.exterior.coords))
 
         for i in range(len(waypts) - 1):
             # if waypoint is outside of bounds stop the program
-            if not polygon.contains(Point(waypts[order[i]][:2])):
+            if not boundary_polygon.contains(Point(waypts[order[i]][:2])):
                 raise RuntimeError(f'waypoint {i} is outside of bounds: {waypts[order[i]][:2]}')
 
             # straight line between wp1 and wp2
