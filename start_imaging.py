@@ -10,13 +10,7 @@ img_signal = rospy.Publisher(
     data_class=Bool,
     queue_size=1,
 ) 
-def receive_targets(targets: String):
-    print(f"Received targets: {json.loads(targets.data)}") 
-targets_subscriber = rospy.Subscriber(
-    name="drop_waypoints",
-    data_class=String,
-    callback=receive_targets
-)
+
 targets_publisher = rospy.Publisher(
     name="drop_waypoints",
     data_class=String,
