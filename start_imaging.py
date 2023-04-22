@@ -1,15 +1,11 @@
 import rospy
 from std_msgs.msg import Bool, String
-import json
 from imaging.pipeline import Pipeline
-from navigation.mock_drone import MockDrone
-
-USE_GOPRO = False 
-img_signal = rospy.Publisher(
-    name="drop_signal",
-    data_class=Bool,
-    queue_size=1,
-) 
+USE_GOPRO = input("Use gopro? (y/n) ") == "y"
+if input("Use real drone position and commands? (y/n) ") == "y":
+    from navigation.guided_mission.py_gnc_functions import gnc_api
+else:
+    from navigation.mock_drone import MockDrone as gnc_api
 
 targets_publisher = rospy.Publisher(
     name="drop_waypoints",
@@ -18,7 +14,7 @@ targets_publisher = rospy.Publisher(
 )
 rospy.init_node("imaging_pipeline")
 imaging_pipeline = Pipeline(
-    drone=MockDrone(), 
+    drone=gnc_api(), 
     img_file="gopro" if USE_GOPRO else "tests/image0_crop_smaller.png", 
     targets_file='imaging/targets.csv',
     dry_run=False,
