@@ -3,10 +3,9 @@ import time
 import rospy
 from geometry_msgs.msg import Point
 
-from py_gnc_functions import *
-from PrintColours import *
-from guided_mission import init_mission, mission_loop
-from run_mission import Localizer
+from .py_gnc_functions import *
+from .PrintColours import *
+from .guided_mission import init_mission, mission_loop
 
 
 def dummy_obs_avoid():
@@ -16,7 +15,7 @@ def dummy_obs_avoid():
         queue_size=1
     )
 
-    wait_time = 60
+    wait_time = 5
     st = time.time()
     et = time.time()
 
@@ -31,6 +30,7 @@ def dummy_obs_avoid():
     avoid_coord.y = 8.00
     avoid_coord.z = 1.00
     obs_avoid_pub.publish(avoid_coord)
+    print(time.time())
 
 
 if __name__ == '__main__':
