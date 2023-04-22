@@ -20,7 +20,7 @@ def best_match(targets, letterConfidence, shapeConfidence):
 
     return r, match_score(r)
 
-def best_match_color(targets, 
+def best_match_color(targets: "list[tuple[str]]", 
                      letterColor, letterConfidence,
                      shapeColor, shapeConfidence):
     

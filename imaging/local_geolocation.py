@@ -2,12 +2,14 @@ import numpy as np
 import cameratransform as ct  # pip install cameratransform
 
 
-class GeoLocation:
-    def __init__(self, img_size):
-        self.img_size = img_size
+class GeoLocator:
+    def __init__(self):
+        pass
 
-    def get_location(self, image_x, image_y, location, angles) -> "tuple[float,float,float]":
+    def get_location(self, image_x: int, image_y: int, location:"tuple[float,float,float]", angles:"tuple[float,float,float]", img_size: "tuple[int,int]") -> "tuple[float,float,float]":
         """
+        img_size should be (height, width)
+
         Returns the location of a pixel in the image in the world frame.
         location: assumed to be (x,y,z) where z is the height
         angles: assumed to be (heading, tilt, roll)
@@ -27,7 +29,8 @@ class GeoLocation:
             ct.RectilinearProjection(                
                 view_x_deg=73,
                 view_y_deg=58,
-                image=self.img_size),
+                image_width_px=img_size[1],
+                image_height_px=img_size[0]),
             ct.SpatialOrientation(
                 elevation_m=z,
                 heading_deg=heading,
@@ -44,6 +47,6 @@ class GeoLocation:
 
 
 if __name__ == "__main__":
-    geolocator = GeoLocation((5568, 4176))
+    geolocator = GeoLocator((5568, 4176))
     loc = geolocator.get_location(0, 0, (5, 5, 10), (90, 0, 0))
     print(loc, np.linalg.norm(loc), loc[2] > 0, type(loc))

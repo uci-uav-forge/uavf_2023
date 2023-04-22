@@ -13,7 +13,7 @@ if ACTUALLY_FLY_DRONE:
     import rospy
     from navigation.guided_mission.py_gnc_functions import gnc_api
 else:
-    from tests.mock_drone import MockDrone as gnc_api
+    from navigation.mock_drone import MockDrone as gnc_api
 from imaging.pipeline import Pipeline
 
 drone = gnc_api()

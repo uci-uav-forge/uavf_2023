@@ -12,10 +12,10 @@ import tensorflow as tf
 from keras.utils import normalize
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
-from std_msgs.msg import Float32MultiArray, Bool
+from std_msgs.msg import String, Bool
 
 
-from .local_geolocation import GeoLocation
+from .local_geolocation import GeoLocator 
 from .color_knn.color_classify import ColorClassifier
 from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
@@ -23,6 +23,7 @@ from .colordetect.color_segment import color_segmentation
 from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
 from .targetaggregator import TargetAggregator
 from .shape_detection.src import plot_functions as plot_fns
+from navigation.mock_drone import MockDrone
 from tqdm import tqdm
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -32,6 +33,7 @@ PLOT_RESULT = True
 output_folder_path = os.path.join(os.path.dirname(IMAGING_PATH), "flight_data", f"{time.strftime(r'%m-%d-%H-%M-%S')}")
 os.makedirs(output_folder_path, exist_ok=True)
 
+index=0 # defined globally so we don't get overlaps on file names when the pipeline starts, stops, then restarts itself
 
 @dataclass
 class ShapeResult:
@@ -42,7 +44,7 @@ class ShapeResult:
     mask: np.ndarray
     tile: np.ndarray
 
-
+unique_labels = set()
 def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh=0.01):
     """
     Returns indices of the ones that are duplicates for non-max suppression.
@@ -127,16 +129,16 @@ def crop_image(img: cv.Mat, bbox: 'list[int]', pad="resize"):
 
 
 class Pipeline:
-    def __init__(self, localizer, img_size, drop_pub, drop_sub = False, img_file="gopro", targets_file="targets.csv", dry_run=False):
+    def __init__(self, drone: MockDrone, drop_pub: rospy.Publisher, drop_sub = False, img_file="gopro", targets_file="targets.csv", dry_run=False):
         """ dry_run being true will just make the pipeline only record the raw images and coordinates and
         not run any inference
         """
         self.doing_dry_run = dry_run
         self.img_file = img_file
-        self.localizer = localizer
+        self.drone = drone
         self.drop_pub = drop_pub
         if drop_sub:
-            self.drop_sub = rospy.Subscriber("drop_signal", Bool, self.drop_sub_cb)
+            self.drop_sub = rospy.Subscriber(name="drop_signal", data_class=Bool, callback=self.drop_sub_cb)
             self.drop = False
         else:
             self.drop_sub = None
@@ -148,7 +150,7 @@ class Pipeline:
             self.cam = None
         if self.doing_dry_run: return
 
-        self.geolocator = GeoLocation(img_size)
+        self.geolocator = GeoLocator()
 
         gpus = tf.config.list_physical_devices('GPU')
         if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
@@ -158,7 +160,7 @@ class Pipeline:
             )
 
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt", )
+        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt")
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
         self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
         self.color_classifier = ColorClassifier()
@@ -204,7 +206,7 @@ class Pipeline:
         if self.cam is not None: return self.cam.get_image()
         else: return cv.imread(self.img_file)
 
-    def _get_shape_detections(self, img: cv.Mat, batch_size=1):
+    def _get_shape_detections(self, img: cv.Mat, batch_size=1, num_results=10):
         all_tiles, tile_offsets_x_y = self._split_to_tiles(img)
 
         all_shape_results: list[ShapeResult] = []
@@ -306,7 +308,7 @@ class Pipeline:
             cam_img = self._get_image()
             cv.imwrite(f"{output_folder_path}/image{loop_index}.png", cam_img)
             print(f"got image {loop_index}")
-            curr_location, curr_angles = self.localizer.get_current_pos_and_angles()
+            curr_location, curr_angles = self.drone.get_current_pos_and_angles()
             self._logLocation(curr_location, curr_angles)
             if self.doing_dry_run: return
         except Exception as e:
@@ -320,7 +322,8 @@ class Pipeline:
                 res.global_bbox[0],
                 res.global_bbox[1],
                 location=curr_location,
-                angles=curr_angles
+                angles=curr_angles,
+                img_size=cam_img.shape[:2]
             )
             for res in self.valid_results
         ]
@@ -383,25 +386,35 @@ class Pipeline:
         self.drop = data.data
 
     def run(self, num_loops=1):
+        global index
         """
         Main run loop for the Imaging pipeline.
         """
         if self.drop_sub is None:
-            for index in range(num_loops):
+            for _i in range(num_loops):
                 self.loop(index)
+                index+=1
         else:
-            print("Listening for drop signal")
-            while not self.drop:
-                time.sleep(0.1)
-            print("Drop signal received")
-            index = 0
-            while self.drop:
-                self.loop(index)
-                index += 1
+            while 1:
+                print("Listening for drop signal")
+                while not self.drop:
+                    time.sleep(0.1)
+                print("Drop signal received")
+                while self.drop:
+                    self.loop(index)
+                    index += 1
+                msg = String()
+                valid_target_coords_with_indices = []
+                for i, coord in enumerate(self.target_aggregator.get_target_coords()):
+                    if coord is None: 
+                        print(f"Could not find target {i}")
+                        continue
+                    valid_target_coords_with_indices.append((coord[0], coord[1], i))
+                msg.data = json.dumps(valid_target_coords_with_indices)
+                self.drop_pub.publish(msg)
+                print(f"Published drop message: {msg.data}")
 
-        msg = Float32MultiArray()
-        msg.data = np.array([[gps[0], gps[1], idx] for gps, idx in enumerate(self.target_aggregator.get_target_coords())])
-        self.drop_pub.publish(msg)
+           
 
 
 
