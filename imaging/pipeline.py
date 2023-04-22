@@ -406,7 +406,9 @@ class Pipeline:
                 msg = String()
                 valid_target_coords_with_indices = []
                 for i, coord in enumerate(self.target_aggregator.get_target_coords()):
-                    if coord is None: print(f"Could not find target {i}")
+                    if coord is None: 
+                        print(f"Could not find target {i}")
+                        continue
                     valid_target_coords_with_indices.append((coord[0], coord[1], i))
                 msg.data = json.dumps(valid_target_coords_with_indices)
                 self.drop_pub.publish(msg)
