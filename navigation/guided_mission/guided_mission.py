@@ -80,9 +80,9 @@ def drop_payload(actuator, servo_num):
 
 def init_mission(mission_q, use_px4=False): 
     print("waiting for mavros position message")
-    #home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
-    #home = (home_fix.latitude, home_fix.longitude)
-    home = (33.642608, -117.824574) # gps coordinate on arc field
+    home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
+    home = (home_fix.latitude, home_fix.longitude)
+    #home = (33.642608, -117.824574) # gps coordinate on arc field
     
     # read mission objectives from json file
     print('\nList of mission objective files:\n')
