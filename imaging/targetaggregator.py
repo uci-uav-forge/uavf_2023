@@ -34,14 +34,16 @@ def gen_color_conf(rgb, cnames):
 class TargetAggregator:
     def __init__(self, targets_file):
         with open(targets_file, newline='') as tf:
-            self.targets = list(map(tuple, csv.reader(tf)))
+            self.targets: "list[tuple[str]]" = list(map(tuple, csv.reader(tf)))
+            # convert letters to uppercase and everything else to lowercase
+            self.targets = [(x[0].lower(), x[1].upper(), x[2].lower(), x[3].lower()) for x in self.targets]
         self.n_targets = len(self.targets)
         self.best_conf = [-1] * self.n_targets
         self.target_coords = [None] * self.n_targets  # coord @ ith index --> target @ ith index in CSV
 
     def match_target_color(self, coords, letterColor, letterConf, shapeColor, shapeConf):
-        letterColorConf = gen_color_conf(letterColor, [x[0] for x in self.targets])
-        shapeColorConf = gen_color_conf(shapeColor, [x[2] for x in self.targets])
+        letterColorConf = gen_color_conf(letterColor, [x[0].lower() for x in self.targets])
+        shapeColorConf = gen_color_conf(shapeColor, [x[2].lower() for x in self.targets])
 
         match, score = best_match_color(self.targets, letterColorConf, letterConf, shapeColorConf, shapeConf)
         matchIndex = self.targets.index(match)
