@@ -323,21 +323,21 @@ class gnc_api:
         speed_cmd.param3 = -1
         speed_cmd.param4 = 0
 
-        rospy.loginfo(
-            CBLUE2 + "Setting speed to {}m/s".format(str(speed_mps)) + CEND)
+        #rospy.loginfo(
+        #    CBLUE2 + "Setting speed to {}m/s".format(str(speed_mps)) + CEND)
         response = self.command_client(speed_cmd)
 
         if response.success:
-            rospy.loginfo(
-                CGREEN2 + "Speed set successfully with code {}".format(str(response.success)) + CEND)
-            rospy.loginfo(
-                CGREEN2 + "Change Speed result was {}".format(str(response.result)) + CEND)
+        #    rospy.loginfo(
+        #        CGREEN2 + "Speed set successfully with code {}".format(str(response.success)) + CEND)
+        #    rospy.loginfo(
+        #        CGREEN2 + "Change Speed result was {}".format(str(response.result)) + CEND)
             return 0
         else:
-            rospy.logerr(
-                CRED2 + "Speed set failed with code {}".format(str(response.success)) + CEND)
-            rospy.logerr(
-                CRED2 + "Speed set result was {}".format(str(response.result)) + CEND)
+        #    rospy.logerr(
+        #        CRED2 + "Speed set failed with code {}".format(str(response.success)) + CEND)
+        #    rospy.logerr(
+        #        CRED2 + "Speed set result was {}".format(str(response.result)) + CEND)
             return -1
     
 
@@ -352,24 +352,24 @@ class gnc_api:
                 -1 (int): Speed set unsuccessful.
         """
 
-        rospy.loginfo(
-            CBLUE2 + "Setting speed to {}m/s".format(str(speed_mps)) + CEND)
+        #rospy.loginfo(
+        #    CBLUE2 + "Setting speed to {}m/s".format(str(speed_mps)) + CEND)
         response = self.px4_speed_client(param_id="MPC_XY_VEL_ALL", value=ParamValue(real=speed_mps))
 
         if response.success:
-            rospy.loginfo(
-                CGREEN2 + "Speed set successfully with code {}".format(str(response.success)) + CEND)
+        #    rospy.loginfo(
+        #        CGREEN2 + "Speed set successfully with code {}".format(str(response.success)) + CEND)
             #rospy.loginfo(
             #    CGREEN2 + "Change Speed result was {}".format(str(response.result)) + CEND)
             return 0
         else:
-            rospy.logerr(
-                CRED2 + "Speed set failed with code {}".format(str(response.success)) + CEND)
+        #    rospy.logerr(
+        #        CRED2 + "Speed set failed with code {}".format(str(response.success)) + CEND)
             #rospy.logerr(
             #    CRED2 + "Speed set result was {}".format(str(response.result)) + CEND)
             return -1
 
-
+    #@profile
     def set_heading(self, heading):
         """This function is used to specify the drone's heading in the local reference frame. Psi is a counter clockwise rotation following the drone's reference frame defined by the x axis through the right side of the drone with the y axis through the front of the drone.
 
@@ -379,8 +379,8 @@ class gnc_api:
         self.local_desired_heading_g = heading
         heading = heading + self.correction_heading_g + self.local_offset_g
 
-        rospy.loginfo("The desired heading is {}".format(
-            self.local_desired_heading_g))
+        #rospy.loginfo("The desired heading is {}".format(
+        #    self.local_desired_heading_g))
 
         yaw = radians(heading)
         pitch = 0.0
@@ -402,7 +402,7 @@ class gnc_api:
 
         self.waypoint_g.pose.orientation = Quaternion(qx, qy, qz, qw)
 
-
+    #@profile
     def set_destination(self, x, y, z, psi):
         """This function is used to command the drone to fly to a waypoint. These waypoints should be specified in the local reference frame. This is typically defined from the location the drone is launched. Psi is counter clockwise rotation following the drone's reference frame defined by the x axis through the right side of the drone with the y axis through the front of the drone.
 
@@ -414,7 +414,7 @@ class gnc_api:
         """
         self.set_heading(psi)
 
-        theta = radians((self.correction_heading_g + self.local_offset_g - 90))
+        theta = radians(( self.correction_heading_g + self.local_offset_g - 90))
 
         Xlocal = x * cos(theta) - y * sin(theta)
         Ylocal = x * sin(theta) + y * cos(theta)
@@ -426,12 +426,12 @@ class gnc_api:
 
         z = Zlocal + self.correction_vector_g.position.z + self.local_offset_pose_g.z
 
-        rospy.loginfo(
-            "Destination set to x:{} y:{} z:{} origin frame".format(x, y, z))
 
         self.waypoint_g.pose.position = Point(x, y, z)
 
         self.local_pos_pub.publish(self.waypoint_g)
+        #rospy.loginfo(
+        #    "Destination set to x:{} y:{} z:{} origin frame".format(x, y, z))
 
 
     def arm(self):
