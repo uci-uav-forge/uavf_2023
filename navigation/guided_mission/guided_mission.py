@@ -82,6 +82,7 @@ class PriorityAssigner():
 
 
 def drop_payload(actuator, servo_num):
+    print(f"Dropping payload {servo_num}")
     time.sleep(3)
     actuator.openServo(servo_num)
     time.sleep(3)
@@ -186,9 +187,8 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
 
     # outer loop: check if there are more waypoints to travel to
     while not mission_q.empty():
-        prio, curr_wp = mission_q.queue[0]
+        prio, curr_wp = mission_q.get()
         curr_pos = drone.get_current_location()
-
         # if only home wp is left and drop wps not received, hover
         # else get next waypoint
         if prio == WaypointPriorities.HOME_PRIORITY and not mission_q_assigner.drop_received:
@@ -218,38 +218,53 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
         drone.set_destination(     
             x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg
         )
-        print(f'DROP END: {drop_end}')
+        print(f"Heading to waypoint {curr_wp}, priority {prio}")
         # check if waypoint has changed
         while not drone.check_waypoint_reached():
-            top_prio, top_wp = mission_q.queue[0]
-            # these should be the same as prio and curr_wp unless PriorityAssigner has enqueued an obstacle avoidance waypoint in between the top of the loop and here
+            if not mission_q.empty():
+                top_prio, top_wp = mission_q.queue[0]
+                if top_prio<0:
+                    print('waypoint interrupted!\n')
+                    curr_pos = drone.get_current_location()
 
-            # interrupt current waypoint for obstacle avoidance
-            if top_wp != curr_wp:
-                print('waypoint interrupted!\n')
-                curr_pos = drone.get_current_location()
-
-                # calc heading and send position to drone
-                hdg = -90 + np.degrees(
-                    np.arctan2(top_wp[1] - top_wp.y, top_wp[0] - curr_pos.x)
-                )
-                drone.set_destination(
-                    x=top_wp[0], y=top_wp[1], z=top_wp[2], psi=hdg
-                )
+                    # calc heading and send position to drone
+                    hdg = -90 + np.degrees(
+                        np.arctan2(top_wp[1] - top_wp.y, top_wp[0] - curr_pos.x)
+                    )
+                    drone.set_destination(
+                        x=top_wp[0], y=top_wp[1], z=top_wp[2], psi=hdg
+                    )
+                    while not drone.check_waypoint_reached():
+                        new_top_prio, new_top_wp = mission_q.queue[0]
+                        if new_top_wp != top_wp:
+                            top_wp=new_top_wp
+                            hdg = -90 + np.degrees(
+                                np.arctan2(top_wp[1] - top_wp.y, top_wp[0] - curr_pos.x)
+                            )
+                            drone.set_destination(
+                                x=top_wp[0], y=top_wp[1], z=top_wp[2], psi=hdg
+                            )
+                    while mission_q.queue[0][0]<0:# clear stale obstacle avoidance waypoints
+                        mission_q.get()
+                    hdg = -90 + np.degrees(
+                        np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x)
+                    )    
+                    drone.set_destination(     
+                        x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg
+                    )
             
             # if going towards dropzone end, save status
-            if top_wp == drop_end:
+            if curr_wp == drop_end:
                 at_drop_end = True
                 at_drop_pt = False
             # if going towards drop, save status and servo number
-            elif WaypointPriorities.DROP_MIN_PRIORITY < prio < WaypointPriorities.HOME_PRIORITY:
+            elif WaypointPriorities.DROP_MIN_PRIORITY <= prio < WaypointPriorities.HOME_PRIORITY:
                 at_drop_end = False
                 at_drop_pt = True
-                servo_num = top_wp[3]
+                servo_num = curr_wp[3]
             else: 
                 at_drop_end = False
                 at_drop_pt = False
-
             # maintain loop frequency
             rate.sleep()
         # tell imaging to stop taking photos when dropzone end reached
@@ -261,9 +276,6 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
         # drop payload if reached drop waypoint
         elif at_drop_pt: 
             drop_payload(actuator, servo_num)
-        #pop waypoint off queue
-        mission_q.get()
-
     drone.land()
 
 
