@@ -1,8 +1,7 @@
 To run both pipelines:
 
-    1. Start the MAVROS node. Refer to Navigation's README for further instructions.
+    1. Start the MAVROS node. `./mavros_start.sh` Refer to Navigation's README for further instructions.
     
-    2. Run whichever script you need to run. Many of them are in the drone_missions or tests folders
+    2. Run the imaging pipeline. `py start_pipeline.py` enter the two options for using the gopro and real location when prompted
 
-
-https://docs.nvidia.com/deeplearning/tensorrt/developer-guide/index.html#python_topics
+    3. Run guided_mission. `./launch_scripts/mission.sh`
