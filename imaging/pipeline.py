@@ -17,7 +17,7 @@ from keras.utils import normalize
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
 
-from .local_geolocation import GeoLocation
+from .local_geolocation import GeoLocator
 from .color_knn.color_classify import ColorClassifier
 from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
@@ -101,12 +101,12 @@ def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh
 
 
 class Pipeline:
-    def __init__(self, localizer, img_size, img_file="gopro"):
+    def __init__(self, localizer, img_size, img_file="gopro", targets_file=None, dry_run=False):
 
         #tf.keras.backend.clear_session()
         #tf.config.optimizer.set_jit(True) # Enable XLA.
         self.img_file=img_file
-        self.geolocator = GeoLocation(img_size)
+        self.geolocator = GeoLocator()
 
         gpus = tf.config.list_physical_devices('CPU')
         """
@@ -116,8 +116,8 @@ class Pipeline:
                 [tf.config.LogicalDeviceConfiguration(memory_limit=2024)])
         """
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.engine", task='segment')
-        self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
+        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.engine")
+        self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/yolo/trained_model.h5")
         self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
         self.color_classifer = ColorClassifier()
 
@@ -152,10 +152,11 @@ class Pipeline:
         v_indices = np.linspace(0, h - self.tile_resolution, n_vertical_tiles).astype(int)
         h_indices = np.linspace(0, w - self.tile_resolution, n_horizontal_tiles).astype(int)
 
-        for v, h in itertools.product(v_indices, h_indices):
-            tile = img[v:v + self.tile_resolution, h:h + self.tile_resolution]
-            all_tiles.append(tile)
-            tile_offsets_x_y.append((h, v))
+        for v in v_indices:
+            for h in h_indices:
+                tile = img[v:v + self.tile_resolution, h:h + self.tile_resolution]
+                all_tiles.append(tile)
+                tile_offsets_x_y.append((h, v))
 
         return all_tiles, tile_offsets_x_y
 
@@ -218,7 +219,7 @@ class Pipeline:
         #h horizontal v vertical
         n_htiles = np.ceil(img.shape[1] / self.tile_resolution).astype(int)
         n_vtiles = np.ceil(img.shape[0] / self.tile_resolution).astype(int)
-
+        tile_res=self.tile_resolution
         xoffset = np.linspace(0, img.shape[1] - tile_res, n_htiles).astype(int)
         yoffset = np.linspace(0, img.shape[0] - tile_res, n_vtiles).astype(int)
 
@@ -226,10 +227,11 @@ class Pipeline:
         def get_offsets(xoffset, yoffset):
 
             tile_offsets : 'list[tuple]' = []
-            for v, h in itertools.product(yoffset, xoffset):
-                tile = img[v:v + self.tile_resolution, h:h + self.tile_resolution]
-                all_tiles.append(tile)
-                tile_offsets.append((h, v))
+            for v in yoffset:
+                for h in xoffset:
+                    tile = img[v:v + tile_res, h:h + tile_res]
+                    all_tiles.append(tile)
+                    tile_offsets.append((h, v))
             return tile_offsets
 
         tile_offsets = get_offsets(xoffset, yoffset)
@@ -272,7 +274,7 @@ class Pipeline:
                     global_box[2] += tile_offsets_x_y[i][k][0]
                     global_box[3] += tile_offsets_x_y[i][k][1]
 
-                    ShapeResult(shape_label=int(result[5]), confidence=result[4], local_bbox=box, global_bbox=global_box, mask=result.masks.masks[i].numpy().astype(np.uint8), tile=)
+                    ShapeResult(shape_label=int(result[5]), confidence=result[4], local_bbox=box, global_bbox=global_box, mask=result.masks.masks[i].numpy().astype(np.uint8), tile=img)
                     if len(inf) > 0:
                         predictions.append(inf)
 
