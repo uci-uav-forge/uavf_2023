@@ -15,7 +15,7 @@ from ultralytics import YOLO
 from std_msgs.msg import String, Bool
 
 
-from .local_geolocation import GeoLocation
+from .local_geolocation import GeoLocator 
 from .color_knn.color_classify import ColorClassifier
 from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
@@ -23,6 +23,7 @@ from .colordetect.color_segment import color_segmentation
 from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
 from .targetaggregator import TargetAggregator
 from .shape_detection.src import plot_functions as plot_fns
+from navigation.mock_drone import MockDrone
 from tqdm import tqdm
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
@@ -43,7 +44,7 @@ class ShapeResult:
     mask: np.ndarray
     tile: np.ndarray
 
-
+unique_labels = set()
 def nms_indices(boxes: "list[list[int]]", confidences: "list[float]", iou_thresh=0.01):
     """
     Returns indices of the ones that are duplicates for non-max suppression.
@@ -128,7 +129,7 @@ def crop_image(img: cv.Mat, bbox: 'list[int]', pad="resize"):
 
 
 class Pipeline:
-    def __init__(self, localizer, img_size, drop_pub, drop_sub = False, img_file="gopro", targets_file="targets.csv", dry_run=False):
+    def __init__(self, localizer, drop_pub: rospy.Publisher, drop_sub = False, img_file="gopro", targets_file="targets.csv", dry_run=False):
         """ dry_run being true will just make the pipeline only record the raw images and coordinates and
         not run any inference
         """
@@ -149,7 +150,7 @@ class Pipeline:
             self.cam = None
         if self.doing_dry_run: return
 
-        self.geolocator = GeoLocation(img_size)
+        self.geolocator = GeoLocator()
 
         gpus = tf.config.list_physical_devices('GPU')
         if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
@@ -159,7 +160,7 @@ class Pipeline:
             )
 
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
-        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt", )
+        self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n-people-v3.pt")
         self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
         self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
         self.color_classifier = ColorClassifier()
@@ -205,7 +206,7 @@ class Pipeline:
         if self.cam is not None: return self.cam.get_image()
         else: return cv.imread(self.img_file)
 
-    def _get_shape_detections(self, img: cv.Mat, batch_size=1):
+    def _get_shape_detections(self, img: cv.Mat, batch_size=1, num_results=10):
         all_tiles, tile_offsets_x_y = self._split_to_tiles(img)
 
         all_shape_results: list[ShapeResult] = []
@@ -321,7 +322,8 @@ class Pipeline:
                 res.global_bbox[0],
                 res.global_bbox[1],
                 location=curr_location,
-                angles=curr_angles
+                angles=curr_angles,
+                img_size=cam_img.shape[:2]
             )
             for res in self.valid_results
         ]

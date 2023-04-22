@@ -49,7 +49,6 @@ if __name__ == "__main__":
     )
     imaging_pipeline = Pipeline(
         localizer=FakeLocalizer(), 
-        img_size=(5568, 4176), 
         img_file="gopro" if USE_GOPRO else "tests/image0_crop_smaller.png", 
         targets_file='imaging/targets.csv',
         dry_run=False,
