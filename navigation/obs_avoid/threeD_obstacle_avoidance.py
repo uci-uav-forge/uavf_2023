@@ -109,7 +109,8 @@ if __name__=='__main__':
   n=10
   centr_arr = 8*np.abs(np.random.randn(n,3))
   dim_arr = np.full((n,3), 2)
- 
+  
+  print(centr_arr)
   st = time()
 
   hdg = obstacle_avoidance(centr_arr, dim_arr, 43)
