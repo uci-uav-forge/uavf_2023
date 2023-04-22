@@ -403,12 +403,16 @@ class Pipeline:
                 while self.drop:
                     self.loop(index)
                     index += 1
-            
+                msg = String()
+                valid_target_coords_with_indices = []
+                for i, coord in enumerate(self.target_aggregator.get_target_coords()):
+                    if coord is None: print(f"Could not find target {i}")
+                    valid_target_coords_with_indices.append((coord[0], coord[1], i))
+                msg.data = json.dumps(valid_target_coords_with_indices)
+                self.drop_pub.publish(msg)
+                print(f"Published drop message: {msg.data}")
 
-        msg = String()
-        valid_target_coords = filter(lambda x: x is not None, self.target_aggregator.get_target_coords())
-        msg.data = json.dumps([(coord[0], coord[1], idx) for idx, coord in enumerate(valid_target_coords)])
-        self.drop_pub.publish(msg)
+           
 
 
 
