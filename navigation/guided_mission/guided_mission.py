@@ -60,7 +60,8 @@ class PriorityAssigner():
             
             wp_x = curr_pos.x + avoid_coord.x
             wp_y = curr_pos.y + avoid_coord.y
-
+            #print('received obs avoid')
+            #print(time.time())
             if self.mission_q.queue[0][0] == prio:
                 self.mission_q.queue[0][1] = (wp_x, wp_y, curr_pos.z)
             else:
@@ -148,17 +149,13 @@ def init_mission(mission_q: PriorityQueue, use_px4=False):
     return drone, drop_end, drop_alt, avg_alt
 
 
-def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: PriorityAssigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False, wait_for_imaging=True, run_obs_avoid=True):
+def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: PriorityAssigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False, wait_for_imaging=True):
     # init control loop refresh rate, dropzone state, payload state 
     rate = rospy.Rate(60)
     in_dropzone = False
     at_drop_end = False
     at_drop_pt  = False
     servo_num = -1
-    
-    # change these states to turn on or off avoidance and drop reception
-    mission_q_assigner.run_obs_avoid = False # True by default
-    mission_q_assigner.drop_received = not wait_for_imaging # False for real mission
     
     # init imaging signal publisher
     img_signal = rospy.Publisher(
@@ -184,6 +181,10 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
     else: drone.set_speed(max_spd)
     while not drone.check_waypoint_reached():
         pass
+
+    # change these states to turn on or off avoidance and drop reception
+    mission_q_assigner.run_obs_avoid = True # True by default
+    mission_q_assigner.drop_received = not wait_for_imaging # False for real mission
 
     # outer loop: check if there are more waypoints to travel to
     while not mission_q.empty():
@@ -219,27 +220,30 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
             x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg
         )
         print(f"Heading to waypoint {curr_wp}, priority {prio}")
+
         # check if waypoint has changed
         while not drone.check_waypoint_reached():
             if not mission_q.empty():
                 top_prio, top_wp = mission_q.queue[0]
                 if top_prio<0:
-                    print('waypoint interrupted!\n')
+                    #print(time.time())
+                    #print('waypoint interrupted!\n')
                     curr_pos = drone.get_current_location()
 
                     # calc heading and send position to drone
                     hdg = -90 + np.degrees(
-                        np.arctan2(top_wp[1] - top_wp.y, top_wp[0] - curr_pos.x)
+                        np.arctan2(top_wp[1] - curr_pos.y, top_wp[0] - curr_pos.x)
                     )
                     drone.set_destination(
                         x=top_wp[0], y=top_wp[1], z=top_wp[2], psi=hdg
                     )
+                    #print(time.time())
                     while not drone.check_waypoint_reached():
                         new_top_prio, new_top_wp = mission_q.queue[0]
                         if new_top_wp != top_wp:
                             top_wp=new_top_wp
                             hdg = -90 + np.degrees(
-                                np.arctan2(top_wp[1] - top_wp.y, top_wp[0] - curr_pos.x)
+                                np.arctan2(top_wp[1] - curr_pos.y, top_wp[0] - curr_pos.x)
                             )
                             drone.set_destination(
                                 x=top_wp[0], y=top_wp[1], z=top_wp[2], psi=hdg
@@ -276,10 +280,12 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
         # drop payload if reached drop waypoint
         elif at_drop_pt: 
             drop_payload(actuator, servo_num)
+
+    mission_q_assigner.run_obs_avoid = False
     drone.land()
 
 
-if __name__ == '__main__':
+def main():
     # initialize ROS node and get home position
     rospy.init_node("drone_GNC", anonymous=True)
     print("initialized ROS node")
@@ -288,13 +294,16 @@ if __name__ == '__main__':
     use_px4 = True
 
     # init mission
-    max_spd = 7 # m/s
-    drop_spd = 3 # m/s
+    max_spd = 15 # m/s
+    drop_spd = 5 # m/s
     drone, drop_end, drop_alt, avg_alt = init_mission(mission_q, use_px4)
 
     # init priority assigner with mission queue and dropzone wp
     mission_q_assigner = PriorityAssigner(mission_q, drone, drop_end, drop_alt)
 
     # run online trajectory planner
-    print("running trajectory planner")
-    mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4, wait_for_imaging=True, run_obs_avoid=False)
+    mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4, wait_for_imaging=False)
+
+
+if __name__ == '__main__':  
+    main()
