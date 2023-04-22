@@ -129,13 +129,13 @@ def crop_image(img: cv.Mat, bbox: 'list[int]', pad="resize"):
 
 
 class Pipeline:
-    def __init__(self, localizer, drop_pub: rospy.Publisher, drop_sub = False, img_file="gopro", targets_file="targets.csv", dry_run=False):
+    def __init__(self, drone: MockDrone, drop_pub: rospy.Publisher, drop_sub = False, img_file="gopro", targets_file="targets.csv", dry_run=False):
         """ dry_run being true will just make the pipeline only record the raw images and coordinates and
         not run any inference
         """
         self.doing_dry_run = dry_run
         self.img_file = img_file
-        self.localizer = localizer
+        self.drone = drone
         self.drop_pub = drop_pub
         if drop_sub:
             self.drop_sub = rospy.Subscriber(name="drop_signal", data_class=Bool, callback=self.drop_sub_cb)
@@ -308,7 +308,7 @@ class Pipeline:
             cam_img = self._get_image()
             cv.imwrite(f"{output_folder_path}/image{loop_index}.png", cam_img)
             print(f"got image {loop_index}")
-            curr_location, curr_angles = self.localizer.get_current_pos_and_angles()
+            curr_location, curr_angles = self.drone.get_current_pos_and_angles()
             self._logLocation(curr_location, curr_angles)
             if self.doing_dry_run: return
         except Exception as e:

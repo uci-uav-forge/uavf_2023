@@ -8,24 +8,8 @@ import json
 from imaging.pipeline import Pipeline
 import rospy
 from std_msgs.msg import Bool, String 
-import time
 from threading import Thread
-
-class FakeLocalizer:
-    def __init__(self):
-        pass
-    def get_current_xyz(self):
-        return (69,-1337,23)
-    def get_current_pitch_roll_yaw(self):
-        return (0,0,0)
-    def get_current_pos_and_angles(self):
-        return self.get_current_xyz(), self.get_current_pitch_roll_yaw()
-
-class MockPublisher:
-    def __init__(self):
-        pass
-    def publish(self, msg):
-        print(f"Publishing message of type {type(msg)}: {msg}")
+from navigation.mock_drone import MockDrone
 
 if __name__ == "__main__":
     rospy.init_node("drone_GNC", anonymous=True)
@@ -48,7 +32,7 @@ if __name__ == "__main__":
         queue_size=1
     )
     imaging_pipeline = Pipeline(
-        localizer=FakeLocalizer(), 
+        localizer=MockDrone(), 
         img_file="gopro" if USE_GOPRO else "tests/image0_crop_smaller.png", 
         targets_file='imaging/targets.csv',
         dry_run=False,
