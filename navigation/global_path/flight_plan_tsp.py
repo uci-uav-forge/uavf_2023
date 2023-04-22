@@ -197,6 +197,10 @@ class FlightPlan():
         polygon_ext = LineString(list(polygon.exterior.coords))
 
         for i in range(len(waypts) - 1):
+            # if waypoint is outside of bounds stop the program
+            if not polygon.contains(Point(waypts[order[i]][:2])):
+                raise RuntimeError(f'waypoint {i} is outside of bounds: {waypts[order[i]][:2]}')
+
             # straight line between wp1 and wp2
             path = LineString([waypts[order[i]], waypts[order[i+1]]])
             inters = polygon_ext.intersection(path)
