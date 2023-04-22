@@ -69,14 +69,12 @@ def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range, max_hdg
             box_arr = box_arr / 1000
 
             # obstacle avoidance returns heading angle within FOV -> waypoint at edge of FOV
+            # decrease the waypoint range the greater the change in heading is (slowing down)
             # rotate to waypoint corresponding to yaw to get relative coordinates in local frame
             hdg_change = obstacle_avoidance(centr_arr, box_arr, max_hdg)
             if hdg_change:
-                # change range of waypoint depending on if a safe path is found
-                if hdg_change > max_hdg: 
-                    raw_wp = np.array([danger_range * atan(hdg_change), danger_range])
-                else: 
-                    raw_wp = np.array([avoid_range * atan(hdg_change), avoid_range])
+                R = avoid_range - (avoid_range-danger_range)*abs(hdg_change)/max_hdg
+                raw_wp = np.array([R * atan(hdg_change), R])
                 corrected_wp = yaw_rotation(raw_wp, yaw)
 
                 print(hdg_change)
