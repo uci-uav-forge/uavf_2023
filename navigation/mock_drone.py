@@ -33,7 +33,7 @@ class MockDrone:
     def set_destination(self, x, y, z, psi):
         self.destination = [x, y, z]
         def goto_destination():
-            time.sleep(3)
+            time.sleep(1)
             self.location = [x, y, z]
             self.angles = [0, 0, psi]
         Thread(target=goto_destination).start()
