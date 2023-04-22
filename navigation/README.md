@@ -1,67 +1,50 @@
-To SSH into Jetson Nano (test quad):
-	IP address 172.20.10.2 on Omar's Iphone hotspot
-	
+# For PX4: 
+## Actual Flights:
+- Set up telemetry on companion computer (plug in cube to usb port):
+  - (do the udev rule stuff)
+  - https://docs.px4.io/main/en/companion_computer/pixhawk_companion.html
+  - Run irl drone MAVROS node:
+	`roslaunch mavros px4.launch fcu_url:="/dev/ttyPixhawk"`
+  - Append this environment varialbe before running python scripts: `1OPENBLAS_CORETYPE=ARMV8` e.g. `OPENBLAS_BLAH=ARMV8 py hello_world.py`, although I think we might've put this in the jetson's bashrc so it's set automatically
+## Simulation:
+- Run QGroundControl:
+  - ./QGroundControl.AppImage
+  - Run simulation:
+    - cd into PX4-Autopilot
+    - `sudo make px4_sitl_default gazebo`
+  - To launch simulation MAVROS node: `roslaunch mavros px4.launch fcu_url:="udp://:14540@127.0.0.1:14557"`
+  - To rebuild catkin workspace:
+    ```
+    cd ~/catkin_ws
+    catkin build -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/usr/include/python3.7m
+    ```
+## Installing ROS and MAVROS (Ubuntu 20):
+https://docs.google.com/document/d/1iDZaO9g8QdiUE_a3mRM_urEm7MaIqPoOlQ1OcymD9Dk/edit
 
-For PX4: 
-	Actual Flights:
-		Set up telemetry on companion computer (plug in cube to usb port):
-			(do the udev rule stuff)
-			https://docs.px4.io/main/en/companion_computer/pixhawk_companion.html
-	
-		Run irl drone MAVROS node:
-			roslaunch mavros px4.launch fcu_url:="/dev/ttyPixhawk"
-		
-		Append this command before running python scripts:
-			OPENBLAS_CORETYPE=ARMV8 
-	
-	Simulation:
-		Run QGroundControl:
-			$ ./QGroundControl.AppImage
-
-		Run simulation:
-			cd into PX4-Autopilot
-			$ sudo make px4_sitl_default gazebo
-
-		To launch simulation MAVROS node:
-			$ roslaunch mavros px4.launch fcu_url:="udp://:14540@127.0.0.1:14557"
-
-	To rebuild catkin workspace:
-		$ cd ~/catkin_ws
-		$ catkin build -DPYTHON_EXECUTABLE=/usr/bin/python3 -DPYTHON_INCLUDE_DIR=/usr/include/python3.7m
-
-	Installing ROS and MAVROS (Ubuntu 20):
-		https://docs.google.com/document/d/1iDZaO9g8QdiUE_a3mRM_urEm7MaIqPoOlQ1OcymD9Dk/edit
-
-	Running PX4 simulation:
-		https://docs.google.com/document/d/1XeKneJUelfyDAyo95s333sQnyqmPuVQOimS5eBxL6Bw/edit
+## Running PX4 simulation:
+https://docs.google.com/document/d/1XeKneJUelfyDAyo95s333sQnyqmPuVQOimS5eBxL6Bw/edit
 
 
-Setting up Ardupilot, MAVProxy, Guided Mode:
+## Setting up Ardupilot, MAVProxy, Guided Mode:
+### 1. Ardupilot and MAVProxy 
+Clone ardupilot into home directory.
+```
+git clone https://github.com/ArduPilot/ardupilot.git
+cd ardupilot
 
-	1. Ardupilot and MAVProxy 
-		Clone ardupilot into home directory.
-		$ git clone https://github.com/ArduPilot/ardupilot.git
-		$ cd ardupilot
+Tools/environment_install/install-prereqs-ubuntu.sh -y
+. ~/.profile
 
-		$ Tools/environment_install/install-prereqs-ubuntu.sh -y
-		$ . ~/.profile
+git checkout Copter-4.3
+git submodule update --init --recursive		
+cd Tools/autotest
+python sim_vehicle.py -v ArduCopter --map --console
+```
+If you run into error (no pymavlink):
+	`python -m pip install pymavlink`
+Fix any error messages and keep repeating until ArduCopter launches!
 
-		$ git checkout Copter-4.3
-		$ git submodule update --init --recursive		
-		cd into ardupilot/ArduCopter
-		$ sim_vehicle.py -w
-
-		If you run into error (no pymavlink):
-			$ python -m pip install pymavlink
-			cd into ardupilot/Tools/autotest
-			$ python sim_vehicle.py --map --console
-			$ python sim_vehicle.py -v ArduCopter --map --console
-				Fix any error messages and keep repeating until ArduCopter launches!
-			cd into ardupilot/ArduCopter
-			$ python sim_vehicle.py -w
-				ArduCopter should launch now!
-
-	2. ArduCopter ROS-Gazebo Simulation
+### 2. ArduCopter ROS-Gazebo Simulation
 		$ sudo apt install xterm
 		$ sudo apt install ros-noetic-gazebo-ros ros-noetic-gazebo-plugins
 		cd into catkin_ws/src
