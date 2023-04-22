@@ -48,8 +48,8 @@ def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range, max_hdg
         # continuously run the depth stream
         while True:
             frames = pipe.wait_for_frames()
-            pitch, roll, yaw = drone.get_pitch_roll_yaw()    #pitch, roll, yaw in degrees
-            #pitch, roll, yaw = 0, 0, 0
+            #pitch, roll, yaw = drone.get_pitch_roll_yaw()    #pitch, roll, yaw in degrees
+            pitch, roll, yaw = 0, 0, 0
 
             st = time.time()
             depth_frame = post_process_filters(
@@ -100,7 +100,7 @@ if __name__=='__main__':
     frame_rate = 15
     
     max_range = 16 # m
-    avoid_range = 8 # m, the range at which the avoidance waypoint is published
+    avoid_range = 12 # m, the range at which the avoidance waypoint is published
     danger_range = 4 # m, range when no safe path is found
     max_hdg = 43 # degrees, the angle of the FOV in 1 quadrant
     
