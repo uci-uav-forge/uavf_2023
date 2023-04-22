@@ -38,10 +38,9 @@ Tools/environment_install/install-prereqs-ubuntu.sh -y
 git checkout Copter-4.3
 git submodule update --init --recursive		
 cd Tools/autotest
+python3 -m pip install pymavlink mavproxy
 python sim_vehicle.py -v ArduCopter --map --console
 ```
-If you run into error (no pymavlink):
-	`python -m pip install pymavlink`
 Fix any error messages and keep repeating until ArduCopter launches!
 
 ### 2. ArduCopter ROS-Gazebo Simulation
