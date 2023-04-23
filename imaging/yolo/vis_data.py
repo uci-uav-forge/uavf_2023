@@ -1,4 +1,3 @@
-from ultralytics import YOLO
 import cv2 as cv
 import numpy as np
 # model = YOLO('./trained_models/seg-v8n-18epoch.pt')
@@ -15,4 +14,6 @@ with open(f"../shape_detection/data-gen/data/labels/train/image{img_num}.txt", "
         blank_image = np.zeros((640, 640, 3), np.uint8)
         cv.polylines(img, poly, True, (255, 0, 0), thickness=5)
 
-cv.imwrite('test.png', img)
+cv.imshow('image', img)
+while cv.waitKey(0) not in [27, ord('q')]:
+    pass
