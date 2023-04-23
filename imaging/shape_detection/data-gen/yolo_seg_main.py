@@ -21,7 +21,8 @@ def get_polygon(shape_img: cv2.Mat) -> np.ndarray:
     if len(contours)==0:
         return np.array([]) 
     if len(contours)>1:
-        print("Warning: multiple contours found")
+        if os.getenv("VERBOSE") is not None:
+            print("Warning: multiple contours found")
         # combine contours and return convex hull
         contours = np.concatenate([c.reshape(-1,2) for c in contours])
         contours = cv2.convexHull(contours)
