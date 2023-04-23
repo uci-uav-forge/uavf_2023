@@ -14,12 +14,12 @@ def preprocess_img(img):
     if np.random.randint(0,2)==0:
         img = cv2.GaussianBlur(img, (kernel_size, kernel_size), 0)
     else:
-        img = cv2.boxFilter(img, -1, (kernel_size, kernel_size), normalize=False)
+        img = cv2.boxFilter(img, -1, (kernel_size, kernel_size))
     # add random noise with random variance
     variance = np.random.randint(0, 10)
     img = img + np.random.normal(0, variance, img.shape)
     # clamp values to 0-255
-    img = np.clip(img, 0, 255)
+    np.clip(img, 0, 255, out=img)
     return img
 
 def gen_img(num, num_images, input_dir, output_dir, shapes_to_categories):
@@ -64,7 +64,7 @@ def main():
     num_images = len(os.listdir(f"{input_dir}/images"))
 
     gen_images_w_context = partial(gen_img, num_images=num_images, input_dir=input_dir, output_dir=output_dir, shapes_to_categories=shapes_to_categories)
-    with Pool(8) as p:
+    with Pool(1) as p:
         results = tqdm(p.imap(gen_images_w_context, range(num_images)), total=num_images)
         tuple(results)
 if __name__ == "__main__":
