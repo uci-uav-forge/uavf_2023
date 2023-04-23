@@ -507,7 +507,7 @@ class gnc_api:
         #    CGREEN2 + "The X-Axis is facing: {}".format(self.local_offset_g) + CEND)
 
 
-    def check_waypoint_reached(self, pos_tol=3, head_tol=3):
+    def check_waypoint_reached(self, pos_tol=3, head_tol=1):
         """This function checks if the waypoint is reached within given tolerance and returns an int of 1 or 0. This function can be used to check when to request the next waypoint in the mission.
 
         Args:
