@@ -32,7 +32,7 @@ if __name__ == "__main__":
         queue_size=1
     )
     imaging_pipeline = Pipeline(
-        localizer=MockDrone(), 
+        drone=MockDrone(), 
         img_file="gopro" if USE_GOPRO else "tests/image0_crop_smaller.png", 
         targets_file='imaging/targets.csv',
         dry_run=False,
