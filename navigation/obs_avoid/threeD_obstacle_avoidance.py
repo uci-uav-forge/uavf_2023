@@ -3,7 +3,7 @@ import numpy as np
 from time import time
 
 
-def path_is_safe(max_hdg, increment, mag_vec, radius_vec, Xs, Ys, path_width):
+def sweep_quadrant(max_hdg, increment, mag_vec, radius_vec, Xs, Ys, path_width):
   # step is + when sweeping right, - when sweeping left
   step = increment * max_hdg / np.abs(max_hdg)
   hdg_range = np.arange(0, max_hdg, step)
@@ -90,10 +90,10 @@ def obstacle_avoidance(centr_arr, dim_arr, max_hdg):
   mag_vec = np.sqrt(np.sum(np.abs(twoD_centrs)**2,axis=1))
 
   # sweep right and left quadrants
-  right_hdg = path_is_safe(
+  right_hdg = sweep_quadrant(
     max_hdg, increment, mag_vec, radius_vec, x_centrs, y_centrs, path_width
   )
-  left_hdg = path_is_safe(
+  left_hdg = sweep_quadrant(
     -max_hdg, increment, mag_vec, radius_vec, x_centrs, y_centrs, path_width
   )
 
