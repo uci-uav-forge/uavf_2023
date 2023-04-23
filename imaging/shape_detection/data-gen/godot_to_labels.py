@@ -64,7 +64,7 @@ def main():
     num_images = len(os.listdir(f"{input_dir}/images"))
 
     gen_images_w_context = partial(gen_img, num_images=num_images, input_dir=input_dir, output_dir=output_dir, shapes_to_categories=shapes_to_categories)
-    with Pool(32) as p:
+    with Pool(8) as p:
         results = tqdm(p.imap(gen_images_w_context, range(num_images)), total=num_images)
         tuple(results)
 if __name__ == "__main__":
