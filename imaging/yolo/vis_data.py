@@ -10,9 +10,9 @@ with open(f"../shape_detection/data-gen/data/labels/train/image{img_num}.txt", "
         label, *poly_str = label.split(' ')
         poly_normalized = np.array([float(x) for x in poly_str]).reshape(-1, 2)
         poly = [(poly_normalized*640).astype(int)]
-        img = cv.cvtColor(img, cv.COLOR_BGR2BGRA)
 
         # draw polygon
-        cv.fillPoly(img, poly, (0, 255, 100, 80))
+        blank_image = np.zeros((640, 640, 3), np.uint8)
+        cv.polylines(img, poly, True, (255, 0, 0), thickness=5)
 
 cv.imwrite('test.png', img)
