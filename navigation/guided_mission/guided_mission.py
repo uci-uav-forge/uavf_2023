@@ -57,13 +57,13 @@ class PriorityAssigner():
         if self.run_obs_avoid:
             prio = WaypointPriorities.OBS_AVOID_PRIORITY
             curr_pos = self.drone.get_current_location()
-            
+            print((curr_pos.x, curr_pos.y))
             wp_x = curr_pos.x + avoid_coord.x
             wp_y = curr_pos.y + avoid_coord.y
             #print('received obs avoid')
             #print(time.time())
             if self.mission_q.queue[0][0] == prio:
-                self.mission_q.queue[0][1] = (wp_x, wp_y, curr_pos.z)
+                self.mission_q.queue[0] = (prio, (wp_x, wp_y, curr_pos.z))
             else:
                 self.mission_q.put((prio, (wp_x, wp_y, curr_pos.z)))
     
@@ -80,6 +80,16 @@ class PriorityAssigner():
             self.mission_q.put((prio + dist_to_drop_end, (wp_x, wp_y, wp_z, servo_num)))
 
         self.drop_received = True
+
+
+def hdg_pos_setpoint(drone:gnc_api, wp:tuple, curr_pos:Point):
+    # calc heading and send position to drone
+    hdg = -90 + np.degrees(
+        np.arctan2(wp[1] - curr_pos.y, wp[0] - curr_pos.x)
+    )    
+    drone.set_destination(     
+        x=wp[0], y=wp[1], z=wp[2], psi=hdg
+    )
 
 
 def drop_payload(actuator, servo_num):
@@ -151,7 +161,7 @@ def init_mission(mission_q: PriorityQueue, use_px4=False):
 
 def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: PriorityAssigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False, wait_for_imaging=True):
     # init control loop refresh rate, dropzone state, payload state 
-    rate = rospy.Rate(60)
+    rate = rospy.Rate(30)
     in_dropzone = False
     at_drop_end = False
     at_drop_pt  = False
@@ -212,50 +222,28 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
             if use_px4: drone.set_speed_px4(max_spd)
             else: drone.set_speed(max_spd)
         
-        # calc heading and send position to drone
-        hdg = -90 + np.degrees(
-            np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x)
-        )    
-        drone.set_destination(     
-            x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg
-        )
+        hdg_pos_setpoint(drone, curr_wp, curr_pos)
         print(f"Heading to waypoint {curr_wp}, priority {prio}")
 
         # check if waypoint has changed
         while not drone.check_waypoint_reached():
             if not mission_q.empty():
                 top_prio, top_wp = mission_q.queue[0]
+                
                 if top_prio<0:
-                    #print(time.time())
-                    #print('waypoint interrupted!\n')
                     curr_pos = drone.get_current_location()
+                    hdg_pos_setpoint(drone, top_wp, curr_pos)
 
-                    # calc heading and send position to drone
-                    hdg = -90 + np.degrees(
-                        np.arctan2(top_wp[1] - curr_pos.y, top_wp[0] - curr_pos.x)
-                    )
-                    drone.set_destination(
-                        x=top_wp[0], y=top_wp[1], z=top_wp[2], psi=hdg
-                    )
-                    #print(time.time())
                     while not drone.check_waypoint_reached():
                         new_top_prio, new_top_wp = mission_q.queue[0]
                         if new_top_wp != top_wp:
                             top_wp=new_top_wp
-                            hdg = -90 + np.degrees(
-                                np.arctan2(top_wp[1] - curr_pos.y, top_wp[0] - curr_pos.x)
-                            )
-                            drone.set_destination(
-                                x=top_wp[0], y=top_wp[1], z=top_wp[2], psi=hdg
-                            )
-                    while mission_q.queue[0][0]<0:# clear stale obstacle avoidance waypoints
+                            hdg_pos_setpoint(drone, top_wp, curr_pos)
+                        rate.sleep()
+
+                    while mission_q.queue[0][0] < 0:# clear stale obstacle avoidance waypoints
                         mission_q.get()
-                    hdg = -90 + np.degrees(
-                        np.arctan2(curr_wp[1] - curr_pos.y, curr_wp[0] - curr_pos.x)
-                    )    
-                    drone.set_destination(     
-                        x=curr_wp[0], y=curr_wp[1], z=curr_wp[2], psi=hdg
-                    )
+                    hdg_pos_setpoint(drone, curr_wp, curr_pos)
             
             # if going towards dropzone end, save status
             if curr_wp == drop_end:
