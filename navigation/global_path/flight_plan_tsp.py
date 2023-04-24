@@ -4,7 +4,9 @@ from python_tsp.distances import euclidean_distance_matrix
 from python_tsp.exact import solve_tsp_dynamic_programming
 from shapely.geometry import LineString, Point, Polygon
 import matplotlib.pyplot as plt
-
+import json
+import rospy
+from std_msgs.msg import String
 
 def total_dist(waypts: list) -> float:
         dist = 0
@@ -80,6 +82,8 @@ class FlightPlan():
         xy_drop_bds = []
         for pt in drop_bd_pts: xy_drop_bds.append((pt[0], pt[1]))
         drop_bd_pts = np.array(self.sort_counterclockwise(xy_drop_bds))
+        drop_pts_pub = rospy.Publisher('drop_boundary', String, queue_size=1)
+        drop_pts_pub.publish(json.dumps(list(map(list, drop_bd_pts))))
 
         delt1 = drop_bd_pts[0] - drop_bd_pts[len(drop_bds)-1]
         delt2 = delt1
