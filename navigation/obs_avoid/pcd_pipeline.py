@@ -95,7 +95,7 @@ def process_pcd(pcd, pitch, roll):
     #fil_cl, ind = down_pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
     
     # DBSCAN clustering
-    labels = np.array(fil_cl.cluster_dbscan(eps=1200, min_points=12, print_progress=False))
+    labels = np.array(fil_cl.cluster_dbscan(eps=900, min_points=9, print_progress=False))
 
     # cluster segmentation
     try:
