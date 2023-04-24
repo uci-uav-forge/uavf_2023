@@ -1,7 +1,7 @@
 import pyrealsense2 as rs
 import numpy as np
 import time
-from math import cos, sin, atan, radians, degrees
+from math import cos, sin, radians, degrees, tan
 import os
 
 import rospy
@@ -14,7 +14,7 @@ from ..guided_mission.py_gnc_functions import gnc_api
 os.chdir("navigation")
 
 
-def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range, max_hdg):
+def rs_stream(res_width, res_height, frame_rate, max_range, min_range, max_hdg):
     # drone api for attitude feedback, publisher to send waypoints
     drone = gnc_api()
     avoid_pub = rospy.Publisher(
@@ -22,6 +22,7 @@ def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range, max_hdg
         data_class=Point,
         queue_size=1,
     )
+    rel_coord = Point()
 
     # enable depth stream
     config = rs.config()
@@ -48,8 +49,8 @@ def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range, max_hdg
         # continuously run the depth stream
         while True:
             frames = pipe.wait_for_frames()
-            #pitch, roll, yaw = drone.get_pitch_roll_yaw()    #pitch, roll, yaw in degrees
-            pitch, roll, yaw = 0, 0, 0
+            pitch, roll, yaw = drone.get_pitch_roll_yaw()    #pitch, roll, yaw in degrees
+            #pitch, roll, yaw = 0, 0, 0
 
             st = time.time()
             depth_frame = post_process_filters(
@@ -73,7 +74,7 @@ def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range, max_hdg
             # rotate to waypoint corresponding to yaw to get relative coordinates in local frame
             hdg_change = obstacle_avoidance(centr_arr, box_arr, max_hdg)
             if hdg_change:
-                R = avoid_range - (avoid_range-danger_range)*abs(hdg_change)/max_hdg
+                R = max_range - (max_range-min_range)*abs(hdg_change)/max_hdg
                 raw_wp = np.array([R * tan(radians(hdg_change)), R])
                 
                 corrected_wp = yaw_rotation(raw_wp, yaw)
@@ -82,7 +83,6 @@ def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range, max_hdg
                 print(corrected_wp)
                 
                 # create and publish point message
-                rel_coord = Point()
                 rel_coord.x = corrected_wp[0]
                 rel_coord.y = corrected_wp[1]
                 avoid_pub.publish(rel_coord)
@@ -101,9 +101,8 @@ if __name__=='__main__':
     frame_rate = 15
     
     max_range = 16 # m
-    avoid_range = 12 # m, the range at which the avoidance waypoint is published
-    danger_range = 4 # m, range when no safe path is found
+    min_range = 4 # m, range when no safe path is found
     max_hdg = 43 # degrees, the angle of the FOV in 1 quadrant
     
     rospy.init_node("obstacle_detection_avoidance", anonymous=True)
-    rs_stream(width, height, frame_rate, max_range, avoid_range, max_hdg)
+    rs_stream(width, height, frame_rate, max_range, min_range, max_hdg)
