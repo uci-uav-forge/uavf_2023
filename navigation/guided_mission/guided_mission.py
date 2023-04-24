@@ -7,6 +7,7 @@ import time
 import json
 import os
 from enum import IntEnum
+import requests
 
 import rospy
 from sensor_msgs.msg import NavSatFix
@@ -99,7 +100,7 @@ def drop_payload(actuator, servo_num):
     time.sleep(3)
 
 
-def init_mission(mission_q: PriorityQueue, use_px4=False): 
+def init_mission(mission_q: PriorityQueue, use_px4=False, gcs_url = "http://localhost:8000"): 
     print("waiting for mavros position message")
     if os.getenv("MOCK_DRONE") is not None:
         home = (33.646070, -117.837994) # middle earth field
@@ -120,8 +121,12 @@ def init_mission(mission_q: PriorityQueue, use_px4=False):
     data = json.load(open('guided_mission/mission_objectives/' + file_list[file_num]))
     
     bound_coords = [tuple(coord) for coord in data['boundary coordinates']] 
+    print(json.dumps(bound_coords))
+    requests.post(f"{gcs_url}/boundary", json.dumps({"waypoints": bound_coords}))
     wps = [tuple(wp) for wp in data['waypoints']]
+    requests.post(f"{gcs_url}/mission", json.dumps({"waypoints": wps}))
     drop_bds = [tuple(bd) for bd in data['drop zone bounds']]
+    requests.post(f"{gcs_url}/dropzone", json.dumps({"waypoints": drop_bds}))
     
     drop_alt = drop_bds[0][2]
     alts = [wp[2] for wp in wps]
@@ -142,6 +147,7 @@ def init_mission(mission_q: PriorityQueue, use_px4=False):
             print('Not a valid option. Please try again.')
 
     global_path, drop_end = test_map.gen_globalpath(wps, drop_bds, tsp)
+    
     print(global_path)
 
     # initialize priority queue and put home last
@@ -285,7 +291,8 @@ def main():
     # init mission
     max_spd = 10 # m/s
     drop_spd = 3 # m/s
-    drone, drop_end, drop_alt, avg_alt = init_mission(mission_q, use_px4)
+    gcs_url = "http://localhost"
+    drone, drop_end, drop_alt, avg_alt = init_mission(mission_q, use_px4, gcs_url)
 
     # init priority assigner with mission queue and dropzone wp
     mission_q_assigner = PriorityAssigner(mission_q, drone, drop_end, drop_alt)
