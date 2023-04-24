@@ -23,14 +23,15 @@ class GeoLocator:
         """
         heading, tilt, roll = angles
         x, y, z = location
+        cam_fov = (73, 58) if img_size[1]>img_size[0] else (58, 73)
         cam = ct.Camera(
             #https://community.gopro.com/s/article/HERO10-Black-Digital-Lenses-FOV-Informations?language=en_US
             #we're on 4:3 ratio narrow mode no hypersmooth 
             ct.RectilinearProjection(                
-                view_x_deg=73,
-                view_y_deg=58,
                 image_width_px=img_size[1],
-                image_height_px=img_size[0]),
+                image_height_px=img_size[0],
+                focallength_px=img_size[1]/(2*np.tan(cam_fov[0]*np.pi/360)),
+            ),
             ct.SpatialOrientation(
                 elevation_m=z,
                 heading_deg=heading,
@@ -47,6 +48,6 @@ class GeoLocator:
 
 
 if __name__ == "__main__":
-    geolocator = GeoLocator((5568, 4176))
-    loc = geolocator.get_location(0, 0, (5, 5, 10), (90, 0, 0))
+    geolocator = GeoLocator()
+    loc = geolocator.get_location(0, 0, (5, 5, 10), (0, 0, 0), (3,4))
     print(loc, np.linalg.norm(loc), loc[2] > 0, type(loc))
