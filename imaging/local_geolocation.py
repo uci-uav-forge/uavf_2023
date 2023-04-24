@@ -23,14 +23,13 @@ class GeoLocator:
         """
         heading, tilt, roll = angles
         x, y, z = location
-        cam_fov = (73, 58) if img_size[1]>img_size[0] else (58, 73)
         cam = ct.Camera(
             #https://community.gopro.com/s/article/HERO10-Black-Digital-Lenses-FOV-Informations?language=en_US
             #we're on 4:3 ratio narrow mode no hypersmooth 
             ct.RectilinearProjection(                
                 image_width_px=img_size[1],
                 image_height_px=img_size[0],
-                focallength_px=img_size[1]/(2*np.tan(cam_fov[0]*np.pi/360)),
+                focallength_px=max(img_size)/(2*np.tan(np.deg2rad(73)/2)),# 73 is the width fov of the gopro hero 10 in narrow mode
             ),
             ct.SpatialOrientation(
                 elevation_m=z,
