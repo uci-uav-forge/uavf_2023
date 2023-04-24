@@ -19,6 +19,7 @@ from .local_geolocation import GeoLocator
 from .color_knn.color_classify import ColorClassifier
 from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
+from .zone_coverage import ZoneCoverageTracker
 from .colordetect.color_segment import color_segmentation
 from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
 from .targetaggregator import TargetAggregator
@@ -129,11 +130,17 @@ def crop_image(img: cv.Mat, bbox: 'list[int]', pad="resize"):
 
 
 class Pipeline:
-    def __init__(self, drone: MockDrone, drop_pub: rospy.Publisher, drop_sub = False, img_file="gopro", targets_file="targets.csv", dry_run=False):
+    def __init__(self, drone: MockDrone, drop_pub: rospy.Publisher, drop_zone_coords: np.ndarray= None, drop_sub = False, img_file="gopro", targets_file="targets.csv", dry_run=False):
         """ dry_run being true will just make the pipeline only record the raw images and coordinates and
         not run any inference
         """
         self.doing_dry_run = dry_run
+        if drop_zone_coords is None:
+            print("no drop zone coords specified, using 50x50 box around current position")
+            drop_zone_coords = np.array([(-50, -50), (50, -50), (50, 50), (-50, 50)]) + np.array(drone.get_current_xyz()[:2])
+        self.zone_coverage_tracker = ZoneCoverageTracker(
+            dropzone_local_coords=drop_zone_coords
+        ) 
         self.img_file = img_file
         self.drone = drone
         self.drop_pub = drop_pub
@@ -310,6 +317,7 @@ class Pipeline:
             print(f"got image {loop_index}")
             curr_location, curr_angles = self.drone.get_current_pos_and_angles()
             self._logLocation(curr_location, curr_angles)
+            self.zone_coverage_tracker.add_coverage(curr_location, curr_angles)
             if self.doing_dry_run: return
         except Exception as e:
             print(f"Exception on pipeline loop {loop_index} with error {e}")
@@ -380,6 +388,7 @@ class Pipeline:
 
         if PLOT_RESULT:
             self._plotPipelineResults(cam_img, letter_labels, shape_color_names, coords, letter_color_names, color_results)
+            cv.imwrite(f"{output_folder_path}/coverage{loop_index}.png", self.zone_coverage_tracker.get_coverage_image())
 
     def drop_sub_cb(self, data):
         print(f"Drop sub received with data: {data}")
