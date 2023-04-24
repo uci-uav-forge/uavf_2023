@@ -193,7 +193,7 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
         pass
 
     # change these states to turn on or off avoidance and drop reception
-    mission_q_assigner.run_obs_avoid = True # True by default
+    mission_q_assigner.run_obs_avoid = False # True by default
     mission_q_assigner.drop_received = not wait_for_imaging # False for real mission
 
     # outer loop: check if there are more waypoints to travel to
@@ -270,6 +270,7 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
             drop_payload(actuator, servo_num)
 
     mission_q_assigner.run_obs_avoid = False
+    print('All waypoints reached!')
     drone.land()
 
 
@@ -282,8 +283,8 @@ def main():
     use_px4 = True
 
     # init mission
-    max_spd = 15 # m/s
-    drop_spd = 5 # m/s
+    max_spd = 10 # m/s
+    drop_spd = 3 # m/s
     drone, drop_end, drop_alt, avg_alt = init_mission(mission_q, use_px4)
 
     # init priority assigner with mission queue and dropzone wp
