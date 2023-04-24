@@ -69,19 +69,18 @@ def check_Zs(centrs, dims, path_height):
 
 def obstacle_avoidance(centr_arr, dim_arr, max_hdg):
   increment = 0.1   # deg
-  path_width = 1  # m
+  path_width = 0.5  # m
   safe_dist = 1   # m
-  path_height = 1 # m
+  path_height = 0.5 # m
 
   # Check which objects are within a dangerous height
   new_centrs, new_dims = check_Zs(centr_arr, dim_arr, path_height)
 
   # approximate shapes as circular radius, else if no dangers skip obstacle avoidance
   try:
-    twoD_dims = np.delete(new_dims, 2, axis=1)
-    radius_vec = np.amax(twoD_dims, axis=1) 
+    x_dims = new_dims[:,0]
   except np.AxisError:
-    return False
+    return 0
 
   twoD_centrs = np.delete(new_centrs, 2, axis=1)
   x_centrs = twoD_centrs[:,0]
@@ -90,19 +89,16 @@ def obstacle_avoidance(centr_arr, dim_arr, max_hdg):
 
   # sweep right and left quadrants
   right_hdg = sweep_quadrant(
-    max_hdg, increment, mag_vec, radius_vec, x_centrs, y_centrs, path_width
+    max_hdg, increment, mag_vec, x_dims, x_centrs, y_centrs, path_width
   )
   left_hdg = sweep_quadrant(
-    -max_hdg, increment, mag_vec, radius_vec, x_centrs, y_centrs, path_width
+    -max_hdg, increment, mag_vec, x_dims, x_centrs, y_centrs, path_width
   )
   hdg_output = 0
 
   # output the smallest magnitude turn
-  if abs(left_hdg) < right_hdg: hdg_output = left_hdg
-  else: hdg_output = right_hdg
-  # if the output is 0, don't return a waypoint
-  if hdg_output: return hdg_output
-  else: return False
+  if abs(left_hdg) < right_hdg: return left_hdg
+  else: return right_hdg
 
 
 if __name__=='__main__':
