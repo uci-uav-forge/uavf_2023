@@ -1,7 +1,7 @@
 import pyrealsense2 as rs
 import numpy as np
 import time
-from math import cos, sin, atan, radians
+from math import cos, sin, atan, radians, degrees
 import os
 
 import rospy
@@ -74,7 +74,8 @@ def rs_stream(res_width, res_height, frame_rate, max_range, avoid_range, max_hdg
             hdg_change = obstacle_avoidance(centr_arr, box_arr, max_hdg)
             if hdg_change:
                 R = avoid_range - (avoid_range-danger_range)*abs(hdg_change)/max_hdg
-                raw_wp = np.array([R * atan(hdg_change), R])
+                raw_wp = np.array([R * tan(radians(hdg_change)), R])
+                
                 corrected_wp = yaw_rotation(raw_wp, yaw)
 
                 print(hdg_change)

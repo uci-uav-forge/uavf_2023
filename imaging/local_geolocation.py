@@ -27,10 +27,10 @@ class GeoLocator:
             #https://community.gopro.com/s/article/HERO10-Black-Digital-Lenses-FOV-Informations?language=en_US
             #we're on 4:3 ratio narrow mode no hypersmooth 
             ct.RectilinearProjection(                
-                view_x_deg=73,
-                view_y_deg=58,
                 image_width_px=img_size[1],
-                image_height_px=img_size[0]),
+                image_height_px=img_size[0],
+                focallength_px=max(img_size)/(2*np.tan(np.deg2rad(73)/2)),# 73 is the width fov of the gopro hero 10 in narrow mode
+            ),
             ct.SpatialOrientation(
                 elevation_m=z,
                 heading_deg=heading,
@@ -47,6 +47,6 @@ class GeoLocator:
 
 
 if __name__ == "__main__":
-    geolocator = GeoLocator((5568, 4176))
-    loc = geolocator.get_location(0, 0, (5, 5, 10), (90, 0, 0))
+    geolocator = GeoLocator()
+    loc = geolocator.get_location(0, 0, (5, 5, 10), (0, 0, 0), (3,4))
     print(loc, np.linalg.norm(loc), loc[2] > 0, type(loc))

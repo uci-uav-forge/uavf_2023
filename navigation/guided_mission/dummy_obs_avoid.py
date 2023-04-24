@@ -15,23 +15,29 @@ def dummy_obs_avoid():
         queue_size=1
     )
 
-    wait_time = 5
-    st = time.time()
-    et = time.time()
+    #wait_time = 5
+    #st = time.time()
+    #et = time.time()
 
-    while(et - st < wait_time):
-        et = time.time()
-        print('time until obstacle avoidance: ' + str(round(wait_time - et + st)))
-        print()
-        time.sleep(1)
+    #while(et - st < wait_time):
+    #    et = time.time()
+    #    print('time until obstacle avoidance: ' + str(round(wait_time - et + st)))
+    #    print()
+    #    time.sleep(1)
 
-    avoid_coord = Point()
-    avoid_coord.x = 13.85
-    avoid_coord.y = 8.00
-    avoid_coord.z = 1.00
-    obs_avoid_pub.publish(avoid_coord)
-    print(time.time())
+    avoid_coord = Point() 
+    avoid_coord.x = -3.7300603444
+    avoid_coord.y = 4
+    avoid_coord.z = 0
+    #obs_avoid_pub.publish(avoid_coord)
+    #print(time.time())
 
+    print('enter a character to trigger obstacle avoidance')
+    try:
+        while True:
+            if str(input()): obs_avoid_pub.publish(avoid_coord)
+    except KeyboardInterrupt:
+        return
 
 if __name__ == '__main__':
     rospy.init_node("dummy_obs_avoid", anonymous=True)
