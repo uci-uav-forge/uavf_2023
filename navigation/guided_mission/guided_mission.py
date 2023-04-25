@@ -8,6 +8,7 @@ import json
 import os
 from enum import IntEnum
 import requests
+from typing import List
 
 import rospy
 from sensor_msgs.msg import NavSatFix
@@ -33,13 +34,15 @@ class WaypointPriorities(IntEnum):
 
 
 class PriorityAssigner():
-    def __init__(self, mission_q: PriorityQueue, drone: gnc_api, drop_end: tuple, drop_alt: int):
+    def __init__(self, mission_q: PriorityQueue, drone: gnc_api, drop_end: tuple, drop_alt: int, gcs_url: str, flight_plan: FlightPlan):
         self.mission_q = mission_q
         self.drone = drone
         self.drop_end = drop_end
         self.drop_alt = drop_alt
         self.drop_received = False
         self.run_obs_avoid = False
+        self.gcs_url=gcs_url
+        self.flight_plan = flight_plan
         
         self.avoid_sub = rospy.Subscriber(
             name="obs_avoid_rel_coord",
@@ -72,8 +75,15 @@ class PriorityAssigner():
 
     def drop_cb(self, drop_wps: String):
         print(f"Received drop waypoints: {drop_wps.data}")
-        waypoints: list[float] = json.loads(drop_wps.data)
+        waypoints: List[List[float]] = json.loads(drop_wps.data)
         prio = WaypointPriorities.DROP_MIN_PRIORITY
+        
+        gps_waypoints = [
+            self.flight_plan.local_to_GPS((wp[0], wp[1]))
+            for wp in sorted(waypoints, key=lambda wp: wp[2])# sort by servo number
+        ]
+
+        requests.post(f"{self.gcs_url}/targets", json.dumps({"waypoints": gps_waypoints}))
 
         for wp_x, wp_y, servo_num in waypoints:
             wp_z = self.drop_alt
@@ -84,7 +94,7 @@ class PriorityAssigner():
         self.drop_received = True
 
 
-def http_request(gcs_url, bound_coords, wps, drop_bds):
+def send_mission_params_to_gcs(gcs_url: str, bound_coords, wps, drop_bds):
     requests.post(f"{gcs_url}/boundary", json.dumps({"waypoints": bound_coords}))
     requests.post(f"{gcs_url}/mission", json.dumps({"waypoints": wps}))
     requests.post(f"{gcs_url}/dropzone", json.dumps({"waypoints": drop_bds}))
@@ -100,12 +110,15 @@ def hdg_pos_setpoint(drone:gnc_api, wp:tuple, curr_pos:Point):
     )
 
 
-def drop_payload(actuator, servo_num):
+def drop_payload(drone: gnc_api, actuator, servo_num):
     print(f"Dropping payload {servo_num}")
-    time.sleep(3)
+    for _ in range(6):
+        drone.check_waypoint_reached()
+        time.sleep(0.5)
     actuator.openServo(servo_num)
-    time.sleep(3)
-
+    for _ in range(6):
+        drone.check_waypoint_reached()
+        time.sleep(0.5)
 
 def init_mission(mission_q: PriorityQueue, use_px4=False, gcs_url = "http://localhost:8000"): 
     print("waiting for mavros position message")
@@ -115,7 +128,11 @@ def init_mission(mission_q: PriorityQueue, use_px4=False, gcs_url = "http://loca
     else:
         home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
         home = (home_fix.latitude, home_fix.longitude)
-    
+    drop_bds_publisher = rospy.Publisher(
+        name='dropzone_bounds', 
+        data_class=
+        String, 
+        queue_size=1)# IMPORTANT: DOES NOT WORK IF YOU PUT THIS CONSTRUCTOR RIGHT NEXT TO THE `drop_bds_publsiher.publish` line IDK WHY IT DROVE ME INSANE
     # read mission objectives from json file
     print('\nList of mission objective files:\n')
     
@@ -128,13 +145,15 @@ def init_mission(mission_q: PriorityQueue, use_px4=False, gcs_url = "http://loca
     bound_coords = [tuple(coord) for coord in data['boundary coordinates']] 
     wps = [tuple(wp) for wp in data['waypoints']]
     drop_bds = [tuple(bd) for bd in data['drop zone bounds']]
-    http_request(gcs_url, bound_coords, wps, drop_bds)
-    print(json.dumps(bound_coords))
+    send_mission_params_to_gcs(gcs_url, bound_coords, wps, drop_bds)
     
     drop_alt = drop_bds[0][2]
     alts = [wp[2] for wp in wps]
     avg_alt = np.average(alts) 
-    test_map = FlightPlan(bound_coords, home, avg_alt)
+    flight_plan = FlightPlan(bound_coords, home, avg_alt)
+    drop_bds_local = [flight_plan.GPS_to_local((bd[0], bd[1])) for bd in drop_bds]
+    drop_bds_publisher.publish(json.dumps(drop_bds_local))
+    
     
     print('\nWould you like to reorganize the waypoints into the most efficient order? (y/n)')
     while True:
@@ -148,7 +167,7 @@ def init_mission(mission_q: PriorityQueue, use_px4=False, gcs_url = "http://loca
             break
         else: print('Not a valid option. Please try again.')
 
-    global_path, drop_end = test_map.gen_globalpath(wps, drop_bds, tsp)
+    global_path, drop_end = flight_plan.gen_globalpath(wps, drop_bds, tsp)
     print(global_path)
 
     # initialize priority queue and put home last
@@ -160,10 +179,10 @@ def init_mission(mission_q: PriorityQueue, use_px4=False, gcs_url = "http://loca
     if use_px4 == True: drone.set_mode_px4('OFFBOARD')
     else: drone.wait4start()
     drone.initialize_local_frame()
-    return drone, drop_end, drop_alt, avg_alt
+    return drone, drop_end, drop_alt, avg_alt, flight_plan
 
 
-def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: PriorityAssigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False, wait_for_imaging=True):
+def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: PriorityAssigner, max_spd, drop_spd, avg_alt, drop_end, use_px4=False, wait_for_imaging=True, gcs_url = "http://localhost:8000"):
     # init control loop refresh rate, dropzone state, payload state 
     rate = rospy.Rate(30)
     in_dropzone = False
@@ -272,7 +291,7 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
             at_drop_end=False
         # drop payload if reached drop waypoint
         elif at_drop_pt: 
-            drop_payload(actuator, servo_num)
+            drop_payload(drone, actuator, servo_num)
 
     mission_q_assigner.run_obs_avoid = False
     print('All waypoints reached!')
@@ -283,18 +302,18 @@ def main():
     # initialize ROS node and get home position
     rospy.init_node("drone_GNC", anonymous=True)
     print("initialized ROS node")
-
+    
     mission_q = PriorityQueue()
     use_px4 = True
 
     # init mission
     max_spd = 10 # m/s
-    drop_spd = 3 # m/s
+    drop_spd = 2 # m/s
     gcs_url = "http://localhost:8000"
-    drone, drop_end, drop_alt, avg_alt = init_mission(mission_q, use_px4, gcs_url)
+    drone, drop_end, drop_alt, avg_alt, mission_plan = init_mission(mission_q, use_px4, gcs_url)
 
     # init priority assigner with mission queue and dropzone wp
-    mission_q_assigner = PriorityAssigner(mission_q, drone, drop_end, drop_alt)
+    mission_q_assigner = PriorityAssigner(mission_q, drone, drop_end, drop_alt, gcs_url, mission_plan)
 
     # run online trajectory planner
     mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4, wait_for_imaging=False)
