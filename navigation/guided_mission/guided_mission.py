@@ -290,7 +290,7 @@ def main():
     # init mission
     max_spd = 10 # m/s
     drop_spd = 3 # m/s
-    gcs_url = "http://localhost"
+    gcs_url = "http://localhost:8000"
     drone, drop_end, drop_alt, avg_alt = init_mission(mission_q, use_px4, gcs_url)
 
     # init priority assigner with mission queue and dropzone wp
