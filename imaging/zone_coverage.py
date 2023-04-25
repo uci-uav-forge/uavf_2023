@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 import numpy as np
 import cv2 as cv
 from .local_geolocation import GeoLocator
@@ -5,8 +6,8 @@ from .local_geolocation import GeoLocator
 class ZoneCoverageTracker:
     def __init__(self, dropzone_local_coords: np.ndarray):
         PIXELS_PER_METER = 3
+        self.dropzone_coords = dropzone_local_coords.copy()
         dropzone_local_coords-=dropzone_local_coords[0]
-        self.dropzone_coords = dropzone_local_coords
         bases_matrix = np.array([dropzone_local_coords[1], dropzone_local_coords[3]]).T
         transformation_matrix =  np.linalg.inv(bases_matrix)
         l1 = np.linalg.norm(dropzone_local_coords[0]-dropzone_local_coords[1])
@@ -17,6 +18,7 @@ class ZoneCoverageTracker:
             [zone_width, 0],
             [0, zone_height]
         ])
+
         self.world_to_dz_image =  scale_matrix @ transformation_matrix
         self.geolocator = GeoLocator()
         self.zone_img = np.zeros((zone_height, zone_width), dtype=np.uint8)
@@ -27,10 +29,12 @@ class ZoneCoverageTracker:
             self.geolocator.get_location(x,y,location,angles,(h,w)) 
             for x,y in [(0,0),(w,0),(w,h),(0,h)]
             ]
+        print(f"img_corners_world_coords: {img_corners_world_coords}")
         img_dropzone_coords = [
             self.world_to_dz_image @ (np.array(coord[:2])-self.dropzone_coords[0]) for coord in img_corners_world_coords
         ]
-        return img_dropzone_coords
+        print(f"img_dropzone_coords: {img_dropzone_coords}")
+        return np.array(img_dropzone_coords, dtype=np.int32)
     
     def add_coverage(self, location, angles, img_dims=(3, 4)):
         coverage_coords = self._get_coverage(location, angles, img_dims)
@@ -46,11 +50,11 @@ class ZoneCoverageTracker:
 
 if __name__=='__main__':
     dzc = ZoneCoverageTracker(
-        dropzone_local_coords=np.array([(0,0), (300,0), (300,70), (0,70)]),
+        dropzone_local_coords=np.array([(-147,23), (-148, 8), (5, -13), (3, 12)]),
     )
 
-    dzc.add_coverage((150,35,75),(0,0,0))
-    dzc.add_coverage((100,30,30),(0,0,0))
+    dzc.add_coverage((-145.82981323216444, 14.832557994528528, 13.8445),(90.50987330649428, 31.529836105429986, -115.12855457609705))
+    dzc.add_coverage((-51.51099289052526, 3.621755239471483, 14.7775),(-88.48345590018039, 42.32743736299511, -94.32546973741206))
 
     cv.imshow('coverage',dzc.get_coverage_image())
     cv.waitKey(0)
