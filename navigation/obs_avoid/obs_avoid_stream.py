@@ -1,4 +1,5 @@
 import pyrealsense2 as rs
+import open3d as o3d
 import numpy as np
 import time
 from math import cos, sin, radians, degrees, tan
@@ -95,7 +96,8 @@ def rs_stream(res_width, res_height, frame_rate, max_range, min_range, max_hdg):
 
 
 if __name__=='__main__':
-    #o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Debug)
+    o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Error)
+    
     width = 424
     height = 240
     frame_rate = 15
