@@ -13,9 +13,11 @@ targets_publisher = rospy.Publisher(
     queue_size=1
 )
 rospy.init_node("imaging_pipeline")
+drone = gnc_api()
+drone.initialize_local_frame()
 imaging_pipeline = Pipeline(
-    drone=gnc_api(), 
-    img_file="gopro" if USE_GOPRO else "tests/image0_crop_smaller.png", 
+    drone=drone, 
+    img_file="gopro" if USE_GOPRO else "tests/image0.png", 
     targets_file='imaging/targets.csv',
     dry_run=False,
     drop_sub=True,
