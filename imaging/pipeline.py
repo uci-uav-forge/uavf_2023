@@ -141,6 +141,7 @@ class Pipeline:
         self.zone_coverage_tracker = ZoneCoverageTracker(
             dropzone_local_coords=drop_zone_coords
         ) 
+        self.dz_bounds_sub = rospy.Subscriber(name="dropzone_bounds", data_class=String, callback=self.drop_bounds_cb)
         self.img_file = img_file
         self.drone = drone
         self.drop_pub = drop_pub
@@ -189,6 +190,13 @@ class Pipeline:
         # record each pipeline iteration results
         self.loop_index = None
         self.valid_results = None
+
+    def drop_bounds_cb(self, msg: String):
+        print(f"re-initializing dropzone bounds: {msg.data}")
+        drop_zone_coords = json.loads(msg.data)
+        self.zone_coverage_tracker = ZoneCoverageTracker(
+            dropzone_local_coords=np.array(drop_zone_coords)
+        )
 
     def _split_to_tiles(self, img: cv.Mat):
         h, w = img.shape[:2]
