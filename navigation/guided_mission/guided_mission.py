@@ -31,6 +31,7 @@ class WaypointPriorities(IntEnum):
     OBS_AVOID_PRIORITY = -1000000000
     HOME_PRIORITY = 2000000000
 
+
 class PriorityAssigner():
     def __init__(self, mission_q: PriorityQueue, drone: gnc_api, drop_end: tuple, drop_alt: int):
         self.mission_q = mission_q
@@ -83,6 +84,12 @@ class PriorityAssigner():
         self.drop_received = True
 
 
+def http_request(gcs_url, bound_coords, wps, drop_bds):
+    requests.post(f"{gcs_url}/boundary", json.dumps({"waypoints": bound_coords}))
+    requests.post(f"{gcs_url}/mission", json.dumps({"waypoints": wps}))
+    requests.post(f"{gcs_url}/dropzone", json.dumps({"waypoints": drop_bds}))
+
+
 def hdg_pos_setpoint(drone:gnc_api, wp:tuple, curr_pos:Point):
     # calc heading and send position to drone
     hdg = -90 + np.degrees(
@@ -108,25 +115,21 @@ def init_mission(mission_q: PriorityQueue, use_px4=False, gcs_url = "http://loca
     else:
         home_fix = rospy.wait_for_message('mavros/global_position/global', NavSatFix, timeout=None) 
         home = (home_fix.latitude, home_fix.longitude)
-
     
     # read mission objectives from json file
     print('\nList of mission objective files:\n')
     
     file_list = os.listdir('guided_mission/mission_objectives')
     [print('(' + str(i) + ') ' + file_list[i]) for i in range(len(file_list))]
-    
     print('\nInput the number of the mission you want to load: ')
     file_num = int(input())
-    data = json.load(open('guided_mission/mission_objectives/' + file_list[file_num]))
+    data = json.load(open('guided_mission/mission_objectives/' + file_list[file_num])) 
     
     bound_coords = [tuple(coord) for coord in data['boundary coordinates']] 
-    print(json.dumps(bound_coords))
-    requests.post(f"{gcs_url}/boundary", json.dumps({"waypoints": bound_coords}))
     wps = [tuple(wp) for wp in data['waypoints']]
-    requests.post(f"{gcs_url}/mission", json.dumps({"waypoints": wps}))
     drop_bds = [tuple(bd) for bd in data['drop zone bounds']]
-    requests.post(f"{gcs_url}/dropzone", json.dumps({"waypoints": drop_bds}))
+    http_request(gcs_url, bound_coords, wps, drop_bds)
+    print(json.dumps(bound_coords))
     
     drop_alt = drop_bds[0][2]
     alts = [wp[2] for wp in wps]
@@ -143,11 +146,9 @@ def init_mission(mission_q: PriorityQueue, use_px4=False, gcs_url = "http://loca
         elif choice == 'n':
             tsp = False
             break
-        else:
-            print('Not a valid option. Please try again.')
+        else: print('Not a valid option. Please try again.')
 
     global_path, drop_end = test_map.gen_globalpath(wps, drop_bds, tsp)
-    
     print(global_path)
 
     # initialize priority queue and put home last
@@ -156,12 +157,9 @@ def init_mission(mission_q: PriorityQueue, use_px4=False, gcs_url = "http://loca
 
     drone = gnc_api()
     drone.wait4connect()
-    if use_px4 == True:
-        drone.set_mode_px4('OFFBOARD')
-    else:
-        drone.wait4start()
+    if use_px4 == True: drone.set_mode_px4('OFFBOARD')
+    else: drone.wait4start()
     drone.initialize_local_frame()
-
     return drone, drop_end, drop_alt, avg_alt
 
 
@@ -189,8 +187,7 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
         drone.arm()
         drone.set_destination(
             x=0, y=0, z=avg_alt, psi=0)
-    else:
-        drone.takeoff(avg_alt)
+    else: drone.takeoff(avg_alt)
     
     # initialize maximum speed
     if use_px4: drone.set_speed_px4(max_spd)
@@ -206,6 +203,7 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
     while not mission_q.empty():
         prio, curr_wp = mission_q.get()
         curr_pos = drone.get_current_location()
+        
         # if only home wp is left and drop wps not received, hover
         # else get next waypoint
         if prio == WaypointPriorities.HOME_PRIORITY and not mission_q_assigner.drop_received:
@@ -222,7 +220,6 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
             img_signal.publish(bool_msg)
             if use_px4: drone.set_speed_px4(drop_spd)
             else: drone.set_speed(drop_spd)
-
         # speed up if going home
         elif prio == WaypointPriorities.HOME_PRIORITY and mission_q_assigner.drop_received:
             if use_px4: drone.set_speed_px4(max_spd)
@@ -263,8 +260,10 @@ def mission_loop(drone: gnc_api, mission_q: PriorityQueue, mission_q_assigner: P
             else: 
                 at_drop_end = False
                 at_drop_pt = False
+
             # maintain loop frequency
             rate.sleep()
+
         # tell imaging to stop taking photos when dropzone end reached
         if at_drop_end: 
             print("Signaling imaging to stop")
