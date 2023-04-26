@@ -7,7 +7,7 @@ import traceback as tb
 
 import cv2 as cv
 import numpy as np
-import tensorflow as tf
+#import tensorflow as tf
 from keras.utils import normalize
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
@@ -142,16 +142,18 @@ class Pipeline:
 
         self.geolocator = GeoLocation(img_size)
 
-        gpus = tf.config.list_physical_devices('GPU')
+        """ gpus = tf.config.list_physical_devices('GPU')
         if gpus:  # https://www.tensorflow.org/guide/gpu#limiting_gpu_memory_growth
             tf.config.set_logical_device_configuration(
                 gpus[0],
-                [tf.config.LogicalDeviceConfiguration(memory_limit=1024)])
+                [tf.config.LogicalDeviceConfiguration(memory_limit=1024)]) """
 
         self.tile_resolution = 640  # has to match img_size of the model, which is determined by which one we use.
         self.shape_model = YOLO(f"{IMAGING_PATH}/yolo/trained_models/seg-v8n.pt", )
-        self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
-        self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
+        #self.letter_detector = letter_detection.LetterDetector(f"{IMAGING_PATH}/trained_model.h5")
+        self.letters = ["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","1","2","3","4","5","6","7","8","9"]
+        self.letter_detector = YOLO(f"{IMAGING_PATH}/yolo/trained_models/letter.pt")
+        #self.color_seg_model = tf.keras.models.load_model(f"{IMAGING_PATH}/colordetect/unet-rgb.hdf5")
         self.color_classifier = ColorClassifier()
 
         self.target_aggregator = TargetAggregator(targets_file)
@@ -159,6 +161,7 @@ class Pipeline:
         # warm up shape model
         rand_input = np.random.rand(1, self.tile_resolution, self.tile_resolution, 3).astype(np.float32)
         self.shape_model.predict(list(rand_input), verbose=False)
+        self.letter_detector.predict(list(rand_input), verbose=False)
         # YOLOv8 only sets up the model on the first call to predict.
         # See site-packages/ultralytics/yolo/engine/model.py in predict() function,
         # inside the `if not self.predictor` block. I profiled it and the setup_model step takes 80% of the time.
@@ -355,9 +358,13 @@ class Pipeline:
 
         if PLOT_RESULT: self._plotSegmentationsAndMask(letter_image_buffer, letter_crops, masks)
 
-        letter_results = self.letter_detector.predict(np.mean(letter_image_buffer, axis=-1))
-        letter_labels = [self.letter_detector.labels[np.argmax(row)] for row in letter_results]
-        letter_confidences = [list(zip(self.letter_detector.labels, row)) for row in letter_results]
+        letter_results = []
+        letter_labels = []
+        for i in range(len(self.valid_results)):
+            result = self.letter_detector.predict(letter_image_buffer[i], verbose=False, conf=MATCH_THRESHOLD)
+            letter_results.append(result)
+            letter_labels.append(self.letter_detector.names[np.argmax(result[0].probs.numpy())])
+        letter_confidences = [list(zip(self.letters, row[0].probs)) for row in letter_results]
         shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates]
                              for res in self.valid_results]
 
