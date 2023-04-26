@@ -82,9 +82,10 @@ class PriorityAssigner():
             self.flight_plan.local_to_GPS((wp[0], wp[1]))
             for wp in sorted(waypoints, key=lambda wp: wp[2])# sort by servo number
         ]
-
-        requests.post(f"{self.gcs_url}/targets", json.dumps({"waypoints": gps_waypoints}))
-
+        try:
+            requests.post(f"{self.gcs_url}/targets", json.dumps({"waypoints": gps_waypoints}))
+        except requests.exceptions.ConnectionError:
+            print("GCS not running, skipping target sending")
         for wp_x, wp_y, servo_num in waypoints:
             wp_z = self.drop_alt
 
@@ -95,9 +96,12 @@ class PriorityAssigner():
 
 
 def send_mission_params_to_gcs(gcs_url: str, bound_coords, wps, drop_bds):
-    requests.post(f"{gcs_url}/boundary", json.dumps({"waypoints": bound_coords}))
-    requests.post(f"{gcs_url}/mission", json.dumps({"waypoints": wps}))
-    requests.post(f"{gcs_url}/dropzone", json.dumps({"waypoints": drop_bds}))
+    try:
+        requests.post(f"{gcs_url}/boundary", json.dumps({"waypoints": bound_coords}))
+        requests.post(f"{gcs_url}/mission", json.dumps({"waypoints": wps}))
+        requests.post(f"{gcs_url}/dropzone", json.dumps({"waypoints": drop_bds}))
+    except requests.exceptions.ConnectionError:
+        print("GCS not running, skipping mission parameter sending")
 
 
 def hdg_pos_setpoint(drone:gnc_api, wp:tuple, curr_pos:Point):
