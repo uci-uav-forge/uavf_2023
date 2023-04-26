@@ -6,4 +6,4 @@
 
 #cd navigation
 #OPENBLAS_CORETYPE=ARMV8 python guided_mission.py
-python3 -m navigation.guided_mission.guided_mission
+python3 -m navigation.guided_mission.no_gcs_guided_mission
