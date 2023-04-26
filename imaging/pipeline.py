@@ -7,14 +7,11 @@ import traceback as tb
 
 import cv2 as cv
 import numpy as np
-#import tensorflow as tf
-from keras.utils import normalize
 from ultralytics.yolo.engine.results import Results, Boxes
 from ultralytics import YOLO
 
 from .local_geolocation import GeoLocation
 from .color_knn.color_classify import ColorClassifier
-from .letter_detection import LetterDetector as letter_detection
 from .camera import GoProCamera
 from .colordetect.color_segment import color_segmentation
 from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
@@ -241,15 +238,6 @@ class Pipeline:
             shape_result.duplicates = [all_shape_results[d] for d in duplicates[i]]
 
         return list(filter(lambda x: x.confidence > CONF_THRESHOLD, valid_results))
-
-    def _get_seg_masks(self, images: np.ndarray) -> np.ndarray:
-        '''
-        images is of shape (batch_size, 128, 128, 3) 
-        '''
-        model_input = normalize(images)
-        prediction_raw = self.color_seg_model.predict(model_input)
-        prediction = np.argmax(prediction_raw, axis=3)
-        return prediction
 
     def _plotSegmentationsAndMask(self, letter_image_buffer, letter_crops, masks):
         shape_seg_folder_path = f"{output_folder_path}/shape_seg{self.loop_index}"
