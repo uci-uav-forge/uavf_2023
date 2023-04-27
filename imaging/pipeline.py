@@ -463,7 +463,7 @@ class Pipeline:
 
             
         done = True
-        self.loop_thread.join()
+        loop_thread.join()
 
         msg = String()
         valid_target_coords_with_indices = []
