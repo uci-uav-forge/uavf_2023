@@ -380,11 +380,12 @@ class Pipeline:
         for i in range(len(self.valid_results)):
             result = self.letter_detector.predict(letter_image_buffer[i], verbose=False, conf=MATCH_THRESHOLD)
             letter_results.append(result)
-            letter_labels.append(self.letter_detector.names[np.argmax(result[0].probs.numpy())])
+            classification = np.argmax(result[0].probs.numpy())
+            letter_labels.append(self.letters[int(self.letter_detector.names[classification])])
         letter_confidences = [list(zip(self.letters, row[0].probs)) for row in letter_results]
         shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates]
                              for res in self.valid_results]
-
+        
         for i in range(len(self.valid_results)):
             self.target_aggregator.match_target_color(
                 coords[i],
