@@ -320,7 +320,7 @@ def main():
     mission_q_assigner = PriorityAssigner(mission_q, drone, drop_end, drop_alt, gcs_url, mission_plan)
 
     # run online trajectory planner
-    mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4, wait_for_imaging=False)
+    mission_loop(drone, mission_q, mission_q_assigner, max_spd, drop_spd, avg_alt, drop_end, use_px4, wait_for_imaging=True)
 
 
 if __name__ == '__main__':  

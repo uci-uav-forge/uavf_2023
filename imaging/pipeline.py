@@ -24,6 +24,7 @@ from .targetaggregator import TargetAggregator
 from .shape_detection.src import plot_functions as plot_fns
 from navigation.mock_drone import MockDrone
 from tqdm import tqdm
+import threading
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -314,7 +315,7 @@ class Pipeline:
         self.loop_index = loop_index
         try:
             print(f"Getting image {loop_index}")
-            cam_img = self._get_image()
+            cam_img = img#self._get_image()
             cv.imwrite(f"{output_folder_path}/image{loop_index}.png", cam_img)
             print(f"got image {loop_index}")
             curr_location, curr_angles = self.drone.get_current_pos_and_angles()
@@ -432,34 +433,34 @@ class Pipeline:
                 print(f"Published drop message: {msg.data}")
     
     def run_concurrent(self):
-        REQUIRED_PCT_UNCOVERED = 0.4
+        REQUIRED_PCT_UNCOVERED = 1
         IMG_H_W_METERS = (3,4)
 
 
         done = False
-        img_queue = queue.PriorityQueue()
+        img_queue = queue.Queue()
 
         def loop():
             idx = 0
             while not done:
-                next_img = img_queue.get(timeout=2)
-                if not next_img:
+                next_img = img_queue.get(timeout=2) if not img_queue.empty() else None
+                if next_img is None:
                     continue
-                self.loop_img(idx, next_img[1])
+                self.loop_img(idx, next_img)
                 idx += 1
         
-        loop_thread = threading.Thread(target = loop)
+        self.loop_thread = threading.Thread(target = loop)
         while not self.drop:
             time.sleep(0.1)
-        loop_thread.start()
+        self.loop_thread.start()
         while self.drop:
             curr_location, curr_angles = self.drone.get_current_pos_and_angles()
-            coverage = np.average(self.zone_coverage_tracker._get_coverage(curr_location, curr_angles, IMG_H_W_METERS))
-            if coverage < REQUIRED_PCT_UNCOVERED:
-                i_nx = self._get_image()
-                self.zone_coverage_tracker.add_coverage(curr_location, curr_angles, IMG_H_W_METERS)
-                img_queue.put((coverage, i_nx))
-            time.sleep(0.1)
+            # coverage = self.zone_coverage_tracker.get_point_coverage(curr_location, curr_angles, IMG_H_W_METERS) 
+            # if coverage < REQUIRED_PCT_UNCOVERED:
+            i_nx = self._get_image()
+            self.zone_coverage_tracker.add_coverage(curr_location, curr_angles, IMG_H_W_METERS)
+            img_queue.put(i_nx)
+            time.sleep(1)
             
 
             

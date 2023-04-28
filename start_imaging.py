@@ -23,4 +23,4 @@ imaging_pipeline = Pipeline(
     drop_sub=True,
     drop_pub = targets_publisher)
 print("TODO: make the camera and localizer not be mocks")
-imaging_pipeline.run(num_loops=1)
+imaging_pipeline.run_concurrent()

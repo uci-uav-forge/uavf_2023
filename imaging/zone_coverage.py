@@ -44,6 +44,12 @@ class ZoneCoverageTracker:
 
     def get_coverage_image(self):
         return self.zone_img * (255//self.zone_img.max()) if self.zone_img.max()>0 else self.zone_img
+    
+    def get_point_coverage(self, location, angles, img_dims=(3, 4)):
+        # returns the coverage at the center of the image
+        coverage_coords = self._get_coverage(location, angles, img_dims)
+        camera_center_coords = np.mean(coverage_coords, axis=0).astype(np.int32)
+        return self.zone_img[camera_center_coords[1], camera_center_coords[0]]
 
     def get_most_important_coverage_pts(self):
         raise NotImplementedError
