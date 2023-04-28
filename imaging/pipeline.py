@@ -438,12 +438,11 @@ class Pipeline:
 
 
         done = False
-        img_queue = queue.Queue()
+        img_queue = queue.PriorityQueue()
 
         def loop():
-            idx = 0
             while not done:
-                next_img = img_queue.get(timeout=2) if not img_queue.empty() else None
+                coverage, idx, next_img = img_queue.get(timeout=2) if not img_queue.empty() else None
                 if next_img is None:
                     continue
                 self.loop_img(idx, next_img)
@@ -453,13 +452,15 @@ class Pipeline:
         while not self.drop:
             time.sleep(0.1)
         self.loop_thread.start()
+        idx = 0
         while self.drop:
             curr_location, curr_angles = self.drone.get_current_pos_and_angles()
-            # coverage = self.zone_coverage_tracker.get_point_coverage(curr_location, curr_angles, IMG_H_W_METERS) 
-            # if coverage < REQUIRED_PCT_UNCOVERED:
-            i_nx = self._get_image()
-            self.zone_coverage_tracker.add_coverage(curr_location, curr_angles, IMG_H_W_METERS)
-            img_queue.put(i_nx)
+            coverage = self.zone_coverage_tracker.get_point_coverage(curr_location, curr_angles, IMG_H_W_METERS) 
+            if coverage < REQUIRED_PCT_UNCOVERED:
+                i_nx = self._get_image()
+                self.zone_coverage_tracker.add_coverage(curr_location, curr_angles, IMG_H_W_METERS)
+                idx += 1
+                img_queue.put((coverage,idx,i_nx))
             time.sleep(1)
             
 
