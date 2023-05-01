@@ -5,6 +5,7 @@ import os
 from dataclasses import dataclass
 import rospy
 import traceback as tb
+import queue
 
 import cv2 as cv
 import numpy as np
@@ -23,6 +24,7 @@ from .targetaggregator import TargetAggregator
 from .shape_detection.src import plot_functions as plot_fns
 from navigation.mock_drone import MockDrone
 from tqdm import tqdm
+import threading
 
 IMAGING_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -306,11 +308,14 @@ class Pipeline:
             f.write(f"Angles: {angles[0]}, {angles[1]}, {angles[2]}\n")
 
     def loop(self, loop_index: int):
+        self.loop_img(loop_index, self._get_image())
+    
+    def loop_img(self, loop_index: int, img):
         # If you need to profile use this: https://stackoverflow.com/a/62382967/14587004
         self.loop_index = loop_index
         try:
             print(f"Getting image {loop_index}")
-            cam_img = self._get_image()
+            cam_img = img#self._get_image()
             cv.imwrite(f"{output_folder_path}/image{loop_index}.png", cam_img)
             print(f"got image {loop_index}")
             curr_location, curr_angles = self.drone.get_current_pos_and_angles()
@@ -376,11 +381,12 @@ class Pipeline:
         for i in range(len(self.valid_results)):
             result = self.letter_detector.predict(letter_image_buffer[i], verbose=False, conf=MATCH_THRESHOLD)
             letter_results.append(result)
-            letter_labels.append(self.letter_detector.names[np.argmax(result[0].probs.numpy())])
+            classification = np.argmax(result[0].probs.numpy())
+            letter_labels.append(self.letters[int(self.letter_detector.names[classification])])
         letter_confidences = [list(zip(self.letters, row[0].probs)) for row in letter_results]
         shape_confidences = [[(self.labels_to_names_dict[i.shape_label], i.confidence) for i in [res] + res.duplicates]
                              for res in self.valid_results]
-
+        
         for i in range(len(self.valid_results)):
             self.target_aggregator.match_target_color(
                 coords[i],
@@ -425,6 +431,56 @@ class Pipeline:
                 msg.data = json.dumps(valid_target_coords_with_indices)
                 self.drop_pub.publish(msg)
                 print(f"Published drop message: {msg.data}")
+    
+    def run_concurrent(self):
+        REQUIRED_PCT_UNCOVERED = 1
+        IMG_H_W_METERS = (3,4)
+
+
+        done = False
+        img_queue = queue.PriorityQueue()
+
+        def loop():
+            while not done:
+                coverage, idx, next_img = img_queue.get(timeout=2) if not img_queue.empty() else None
+                if next_img is None:
+                    continue
+                self.loop_img(idx, next_img)
+                idx += 1
+        
+        self.loop_thread = threading.Thread(target = loop)
+        while not self.drop:
+            time.sleep(0.1)
+        self.loop_thread.start()
+        idx = 0
+        while self.drop:
+            curr_location, curr_angles = self.drone.get_current_pos_and_angles()
+            coverage = self.zone_coverage_tracker.get_point_coverage(curr_location, curr_angles, IMG_H_W_METERS) 
+            if coverage < REQUIRED_PCT_UNCOVERED:
+                i_nx = self._get_image()
+                self.zone_coverage_tracker.add_coverage(curr_location, curr_angles, IMG_H_W_METERS)
+                idx += 1
+                img_queue.put((coverage,idx,i_nx))
+            time.sleep(1)
+            
+
+            
+        done = True
+        loop_thread.join()
+
+        msg = String()
+        valid_target_coords_with_indices = []
+        for i, coord in enumerate(self.target_aggregator.get_target_coords()):
+            if coord is None: 
+                print(f"Could not find target {i}")
+                continue
+            valid_target_coords_with_indices.append((coord[0], coord[1], i))
+        msg.data = json.dumps(valid_target_coords_with_indices)
+        self.drop_pub.publish(msg)
+        print(f"Published drop message: {msg.data}")
+    
+
+
 
            
 
