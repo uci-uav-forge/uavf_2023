@@ -44,6 +44,8 @@ class MockDrone:
         print("Landed")
     def get_current_pitch_roll_yaw(self):
         return self.angles
+    def get_pitch_roll_yaw(self):
+        return self.angles
     def get_current_pos_and_angles(self):
         return self.location, self.angles
 

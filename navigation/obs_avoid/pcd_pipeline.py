@@ -73,6 +73,41 @@ def apply_rotations(centroids, box_dims, pitch, roll):
 
     return centr_arr, box_arr
 
+def rot_points(centroids, pitch, roll):
+    # rotation from realsense coords to standard attitude coord frame
+    std_rot = np.array([
+        [0, 0, -1],
+        [1, 0, 0],
+        [0 ,-1, 0]
+    ])
+    std_centroids = centroids @ std_rot.T
+
+    rad_pitch = radians(pitch)
+    rad_roll = radians(roll)    
+
+    # correction rotation due to drone attitude
+    pitch_rot = np.array([
+        [cos(rad_pitch), 0, sin(rad_pitch)],
+        [0, 1, 0],
+        [-sin(rad_pitch), 0,    cos(rad_pitch)]
+    ])
+    roll_rot = np.array([
+        [1, 0, 0],
+        [0, cos(rad_roll), -sin(rad_roll)],
+        [0, sin(rad_roll), cos(rad_roll)]
+    ])
+    tilt_centroids = std_centroids @ pitch_rot.T @ roll_rot.T
+
+    # rotation from standard attitude coord frame to obstacle avoidance coord frame
+    avoidance_rot = np.array([
+        [0, 1, 0],
+        [1, 0, 0],
+        [0, 0, -1]
+    ])
+    centr_arr = tilt_centroids @ avoidance_rot.T
+
+    return centr_arr
+
 
 def yaw_rotation(raw_wp, yaw):
     theta = -yaw
@@ -83,6 +118,16 @@ def yaw_rotation(raw_wp, yaw):
     ])
     return yaw_rot @ raw_wp
 
+
+def clean_pcd(pcd, pitch, roll):
+    '''Downsamples, filters, and rotates a detected point cloud into world coordinates..'''
+    # downsample
+    down_pcd = pcd.voxel_down_sample(voxel_size=600)#200
+    # radius outlier removal
+    fil_cl, ind = down_pcd.remove_radius_outlier(nb_points=24, radius=2100)#15,400
+    #fil_cl, ind = down_pcd.remove_statistical_outlier(nb_neighbors=20, std_ratio=2.0)
+    rotated_points = rot_points(np.asarray(fil_cl.points), pitch, roll)
+    return rotated_points
 
 def process_pcd(pcd, pitch, roll):
     '''Will downsample, filter, cluster, and segment a pointcloud. Returns an array of coordinates 
