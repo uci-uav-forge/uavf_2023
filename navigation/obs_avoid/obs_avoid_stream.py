@@ -6,88 +6,79 @@ from math import cos, sin, radians, degrees, tan
 import os
 
 import rospy
-from geometry_msgs.msg import Point
+from std_msgs.msg import Int16MultiArray
 
 from .rs_stream import post_process_filters, depth_to_pcd
-from .pcd_pipeline import process_pcd, yaw_rotation
+from .pcd_pipeline import clean_pcd, yaw_rotation
 from .threeD_obstacle_avoidance import obstacle_avoidance
 from ..guided_mission.py_gnc_functions import gnc_api
 os.chdir("navigation")
 
+class RealsensePipeline:
+    def __init__(self, res_width, res_height):
+        # enable depth stream
+        self.config = rs.config()
+        self.config.enable_stream(
+            rs.stream.depth, int(res_width), int(res_height), rs.format.z16, frame_rate
+        )
+        # start the pipeline
+        self.pipe = rs.pipeline()
+        self.profile = self.pipe.start(self.config)
+        self.sensor = self.profile.get_device().first_depth_sensor()
+        #max_range = sensor.set_option(sensor.set_option(rs.option.max_distance, 20))
 
-def rs_stream(res_width, res_height, frame_rate, max_range, min_range, max_hdg):
+        # initialize filters
+        self.threshold = rs.threshold_filter(min_dist=0.01, max_dist=max_range)
+        self.decimation = rs.decimation_filter(6)
+        self.spatial = rs.spatial_filter()
+        self.temporal = rs.temporal_filter()
+        self.hole_filling = rs.hole_filling_filter()
+        self.to_disparity = rs.disparity_transform(True)
+        self.to_depth = rs.disparity_transform(False)
+    
+    def get_points(self):
+        frames = self.pipe.wait_for_frames()
+        
+        #pitch, roll, yaw = 0, 0, 0
+
+        st = time.time()
+        depth_frame = post_process_filters(
+            frames.get_depth_frame(), self.threshold, self.decimation, 
+            self.spatial, self.temporal, self.hole_filling, self.to_disparity, self.to_depth
+        )
+        # generate point cloud
+        o3d_pcd = depth_to_pcd(depth_frame)
+        return o3d_pcd
+
+
+def rs_stream(rs: RealsensePipeline):
     # drone api for attitude feedback, publisher to send waypoints
     drone = gnc_api()
-    avoid_pub = rospy.Publisher(
-        name="obs_avoid_rel_coord",
-        data_class=Point,
+    pcd_pub = rospy.Publisher(
+        name="obs_avoid_pcd",
+        data_class=Int16MultiArray,
         queue_size=1,
     )
-    rel_coord = Point()
-
-    # enable depth stream
-    config = rs.config()
-    config.enable_stream(
-        rs.stream.depth, int(res_width), int(res_height), rs.format.z16, frame_rate
-    )
-
-    # start the pipeline
-    pipe = rs.pipeline()
-    profile = pipe.start(config)
-    sensor = profile.get_device().first_depth_sensor()
-    #max_range = sensor.set_option(sensor.set_option(rs.option.max_distance, 20))
-
-    # initialize filters
-    threshold = rs.threshold_filter(min_dist=0.01, max_dist=max_range)
-    decimation = rs.decimation_filter(6)
-    spatial = rs.spatial_filter()
-    temporal = rs.temporal_filter()
-    hole_filling = rs.hole_filling_filter()
-    to_disparity = rs.disparity_transform(True)
-    to_depth = rs.disparity_transform(False)
 
     try: 
         # continuously run the depth stream
         while True:
-            frames = pipe.wait_for_frames()
-            pitch, roll, yaw = drone.get_pitch_roll_yaw()    #pitch, roll, yaw in degrees
-            #pitch, roll, yaw = 0, 0, 0
-
             st = time.time()
-            depth_frame = post_process_filters(
-                frames.get_depth_frame(), threshold, decimation, 
-                spatial, temporal, hole_filling, to_disparity, to_depth
-            )
-            
-            # generate point cloud
-            o3d_pcd = depth_to_pcd(depth_frame)
-            
-            # get N x 3 arrays of object centroids and their bounding volume dimensions
-            centr_arr, box_arr, fil_cl = process_pcd(o3d_pcd, pitch, roll) # this is in mm
-            if fil_cl == False: continue
+            pitch, roll, yaw = drone.get_pitch_roll_yaw()    #pitch, roll, yaw in degrees
+            o3d_pcd = rs.get_points()
+            # get N x 3 array of detected points.
+            detections = clean_pcd(o3d_pcd, pitch, roll) # this is in mm
             
             # convert from mm to m
-            centr_arr = centr_arr / 1000 
-            box_arr = box_arr / 1000
+            detections = detections / 1000 
 
-            # obstacle avoidance returns heading angle within FOV -> waypoint at edge of FOV
-            # decrease the waypoint range the greater the change in heading is (slowing down)
-            # rotate to waypoint corresponding to yaw to get relative coordinates in local frame
-            hdg_change = obstacle_avoidance(centr_arr, box_arr, max_hdg)
-            if hdg_change:
-                R = max_range - (max_range-min_range)*abs(hdg_change)/max_hdg
-                raw_wp = np.array([R * tan(radians(hdg_change)), R])
-                
-                corrected_wp = yaw_rotation(raw_wp, yaw)
+            detections += np.array(drone.get_current_xyz())
 
-                print(hdg_change)
-                print(corrected_wp)
-                
-                # create and publish point message
-                rel_coord.x = corrected_wp[0]
-                rel_coord.y = corrected_wp[1]
-                avoid_pub.publish(rel_coord)
-            
+            msg = Int16MultiArray()
+            msg.data = list(np.round(detections.flatten()).astype(int))
+
+            pcd_pub.publish(msg)
+        
             print(time.time()-st)
             print()
 
@@ -105,6 +96,24 @@ if __name__=='__main__':
     max_range = 16 # m
     min_range = 4 # m, range when no safe path is found
     max_hdg = 43 # degrees, the angle of the FOV in 1 quadrant
+
+    def gnc_api():
+        from ..mock_drone import MockDrone
+        return MockDrone()
     
     rospy.init_node("obstacle_detection_avoidance", anonymous=True)
-    rs_stream(width, height, frame_rate, max_range, min_range, max_hdg)
+
+    class MockRealsense:
+        def get_points(self):
+            vis_range = 2000
+            n_pts = 100
+            time.sleep(0.2)
+            pts = np.random.rand(n_pts,3)* 2*vis_range - vis_range + np.array([[0,0,vis_range]]*n_pts)
+            pcd = o3d.geometry.PointCloud()
+            pcd.points = o3d.utility.Vector3dVector(pts)
+            return pcd
+
+
+
+    rs_stream(MockRealsense())
+    #rs_stream(RealsensePipeline(width,height))
