@@ -88,7 +88,6 @@ latex(C_lin)
 
 
 
-
 % k: lift constant
 % m: total mass
 % b: drag constant
@@ -132,6 +131,8 @@ B = jacobian( ...
     u ...
 );
 
+% i think we dont use B_lin. If the rotation matrix is linearized then
+% the drone will only fly straight up
 A_lin = subs(A, ...
     {phi,theta,phi_dot,theta_dot,psi_dot}, ...
     {0,0,0,0,0} ...
@@ -178,24 +179,5 @@ latex(Ad_euler_lin)
 %latex(Bd_lin)
 
 %save('state_space.mat', 'A', 'B', 'A_lin', 'B_lin', 'Ad', 'Ad_lin');
-
-
-
-%{
-Ad_lin = zeros(size(A));
-Bd_lin = zeros(size(B));
-for k=1:400
-    Ad_lin = Ad_lin + (1/factorial(k))*(A_lin*T)^k;
-    Bd_lin = Bd_lin + (1/factorial(k))*(A_lin^(k-1))*(T^k)*B_lin;
-end
-%}
-
-%Bd = inv(Ac)*(Ad - eye(3,3))*Bc
-%{
-Bd = zeros(3,2);
-for k=1:100
-    Bd = Bd + (1/factorial(k))*(Ac^(k-1))*(T^k)*Bc;
-end
-%}
 
 
