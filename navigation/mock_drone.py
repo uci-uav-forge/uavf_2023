@@ -2,6 +2,7 @@ import time
 from threading import Thread
 import numpy as np
 from dataclasses import dataclass
+import random
 
 @dataclass
 class Point:
@@ -10,10 +11,18 @@ class Point:
     z: float
 
 class MockDrone:
-    def __init__(self):
-        self.location = [0, 0, 0]
+    def __init__(self, rand_location = False):
+        self._location = [0, 0, 0]
         self.angles = [0, 0, 0]
         self.destination = [0, 0, 0]
+        self.rand_location = rand_location
+    @property
+    def location(self):
+        if self.rand_location:
+            self._location[0] += random.randint(-8,10)
+            self._location[1] += random.randint(-1,1)
+            self._location[2] += random.randint(-8,10)
+        return self._location
     def wait4connect(self):
         time.sleep(0.2)
     def set_mode_px4(self, mode):

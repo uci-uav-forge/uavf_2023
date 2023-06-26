@@ -99,7 +99,7 @@ if __name__=='__main__':
 
     def gnc_api():
         from ..mock_drone import MockDrone
-        return MockDrone()
+        return MockDrone(True)
     
     rospy.init_node("obstacle_detection_avoidance", anonymous=True)
 
