@@ -105,9 +105,9 @@ if __name__=='__main__':
 
     class MockRealsense:
         def get_points(self):
-            vis_range = 2000
-            n_pts = 100
-            time.sleep(0.2)
+            vis_range = 4000
+            n_pts = 5000
+            time.sleep(0.05)
             pts = np.random.rand(n_pts,3)* 2*vis_range - vis_range + np.array([[0,0,vis_range]]*n_pts)
             pcd = o3d.geometry.PointCloud()
             pcd.points = o3d.utility.Vector3dVector(pts)
