@@ -2,36 +2,28 @@ import numpy as np
 import rospy
 from std_msgs.msg import Int16MultiArray
 import time
-from collections import deque
+from collections import deque, defaultdict
 
 HIST_THRESH = 2
 HIST_TTL = 2 # seconds.
 TIMING = True
 
 class ObstacleHistogram:
-    def __init__(self, width, height, depth):
-        self.width = 2*width
-        self.height = 2*height
-        self.depth = 2*depth
-        self.hist = np.zeros((self.width, self.height, self.depth), dtype = np.byte)
+    def __init__(self):
+        self.hist = defaultdict(deque)
         self.pcd_sub = rospy.Subscriber(
             name="obs_avoid_pcd",
             data_class=Int16MultiArray,
             callback = self.recv_points
         )
         self.rel_pts = set()
-        self.rm_queue = deque()
     
     def recv_points(self, pts):
         if TIMING:
             t0 = time.time()
-        
-        pts_np = np.array(np.array_split(np.array(pts.data), len(pts.data)//3))
-        pts_np += np.array([self.width//2, self.height//2, self.depth//2])
+
+        pts_np = list(map(tuple,(np.array_split(np.array(pts.data), len(pts.data)//3))))
         self.enter_pts(pts_np)
-        self.rm_queue.append((time.time(), pts_np))
-        while time.time() - self.rm_queue[0][0] > HIST_TTL:
-            self.rm_pts(self.rm_queue.popleft()[1])
         
         if TIMING:
             t1 = time.time()
@@ -44,21 +36,25 @@ class ObstacleHistogram:
             print(t1-t0, len(pts))
     
     def enter_pts(self, pts):
-        np.add.at(self.hist, (pts[:,0], pts[:,1], pts[:,2] ), 1)
-        for i, v in enumerate(self.hist[pts[:,0], pts[:,1], pts[:,2] ]):
-            if v >= HIST_THRESH:
-                self.rel_pts.add(tuple(pts[i]))
+        for p in pts:
+            self.hist[p].append(time.time())
+            if len(self.hist[p]) >= HIST_THRESH:
+                self.rel_pts.add(p)
     
-    def rm_pts(self, pts):
-        np.add.at(self.hist, (pts[:,0], pts[:,1], pts[:,2] ), -1)
-        for i, v in enumerate(self.hist[pts[:,0], pts[:,1], pts[:,2] ]):
-            if v < HIST_THRESH:
-                self.rel_pts.discard(tuple(pts[i]))
+    def clean_hist(self, p):
+        while len(self.hist[p]) and HIST_TTL < time.time() - self.hist[p][0]:
+                self.hist[p].popleft()
+        if len(self.hist[p]) < HIST_THRESH:
+            rms.append(p)
 
-    def get_rel_pts(self):
-        return np.array(list(self.rel_pts)) - np.array([self.width//2, self.height//2, self.depth//2])
+    def get_rel_pts(self): 
+        rms = []
+        for p in self.rel_pts:
+            self.clean_hist(p)
+        for p in rms:
+            self.rel_pts.remove(p)
+        return self.rel_pts
 
-if __name__ == '__main__':
-    rospy.init_node('obs_hist_test')
-    h = ObstacleHistogram(500,50,500)
-    rospy.spin()
+    def get_confidence(self, pos):
+        self.clean_hist(pos)
+        return len(self.hist[pos])/HIST_THRESH

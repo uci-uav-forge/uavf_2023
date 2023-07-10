@@ -1,0 +1,75 @@
+from dataclasses import dataclass
+import numpy as np
+import math
+
+@dataclass
+class VFHParams:
+    D_t: float # total distance in meters planned per VFH iteration
+    N_g: int # number of steps to plan out at a time
+    R: float # steering radius: left/right turns
+    R_y: float # steering radius: up/down turns
+    alpha: int # angular resolution: how many windows to divide 180 degrees into?
+    b: float # controls how fast increased distance from sensor affects confidence 
+    mu_1: float # weight penalizing candidate direction going away from target
+    mu_2: float # weight penalizing turning from current direction
+    mu_3: float # weight penalizing turning from previous selected direction
+    # (paper recommends mu_1 > mu_2 + mu_3)
+    mu_1p: float
+    mu_2p: float
+    mu_3p: float
+    # above parameters used to calculate cost for projected future motion rather than immediate plan
+    lmbda: float # discount factor for planned positions
+    hist_res: float # width in meters of a histogram block
+
+    r_active: float # distance in meters to examine for polar histogram
+    r_drone: float # distance to consider our width as for widening obstacles in polar histogram
+
+
+class VFH:
+    def __init__(self, hist, params: VFHParams):
+        self.hist = hist
+        self.params = params
+
+    def pos_to_idx(self, pos: np.array) -> np.array:
+        return np.round(pos/self.params.hist_res)
+    
+    def gen_polar_histogram(self, pos: np.array) -> np.ndarray:
+        result = np.zeros((self.params.alpha, 2*self.params.alpha))
+
+        a = 1 + self.params.b * ((self.params.r_active - 1)/2)**2
+
+        idx = self.pos_to_idx(pos)
+        di = self.params.r_active / self.params.hist_res
+        for dx in range(-di,di+1):
+            for dy in range(-di, di+1):
+                for dz in range(-di, di+1):
+                    mx = dx*self.params.hist_res
+                    my = dy*self.params.hist_res
+                    mz = dz*self.params.hist_res
+                    dist = (mx**2 + my**2 + mz**2)**0.5
+                    dxy = (mx**2 + my**2)**0.5
+                    if self.params.r_drone <= dist <= self.params.r_active:
+                        idx2 = idx + np.array([dx,dy,dz])
+                        conf = self.hist.get_confidence(idx2)
+
+                        theta = math.atan2(dy,dx) + math.pi
+
+                        phi = math.atan(dz/dxy) + math.pi/2
+
+                        enlargment_angle = math.asin(self.params.r_drone/dist)
+
+                        theta_idx = round((theta/(2*math.pi))*2*self.params.alpha)
+                        phi_idx = round(phi/math.pi*self.params.alpha)
+
+                        enlarge_idx = math.ceil(enlargment_angle/(math.pi)*self.params.alpha)
+
+                        for tidx in range(theta_idx - enlarge_idx, theta_idx + enlarge_idx+1):
+                            for pidx in range(phi_idx - enlarge_idx, phi_idx + enlarge_idx+1):
+                                result[tidx % self.params.alpha][pidx % 2*self.params.alpha] += conf*conf*(a - self.params.b*dist*dist)
+    
+        return result
+
+
+if __name__ == '__main__':
+    #TODO TEST
+    pass
