@@ -21,8 +21,11 @@ class VFHParams:
     lmbda: float # discount factor for planned positions
     hist_res: float # width in meters of a histogram block
 
-    r_active: float # distance in meters to examine for polar histogram
+    r_active: float # distance in meters to examine for polar histogram (active window radius)
     r_drone: float # distance to consider our width as for widening obstacles in polar histogram
+
+    t_low: float # low threshold for binary histogram
+    t_high: float # high threshold
 
 
 class VFH:
@@ -52,7 +55,7 @@ class VFH:
                         idx2 = idx + np.array([dx,dy,dz])
                         conf = self.hist.get_confidence(idx2)
 
-                        theta = math.atan2(dy,dx) + math.pi
+                        theta = math.atan2(dy,dx) + math.pi # k * alpha
 
                         phi = math.atan(dz/dxy) + math.pi/2
 
@@ -68,6 +71,27 @@ class VFH:
                                 result[tidx % self.params.alpha][pidx % 2*self.params.alpha] += conf*conf*(a - self.params.b*dist*dist)
     
         return result
+    
+    def gen_bin_histogram(self, polar_hist: np.ndarray) -> np.ndarray:
+        results = np.zeros((self.params.alpha, 2 * self.params.alpha))
+        for i in range(self.params.alpha):
+            for j in range(self.params.alpha * 2):
+                if polar_hist[i][j] > self.params.t_high:
+                    results[i][j] = 1
+                elif polar_hist[i][j] < self.params.t_low:
+                    results[i][j] = 0
+                else:
+                    results[i][j] = results[(i-1) % self.params.alpha][(j-1) % 2 * self.params.alpha]
+        
+        return results
+
+    def gen_masked_histogram(self, bin_polar_hist: np.ndarray, theta: float) -> np.ndarray:
+        dx_r = self.params.R * math.cos(theta)
+        dy_r = self.params.R * math.sin(theta)
+        dx_l = -self.params.R * math.cos(theta)
+        dx_r = -self.params.R * math.sin(theta)
+        # TODO finish implementation
+
 
 
 if __name__ == '__main__':
