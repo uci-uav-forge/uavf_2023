@@ -39,10 +39,12 @@ class VFH:
     def gen_polar_histogram(self, pos: np.array) -> np.ndarray:
         result = np.zeros((self.params.alpha, 2*self.params.alpha))
 
-        a = 1 + self.params.b * ((self.params.r_active - 1)/2)**2
+        a = self.params.b * (self.params.r_active)**2
+        # note: paper wants above to be a = 1 + b(r_active -1)**2/4
+        # this gives weird negative results for far things ... idk what it's doing.
 
         idx = self.pos_to_idx(pos)
-        di = self.params.r_active / self.params.hist_res
+        di = math.ceil(self.params.r_active / self.params.hist_res)
         for dx in range(-di,di+1):
             for dy in range(-di, di+1):
                 for dz in range(-di, di+1):
@@ -50,25 +52,28 @@ class VFH:
                     my = dy*self.params.hist_res
                     mz = dz*self.params.hist_res
                     dist = (mx**2 + my**2 + mz**2)**0.5
-                    dxy = (mx**2 + my**2)**0.5
+                    dxy = (dx**2 + dy**2)**0.5
                     if self.params.r_drone <= dist <= self.params.r_active:
                         idx2 = idx + np.array([dx,dy,dz])
                         conf = self.hist.get_confidence(idx2)
 
-                        theta = math.atan2(dy,dx) + math.pi # k * alpha
+                        theta = math.atan2(dy,dx)  # k * alpha
 
-                        phi = math.atan(dz/dxy) + math.pi/2
+                        phi = math.atan(dz/dxy) + math.pi/2 if dxy != 0 else math.pi*abs(dz)/dz
+                        
 
                         enlargment_angle = math.asin(self.params.r_drone/dist)
 
                         theta_idx = round((theta/(2*math.pi))*2*self.params.alpha)
                         phi_idx = round(phi/math.pi*self.params.alpha)
 
+                        
+
                         enlarge_idx = math.ceil(enlargment_angle/(math.pi)*self.params.alpha)
 
                         for tidx in range(theta_idx - enlarge_idx, theta_idx + enlarge_idx+1):
                             for pidx in range(phi_idx - enlarge_idx, phi_idx + enlarge_idx+1):
-                                result[tidx % self.params.alpha][pidx % 2*self.params.alpha] += conf*conf*(a - self.params.b*dist*dist)
+                                result[pidx % self.params.alpha,tidx % (2*self.params.alpha)] += conf*conf*(a - self.params.b*dist*dist)
     
         return result
     
@@ -95,5 +100,42 @@ class VFH:
 
 
 if __name__ == '__main__':
-    #TODO TEST
-    pass
+    params = VFHParams( \
+        D_t = 2,
+
+        N_g = 5,
+        R = 2,
+        R_y = 2,
+        alpha = 20,
+        b = 1, 
+        mu_1 = 5,
+        mu_2 = 2,
+        mu_3 = 2,
+        # (paper recommends mu_1 > mu_2 + mu_3)
+        mu_1p = 5,
+        mu_2p = 1,
+        mu_3p = 1,
+        # above parameters used to calculate cost for projected future motion rather than immediate plan
+        lmbda = 0.8,
+        hist_res = 0.5,
+
+        r_active = 10, 
+        r_drone = 0.5,
+
+        t_low = 0.1,
+        t_high = 0.9
+
+    )
+
+    # simple test: giant wall
+    class GiantWallDummyHistogram:
+        def get_confidence(self,indices):
+            if indices[0] > 0:
+                return 0.7
+            return 0
+    
+
+    vfh = VFH(GiantWallDummyHistogram(), params)
+
+    reslt = vfh.gen_polar_histogram(np.array([-5,0,0]))
+    np.savetxt('hist.dump', reslt, delimiter=',', newline='\n')
