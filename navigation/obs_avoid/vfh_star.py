@@ -29,14 +29,24 @@ class VFHParams:
 
 
 class VFH:
-    def __init__(self, hist, params: VFHParams):
-        self.hist = hist
+    # def __init__(self, hist, params: VFHParams):
+    #     self.hist = hist
+    #     self.params = params
+
+    def __init__(self, params: VFHParams):
         self.params = params
+        self.hist_states = []
+        self.polar_states = []
+        self.bin_states = []
+        self.masked_states = []
+        self.cur_state = 0
 
     def pos_to_idx(self, pos: np.array) -> np.array:
         return np.round(pos/self.params.hist_res)
     
-    def gen_polar_histogram(self, pos: np.array) -> np.ndarray:
+    # def gen_polar_histogram(self, pos: np.array) -> np.ndarray:
+    def gen_polar_histogram(self, pos: np.array, hist: 'Histogram') -> np.ndarray:
+        self.hist_states.append(hist)
         result = np.zeros((self.params.alpha, 2*self.params.alpha))
 
         a = self.params.b * (self.params.r_active)**2
@@ -55,7 +65,7 @@ class VFH:
                     dxy = (dx**2 + dy**2)**0.5
                     if self.params.r_drone <= dist <= self.params.r_active:
                         idx2 = idx + np.array([dx,dy,dz])
-                        conf = self.hist.get_confidence(idx2)
+                        conf = hist.get_confidence(idx2)
 
                         theta = math.atan2(dy,dx)  # k * alpha
 
@@ -74,7 +84,7 @@ class VFH:
                         for tidx in range(theta_idx - enlarge_idx, theta_idx + enlarge_idx+1):
                             for pidx in range(phi_idx - enlarge_idx, phi_idx + enlarge_idx+1):
                                 result[pidx % self.params.alpha,tidx % (2*self.params.alpha)] += conf*conf*(a - self.params.b*dist*dist)
-    
+        self.polar_states.append(result)
         return result
     
     def gen_bin_histogram(self, polar_hist: np.ndarray) -> np.ndarray:
@@ -86,17 +96,18 @@ class VFH:
                 elif polar_hist[i][j] < self.params.t_low:
                     results[i][j] = 0
                 else:
-                    results[i][j] = results[(i-1) % self.params.alpha][(j-1) % 2 * self.params.alpha]
-        
+                    results[i][j] = self.bin_states[self.cur_state-1][i][j]
+
+        self.bin_states.append(results)
         return results
 
-    def gen_masked_histogram(self, bin_polar_hist: np.ndarray, theta: float) -> np.ndarray:
+    def gen_masked_histogram(self, bin_hist: np.ndarray, theta: float) -> np.ndarray:
         dx_r = self.params.R * math.cos(theta)
         dy_r = self.params.R * math.sin(theta)
         dx_l = -self.params.R * math.cos(theta)
         dx_r = -self.params.R * math.sin(theta)
         # TODO finish implementation
-
+        
 
 
 if __name__ == '__main__':
