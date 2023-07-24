@@ -22,7 +22,7 @@ class VFHParams:
     hist_res: float # width in meters of a histogram block
 
     r_active: float # distance in meters to examine for polar histogram (active window radius)
-    r_drone: float # distance to consider our width as for widening obstacles in polar histogram
+    r_drone: float # distance to consider our width as for widening obstacles in polar histogram (includes safety distance)
 
     t_low: float # low threshold for binary histogram
     t_high: float # high threshold
@@ -101,12 +101,49 @@ class VFH:
         self.bin_states.append(results)
         return results
 
-    def gen_masked_histogram(self, bin_hist: np.ndarray, theta: float) -> np.ndarray:
-        dx_r = self.params.R * math.cos(theta)
-        dy_r = self.params.R * math.sin(theta)
-        dx_l = -self.params.R * math.cos(theta)
-        dx_r = -self.params.R * math.sin(theta)
-        # TODO finish implementation
+    def gen_masked_histogram(self, bin_hist: np.ndarray, pos: np.array, theta: float) -> np.ndarray:
+        results = np.zeros((self.params.alpha, 2 * self.params.alpha))
+        phi_l, phi_r = 0
+        
+        di = math.ceil(self.params.r_active / self.params.hist_res)
+        for dx in range(-di,di+1):
+            for dy in range(-di, di+1):
+                for dz in range(-di, di+1):
+                    beta = math.atan2(dy, dx)
+                    dxy = (dx**2 + dy**2)**0.5
+                    phi = math.atan(dz/dxy) + math.pi/2 if dxy != 0 else math.pi*abs(dz)/dz
+
+                    dxr = self.params.R * math.cos(beta)
+                    dxl = -self.params.R * math.cos(beta)
+                    dyr = self.params.R * math.sin(beta)
+                    dyl = -self.params.R * math.sin(beta)
+                    # dzu = self.params.R_y * math.sin(phi)
+                    # dzd = -self.params.R_y * math.sin(phi)
+
+                    dr_2 = (dxr - dx)**2 + (dyr - dy)**2
+                    dl_2 = (dxl - dx)**2 + (dyl - dy) ** 2
+                    # du_2 = (dzu - dz)**2
+                    # dd_2 = (dzd - dz)**2
+
+                    phi_b = theta + math.pi # backwards angle of motion
+                    phi_l = phi_r = phi_b
+
+                    for i in range(self.params.alpha):
+                        for j in range(self.params.alpha * 2):
+                            if bin_hist[i][j] == 1:
+                                if theta > phi_r and beta < phi_r and dr_2 < self.params.R + self.params.r_drone:
+                                    phi_r = beta
+                                if theta < phi_r and beta > phi_r and dl_2 < self.params.R + self.params.r_drone:
+                                    phi_l = beta
+                            results[i][j] = 0 if bin_hist[i][j] == 0 and (phi_r <= i * self.params.alpha <= theta or theta <= i * self.params.alpha <= phi_l) else 1
+        
+        return results
+
+
+
+
+
+
         
 
 
