@@ -15,10 +15,10 @@ from std_msgs.msg import String, Bool
 
 
 from .local_geolocation import GeoLocator 
-from .color_knn.color_classify import ColorClassifier
+from .color_classify import ColorClassifier
 from .camera import GoProCamera
 from .zone_coverage import ZoneCoverageTracker
-from .colordetect.color_segment import color_segmentation
+from .color_segment import color_segmentation
 from .best_match import best_match, MATCH_THRESHOLD, CONF_THRESHOLD
 from .targetaggregator import TargetAggregator
 from .shape_detection.src import plot_functions as plot_fns
