@@ -7,9 +7,8 @@ class VFHParams:
     D_t: float # total distance in meters planned per VFH iteration
     N_g: int # number of steps to plan out at a time
     R: float # steering radius: left/right turns
-    R_y: float # steering radius: up/down turns
     alpha: int # angular resolution: how many windows to divide 180 degrees into?
-    b: float # controls how fast increased distance from sensor affects confidence 
+    b: float # controls how fast increased distance from sensor affects confidence
     mu_1: float # weight penalizing candidate direction going away from target
     mu_2: float # weight penalizing turning from current direction
     mu_3: float # weight penalizing turning from previous selected direction
@@ -27,26 +26,18 @@ class VFHParams:
     t_low: float # low threshold for binary histogram
     t_high: float # high threshold
 
+    mask_conf: float
+
 
 class VFH:
-    # def __init__(self, hist, params: VFHParams):
-    #     self.hist = hist
-    #     self.params = params
-
-    def __init__(self, params: VFHParams):
+    def __init__(self, params: VFHParams, hist: 'Histogram'):
         self.params = params
-        self.hist_states = []
-        self.polar_states = []
-        self.bin_states = []
-        self.masked_states = []
-        self.cur_state = 0
+        self.hist = hist
 
     def pos_to_idx(self, pos: np.array) -> np.array:
         return np.round(pos/self.params.hist_res)
     
-    # def gen_polar_histogram(self, pos: np.array) -> np.ndarray:
-    def gen_polar_histogram(self, pos: np.array, hist: 'Histogram') -> np.ndarray:
-        self.hist_states.append(hist)
+    def gen_polar_histogram(self, pos: np.array) -> np.ndarray:
         result = np.zeros((self.params.alpha, 2*self.params.alpha))
 
         a = self.params.b * (self.params.r_active)**2
@@ -58,16 +49,16 @@ class VFH:
         for dx in range(-di,di+1):
             for dy in range(-di, di+1):
                 for dz in range(-di, di+1):
-                    mx = dx*self.params.hist_res
-                    my = dy*self.params.hist_res
-                    mz = dz*self.params.hist_res
+                    mx = (dx+0.5)*self.params.hist_res
+                    my = (dy+0.5)*self.params.hist_res
+                    mz = (dz+0.5)*self.params.hist_res
                     dist = (mx**2 + my**2 + mz**2)**0.5
                     dxy = (dx**2 + dy**2)**0.5
                     if self.params.r_drone <= dist <= self.params.r_active:
                         idx2 = idx + np.array([dx,dy,dz])
-                        conf = hist.get_confidence(idx2)
+                        conf = self.hist.get_confidence(idx2)
 
-                        theta = math.atan2(dy,dx)  # k * alpha
+                        theta = math.atan2(dy,dx)
 
                         phi = math.atan(dz/dxy) + math.pi/2 if dxy != 0 else math.pi*abs(dz)/dz
                         
@@ -84,7 +75,6 @@ class VFH:
                         for tidx in range(theta_idx - enlarge_idx, theta_idx + enlarge_idx+1):
                             for pidx in range(phi_idx - enlarge_idx, phi_idx + enlarge_idx+1):
                                 result[pidx % self.params.alpha,tidx % (2*self.params.alpha)] += conf*conf*(a - self.params.b*dist*dist)
-        self.polar_states.append(result)
         return result
     
     def gen_bin_histogram(self, polar_hist: np.ndarray) -> np.ndarray:
@@ -96,50 +86,97 @@ class VFH:
                 elif polar_hist[i][j] < self.params.t_low:
                     results[i][j] = 0
                 else:
-                    results[i][j] = self.bin_states[self.cur_state-1][i][j]
-
-        self.bin_states.append(results)
+                    # for now 
+                    results[i][j] = 1 
         return results
 
-    def gen_masked_histogram(self, bin_hist: np.ndarray, pos: np.array, theta: float) -> np.ndarray:
-        results = np.zeros((self.params.alpha, 2 * self.params.alpha))
-        phi_l, phi_r = 0
+
+    def gen_masked_histogram(self, bin_hist: np.ndarray, pos: np.array, theta: float, phi: float) -> np.ndarray:
+        results = bin_hist.copy()
+
+        # left and right displacements to mask out for each phi
+        thetas = [(0, 0) for _ in range(self.params.alpha)] #todo change to np
+
+        lx = pos[0] + self.params.R*math.cos(theta)*math.cos(phi)
+        ly = pos[1] + self.params.R*math.sin(theta)*math.cos(phi)
         
+        rx = pos[0] - self.params.R*math.cos(theta)*math.cos(phi)
+        ry = pos[1] - self.params.R*math.sin(theta)*math.cos(phi)
+
+        idx = self.pos_to_idx(pos)
         di = math.ceil(self.params.r_active / self.params.hist_res)
+        # minor todo: iterator method for this pattern.
         for dx in range(-di,di+1):
             for dy in range(-di, di+1):
                 for dz in range(-di, di+1):
-                    beta = math.atan2(dy, dx)
+                    mx = (dx+0.5)*self.params.hist_res
+                    my = (dy+0.5)*self.params.hist_res
+                    mz = (dz+0.5)*self.params.hist_res
+                    dist = (mx**2 + my**2 + mz**2)**0.5
+                    if not (self.params.r_drone <= dist <= self.params.r_active):
+                        continue
+                    # for now just run the old algorithm on each z-layer
+                    # essentially instead of having a circle due to our turn radius we're using cylinders instead
+                    # should be good enough.
+                    #mz = (dz+0.5)*self.params.hist_res
+                    
+                    theta_pos = math.atan2(dy,dx)
                     dxy = (dx**2 + dy**2)**0.5
-                    phi = math.atan(dz/dxy) + math.pi/2 if dxy != 0 else math.pi*abs(dz)/dz
+                    phi_pos= math.atan(dz/dxy) + math.pi/2 if dxy != 0 else math.pi*abs(dz)/dz
+                    phi_pos_idx = round(phi_pos/math.pi*self.params.alpha)
 
-                    dxr = self.params.R * math.cos(beta)
-                    dxl = -self.params.R * math.cos(beta)
-                    dyr = self.params.R * math.sin(beta)
-                    dyl = -self.params.R * math.sin(beta)
-                    # dzu = self.params.R_y * math.sin(phi)
-                    # dzd = -self.params.R_y * math.sin(phi)
+                    idx2 = idx + np.array([dx,dy,dz])
 
-                    dr_2 = (dxr - dx)**2 + (dyr - dy)**2
-                    dl_2 = (dxl - dx)**2 + (dyl - dy) ** 2
-                    # du_2 = (dzu - dz)**2
-                    # dd_2 = (dzd - dz)**2
+                    if self.hist.get_confidence(idx2) > self.params.mask_conf:
 
-                    phi_b = theta + math.pi # backwards angle of motion
-                    phi_l = phi_r = phi_b
+                        if ((mx-lx)**2+(my-ly)**2)**0.5 < (self.params.R + self.params.r_drone):
+                            dist = ((theta + math.pi) - theta_pos) % 2*math.pi
+                            if dist < math.pi:
+                                thetas[phi_pos_idx][0] = max(thetas[phi_pos_idx][0], dist)
 
-                    for i in range(self.params.alpha):
-                        for j in range(self.params.alpha * 2):
-                            if bin_hist[i][j] == 1:
-                                if theta > phi_r and beta < phi_r and dr_2 < self.params.R + self.params.r_drone:
-                                    phi_r = beta
-                                if theta < phi_r and beta > phi_r and dl_2 < self.params.R + self.params.r_drone:
-                                    phi_l = beta
-                            results[i][j] = 0 if bin_hist[i][j] == 0 and (phi_r <= i * self.params.alpha <= theta or theta <= i * self.params.alpha <= phi_l) else 1
+                        
+                        if ((mx-rx)**2+(my-ry)**2)**0.5 < (self.params.R + self.params.r_drone):
+                            dist = (theta_pos - (theta + math.pi)) % 2*math.pi 
+                            if dist < math.pi:
+                                thetas[phi_pos_idx][1] = max(thetas[phi_pos_idx][1], dist)
         
+        for i in range(self.params.alpha):
+            lt,rt = thetas[i]
+            for j in range(self.params.alpha * 2):
+                theta_here = j * 2*math.pi / self.params.alpha
+
+                # check if it's in the range [-theta - left_theta, -theta + right_theta]
+                
+                dist = (theta_here - (theta+math.pi - lt)) % 2*math.pi
+
+                if dist + 0.01 <= lt + rt:
+                    # block it out
+                    results[i][j] = 1
         return results
 
 
+    def ij2step(self, i: int, j:int):
+        ia = i/self.params.alpha *2* math.pi
+        ja = j/(2*self.params.alpha) * 2*math.pi
+        step_dist = self.params.D_t / self.params.N_g
+        return np.array([step_dist*math.cos(ja)*math.cos(ia), step_dist*math.sin(ja)*math.cos(ia), step_dist*math.sin(ia)])
+    
+
+    def gen_directions(self, masked_hist: np.ndarray, delta_position: np.ndarray):
+        theta_dpos = math.atan2(delta_position[1],delta_position[0])
+        dxy = (delta_position[0]**2 + delta_position[1]**2)**0.5
+        phi_dpos = math.atan2(delta_position[2], dxy)
+
+        dpos_j = round(theta_dpos * 2*self.params.alpha / (2*math.pi))
+        dpos_i = round(phi_dpos * self.params.alpha / (2*math.pi ))
+
+
+        pass
+    # todo
+
+
+    def get_target_dir(self, position: np.ndarray, theta: float, phi: float, target_position: np.ndarray):
+        pass
 
 
 
@@ -153,7 +190,6 @@ if __name__ == '__main__':
 
         N_g = 5,
         R = 2,
-        R_y = 2,
         alpha = 20,
         b = 1, 
         mu_1 = 5,
@@ -171,7 +207,9 @@ if __name__ == '__main__':
         r_drone = 0.5,
 
         t_low = 0.1,
-        t_high = 0.9
+        t_high = 0.9,
+        
+        mask_conf = 0.5
 
     )
 
@@ -183,7 +221,18 @@ if __name__ == '__main__':
             return 0
     
 
-    vfh = VFH(GiantWallDummyHistogram(), params)
+    vfh = VFH(params, GiantWallDummyHistogram())
 
-    reslt = vfh.gen_polar_histogram(np.array([-5,0,0]))
+    pos = np.array([-5,0,0])
+    phi = 0
+    theta = 0 # + x direction
+
+    reslt = vfh.gen_polar_histogram(pos)
     np.savetxt('hist.dump', reslt, delimiter=',', newline='\n')
+
+    
+
+    reslt2 = vfh.gen_bin_histogram(reslt)
+    np.savetxt('hist.dump2', reslt2, delimiter=',', newline='\n')
+    reslt3 = vfh.gen_masked_histogram(reslt2,pos,theta,phi)
+    np.savetxt('hist.dump3', reslt3, delimiter=',', newline='\n')
