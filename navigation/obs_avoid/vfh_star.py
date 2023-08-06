@@ -28,6 +28,8 @@ class VFHParams:
 
     mask_conf: float
 
+    dir_spacing: int # how much to space out directions
+
 
 class VFH:
     def __init__(self, params: VFHParams, hist: 'Histogram'):
@@ -168,11 +170,30 @@ class VFH:
         phi_dpos = math.atan2(delta_position[2], dxy)
 
         dpos_j = round(theta_dpos * 2*self.params.alpha / (2*math.pi))
-        dpos_i = round(phi_dpos * self.params.alpha / (2*math.pi ))
+        dpos_i = round(phi_dpos * self.params.alpha / math.pi )
 
+        print(dpos_i,  dpos_j)
 
-        pass
-    # todo
+        # idea: sample in the target direction and spaced-out samples on borders of areas
+        result = []
+        too_close = [[False] * (2*self.params.alpha) for _ in range(self.params.alpha)]
+        
+        
+        for i in range(self.params.alpha):
+            for j in range(self.params.alpha * 2):
+                if not masked_hist[i][j] and not too_close[i][j]:
+                    aijs = [(i+1,j),(i-1,j),(i,j+1),(i,j-1)]
+                    if any(masked_hist[ai % self.params.alpha][aj % 2*self.params.alpha] for ai,aj in aijs):
+                        result.append((i,j))
+                        for di in range(-self.params.dir_spacing,self.params.dir_spacing+1):
+                            for dj in range(-self.params.dir_spacing,self.params.dir_spacing+1):
+                                too_close[(i+di)%self.params.alpha][(j+dj) % (2*self.params.alpha)] = True
+        
+        if not masked_hist[dpos_i][dpos_j]:
+            result.append((dpos_i, dpos_j))
+        
+        return [np.array([math.cos(th)*math.cos(ph),math.sin(th)*math.cos(ph), math.sin(ph)])
+                for th,ph in [ (math.pi / self.params.alpha * thi, math.pi / self.params.alpha * phi) for phi, thi in result]]
 
 
     def get_target_dir(self, position: np.ndarray, theta: float, phi: float, target_position: np.ndarray):
@@ -209,7 +230,9 @@ if __name__ == '__main__':
         t_low = 0.1,
         t_high = 0.9,
         
-        mask_conf = 0.5
+        mask_conf = 0.5,
+
+        dir_spacing = 20
 
     )
 
@@ -236,3 +259,5 @@ if __name__ == '__main__':
     np.savetxt('hist.dump2', reslt2, delimiter=',', newline='\n')
     reslt3 = vfh.gen_masked_histogram(reslt2,pos,theta,phi)
     np.savetxt('hist.dump3', reslt3, delimiter=',', newline='\n')
+
+    print(vfh.gen_directions(reslt3, np.array([-3,5,0])))
