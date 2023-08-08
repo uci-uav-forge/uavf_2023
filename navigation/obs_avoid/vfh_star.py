@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
 import math
+import heapq
 
 @dataclass
 class VFHParams:
@@ -172,8 +173,6 @@ class VFH:
         dpos_j = round(theta_dpos * 2*self.params.alpha / (2*math.pi))
         dpos_i = round(phi_dpos * self.params.alpha / math.pi )
 
-        print(dpos_i,  dpos_j)
-
         # idea: sample in the target direction and spaced-out samples on borders of areas
         result = []
         too_close = [[False] * (2*self.params.alpha) for _ in range(self.params.alpha)]
@@ -192,12 +191,64 @@ class VFH:
         if not masked_hist[dpos_i][dpos_j]:
             result.append((dpos_i, dpos_j))
         
-        return [np.array([math.cos(th)*math.cos(ph),math.sin(th)*math.cos(ph), math.sin(ph)])
-                for th,ph in [ (math.pi / self.params.alpha * thi, math.pi / self.params.alpha * phi) for phi, thi in result]]
+        return [ (math.pi / self.params.alpha * thi, math.pi / self.params.alpha * phi) for phi, thi in result]
+
+    def angle_dist(self, tp1, tp2):
+        ad_inner = lambda a1, a2: max(abs(a1 - a2), abs(a1 - a2 + 2*math.pi), abs(a1 - a2 - 2*math.pi))
+        return ad_inner(tp1[0], tp2[0]) + 10 * ad_inner(tp1[1], tp2[1])
+
+    def theta_phi_to_dxyz(self, theta, phi):
+        return np.array([math.cos(phi)*math.cos(theta), math.cos(phi)*math.sin(theta), math.sin(phi)])
+    
+    def dxyz_to_theta_phi(self, dxyz):
+        theta = math.atan2(dxyz[1],dxyz[0])
+        dxy = (dxyz[0]**2 + dxyz[1]**2)**0.5
+        phi = math.atan2(dxyz[2], dxy)
+        return (theta, phi)
 
 
-    def get_target_dir(self, position: np.ndarray, theta: float, phi: float, target_position: np.ndarray):
-        pass
+    def get_target_dir(self, position: np.ndarray, theta: float, phi: float, target_position: np.ndarray) -> tuple[float, float]:
+        # execute A* alrgorithm.
+        # idea: repeatedly expand nodes based on heuristic until we reach a node that has been expanded N_g times.
+        # the first step on the way to that node is the target.
+
+        # queue: tuples of cost, state, depth
+
+        visit_queue = [(0, (position, theta, phi), 0, None)]
+
+        theta_end, phi_end = self.dxyz_to_theta_phi(target_position - position)
+
+        while len(visit_queue):
+            cost, node_info, node_depth, start_dir = heapq.heappop(visit_queue)
+            p_node, theta_node, phi_node = node_info
+            if node_depth == self.params.N_g:
+                return start_dir
+            
+            # otherwise expand node and insert into queue.
+            h = vfh.gen_polar_histogram(p_node)
+            h = vfh.gen_bin_histogram(h)
+            h = vfh.gen_masked_histogram(h, p_node, theta_node, phi_node)
+            
+            discount = self.params.lmbda ** node_depth
+
+            for theta_nxt, phi_nxt in self.gen_directions(h, target_position - p_node):
+                target_pos = p_node + self.params.D_t * self.theta_phi_to_dxyz(theta_nxt, phi_nxt)
+                c_theta, c_phi = self.dxyz_to_theta_phi(target_pos - position)
+
+                mu = (self.params.mu_1p, self.params.mu_2p, self.params.mu_3p) \
+                        if node_depth + 1 != self.params.N_g else (self.params.mu_1, self.params.mu_2, self.params.mu_3)
+                # todo refactor so no need to do awkward packing above...
+
+                cost_node = cost + discount * (mu[0] * max(
+                                                self.angle_dist((c_theta, c_phi), (theta_end, phi_end)),
+                                                self.angle_dist((theta_nxt, phi_nxt), (theta_end, phi_end))) +
+                                               mu[1] * self.angle_dist((theta, phi), (c_theta, c_phi)) +
+                                               mu[2] * self.angle_dist((c_theta, c_phi), (theta_node, phi_node)))
+                sd = start_dir or (theta_nxt, phi_nxt)
+                heapq.heappush(visit_queue, (cost_node, (target_pos, theta_nxt, phi_nxt), node_depth+1, sd))
+        
+        return None # fall through - should exit from loop.
+        
 
 
 
@@ -207,7 +258,7 @@ class VFH:
 
 if __name__ == '__main__':
     params = VFHParams( \
-        D_t = 2,
+        D_t = 0.5,
 
         N_g = 5,
         R = 2,
@@ -249,6 +300,7 @@ if __name__ == '__main__':
     pos = np.array([-5,0,0])
     phi = 0
     theta = 0 # + x direction
+    t_pos = np.array([-3,5,0])
 
     reslt = vfh.gen_polar_histogram(pos)
     np.savetxt('hist.dump', reslt, delimiter=',', newline='\n')
@@ -260,4 +312,6 @@ if __name__ == '__main__':
     reslt3 = vfh.gen_masked_histogram(reslt2,pos,theta,phi)
     np.savetxt('hist.dump3', reslt3, delimiter=',', newline='\n')
 
-    print(vfh.gen_directions(reslt3, np.array([-3,5,0])))
+    print(vfh.gen_directions(reslt3, t_pos))
+    reslt = vfh.get_target_dir(pos, theta, phi,  t_pos)
+    print(vfh.theta_phi_to_dxyz(*reslt))
