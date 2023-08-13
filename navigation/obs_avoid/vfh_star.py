@@ -63,8 +63,7 @@ class VFH:
 
                         theta = math.atan2(dy,dx)
 
-                        phi = math.atan(dz/dxy) + math.pi/2 if dxy != 0 else math.pi*abs(dz)/dz
-                        
+                        phi = math.atan2(dz, dxy) + math.pi/2  
 
                         enlargment_angle = math.asin(self.params.r_drone/dist)
 
@@ -98,7 +97,7 @@ class VFH:
         results = bin_hist.copy()
 
         # left and right displacements to mask out for each phi
-        thetas = [(0, 0) for _ in range(self.params.alpha)] #todo change to np
+        thetas = [[0, 0] for _ in range(self.params.alpha)] #todo change to np
 
         lx = pos[0] + self.params.R*math.cos(theta)*math.cos(phi)
         ly = pos[1] + self.params.R*math.sin(theta)*math.cos(phi)
@@ -125,7 +124,7 @@ class VFH:
                     
                     theta_pos = math.atan2(dy,dx)
                     dxy = (dx**2 + dy**2)**0.5
-                    phi_pos= math.atan(dz/dxy) + math.pi/2 if dxy != 0 else math.pi*abs(dz)/dz
+                    phi_pos = math.atan2(dz, dxy) + math.pi/2
                     phi_pos_idx = round(phi_pos/math.pi*self.params.alpha)
 
                     idx2 = idx + np.array([dx,dy,dz])
@@ -168,7 +167,7 @@ class VFH:
     def gen_directions(self, masked_hist: np.ndarray, delta_position: np.ndarray):
         theta_dpos = math.atan2(delta_position[1],delta_position[0])
         dxy = (delta_position[0]**2 + delta_position[1]**2)**0.5
-        phi_dpos = math.atan2(delta_position[2], dxy)
+        phi_dpos = math.atan2(delta_position[2], dxy) + math.pi/2
 
         dpos_j = round(theta_dpos * 2*self.params.alpha / (2*math.pi))
         dpos_i = round(phi_dpos * self.params.alpha / math.pi )
@@ -191,7 +190,7 @@ class VFH:
         if not masked_hist[dpos_i][dpos_j]:
             result.append((dpos_i, dpos_j))
         
-        return [ (math.pi / self.params.alpha * thi, math.pi / self.params.alpha * phi) for phi, thi in result]
+        return [ (math.pi / self.params.alpha * thi, math.pi / self.params.alpha * phi - math.pi/2) for phi, thi in result]
 
     def angle_dist(self, tp1, tp2):
         ad_inner = lambda a1, a2: max(abs(a1 - a2), abs(a1 - a2 + 2*math.pi), abs(a1 - a2 - 2*math.pi))
@@ -214,20 +213,22 @@ class VFH:
 
         # queue: tuples of cost, state, depth
 
-        visit_queue = [(0, (position, theta, phi), 0, None)]
+        visit_queue = [(0, None, (position, theta, phi), 0, None)]
 
         theta_end, phi_end = self.dxyz_to_theta_phi(target_position - position)
 
+        unique_ctr = 0
+        
         while len(visit_queue):
-            cost, node_info, node_depth, start_dir = heapq.heappop(visit_queue)
+            cost, _, node_info, node_depth, start_dir = heapq.heappop(visit_queue)
             p_node, theta_node, phi_node = node_info
             if node_depth == self.params.N_g:
                 return start_dir
             
             # otherwise expand node and insert into queue.
-            h = vfh.gen_polar_histogram(p_node)
-            h = vfh.gen_bin_histogram(h)
-            h = vfh.gen_masked_histogram(h, p_node, theta_node, phi_node)
+            h = self.gen_polar_histogram(p_node)
+            h = self.gen_bin_histogram(h)
+            h = self.gen_masked_histogram(h, p_node, theta_node, phi_node)
             
             discount = self.params.lmbda ** node_depth
 
@@ -245,7 +246,7 @@ class VFH:
                                                mu[1] * self.angle_dist((theta, phi), (c_theta, c_phi)) +
                                                mu[2] * self.angle_dist((c_theta, c_phi), (theta_node, phi_node)))
                 sd = start_dir or (theta_nxt, phi_nxt)
-                heapq.heappush(visit_queue, (cost_node, (target_pos, theta_nxt, phi_nxt), node_depth+1, sd))
+                heapq.heappush(visit_queue, (cost_node, (unique_ctr := unique_ctr + 1), (target_pos, theta_nxt, phi_nxt), node_depth+1, sd))
         
         return None # fall through - should exit from loop.
         
