@@ -181,7 +181,7 @@ class VFH:
             for j in range(self.params.alpha * 2):
                 if not masked_hist[i][j] and not too_close[i][j]:
                     aijs = [(i+1,j),(i-1,j),(i,j+1),(i,j-1)]
-                    if any(masked_hist[ai % self.params.alpha][aj % 2*self.params.alpha] for ai,aj in aijs):
+                    if any(masked_hist[ai % self.params.alpha][aj % (2*self.params.alpha)] for ai,aj in aijs):
                         result.append((i,j))
                         for di in range(-self.params.dir_spacing,self.params.dir_spacing+1):
                             for dj in range(-self.params.dir_spacing,self.params.dir_spacing+1):
