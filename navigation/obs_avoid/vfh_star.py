@@ -187,7 +187,7 @@ class VFH:
                             for dj in range(-self.params.dir_spacing,self.params.dir_spacing+1):
                                 too_close[(i+di)%self.params.alpha][(j+dj) % (2*self.params.alpha)] = True
         
-        if not masked_hist[dpos_i][dpos_j]:
+        if not masked_hist[dpos_i][dpos_j] and not too_close[dpos_i][dpos_j]:
             result.append((dpos_i, dpos_j))
         
         return [ (math.pi / self.params.alpha * thi, math.pi / self.params.alpha * phi - math.pi/2) for phi, thi in result]
