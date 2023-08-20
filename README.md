@@ -15,5 +15,7 @@ To kill any of the processes early, do ctrl+backslash(`\\`). This is necessary b
 ### Setting up with Docker 
 
 1. make sure you're in the root of the repository
-2. `docker build -t my-uavf-image .` (you can replace `my-uavf-image` with whatever name you want)
-3. `docker run -it my-uavf-image /bin/bash`
+2. `docker build -t uavf2023 .`
+3. in VSCode, run `Dev Containers: Open Folder in Container`, choose "From 'DockerFile'" to create the container configuration, and you can just not select any features then press OK.
+
+To commit your changes you'll need a separate IDE or terminal window open, or login with git inside the dev container.
