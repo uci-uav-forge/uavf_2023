@@ -12,3 +12,8 @@ Right now the payload code is under `navigation/guided_mission/servo_controller.
 
 To kill any of the processes early, do ctrl+backslash(`\\`). This is necessary because a lot of our scripts don't respond to the normal `ctrl+c` interrupt signal.
 
+### Setting up with Docker 
+
+1. make sure you're in the root of the repository
+2. `docker build -t my-uavf-image .` (you can replace `my-uavf-image` with whatever name you want)
+3. `docker run -it my-uavf-image /bin/bash`
