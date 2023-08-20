@@ -1,5 +1,7 @@
 FROM ros:noetic
 
+RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+
 VOLUME ["/root/catkin_ws/src/uavf_2023"]
 
 RUN apt-get update
@@ -23,3 +25,5 @@ COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
 
 WORKDIR /root/catkin_ws/src/uavf_2023
+
+CMD ["bash"]
