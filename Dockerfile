@@ -1,7 +1,6 @@
 FROM ros:noetic
 
-WORKDIR /root/catkin_ws/src/uavf_2023
-COPY . /root/catkin_ws/src/uavf_2023
+VOLUME ["/root/catkin_ws/src/uavf_2023"]
 
 RUN apt-get update
 
@@ -17,6 +16,10 @@ RUN apt-get install -y tmux vim
 # comment this out of you have a GPU
 RUN pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
+COPY install_geographiclib_datasets.sh install_geographiclib_datasets.sh
 RUN ./install_geographiclib_datasets.sh
 
+COPY requirements.txt requirements.txt
 RUN pip3 install -r requirements.txt
+
+WORKDIR /root/catkin_ws/src/uavf_2023
