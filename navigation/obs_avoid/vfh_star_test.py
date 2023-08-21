@@ -68,3 +68,40 @@ if __name__ == '__main__':
     print(vfh.gen_directions(reslt3, t_pos - pos))
     reslt = vfh.get_target_dir(pos, theta, phi,  t_pos)
     print(vfh.theta_phi_to_dxyz(*reslt))
+
+    
+    class ParallelWalls:
+        def __init__(self, pos, width, height):
+            self.pos = pos
+            self.width = width
+            self.height = height
+
+        def get_confidence(self,indices, width, height):
+            if (indices[0] == -self.width // 2 or indices[0] == self.width // 2) and -self.height // 2 < indices[2] < self.height // 2:
+                return 0.7
+            return 0
+        
+    
+    pwh = ParallelWalls(np.array([0, 0, 0]), 20, 20)
+
+    vfh = VFH(params, pwh)
+
+    pos = np.array([-10,0,0])
+
+    phi = 0
+    theta = 0 # + x direction
+    t_pos = np.array([40,0,0])
+
+    reslt = vfh.gen_polar_histogram(pos)
+    np.savetxt('hist_pw.dump', reslt, delimiter=',', newline='\n')
+
+
+    reslt2 = vfh.gen_bin_histogram(reslt)
+    np.savetxt('hist_pw.dump2', reslt2, delimiter=',', newline='\n')
+    reslt3 = vfh.gen_masked_histogram(reslt2,pos,theta,phi)
+    np.savetxt('hist_pw.dump3', reslt3, delimiter=',', newline='\n')
+
+    print(vfh.gen_directions(reslt3, t_pos - pos))
+    reslt = vfh.get_target_dir(pos, theta, phi,  t_pos)
+    print(vfh.theta_phi_to_dxyz(*reslt))
+
