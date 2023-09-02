@@ -168,7 +168,7 @@ class VFH2D:
         return [math.pi / self.params.alpha * thi for thi in result]
 
     def angle_dist(self, tp1, tp2):
-        ad_inner = lambda a1, a2: max(abs(a1 - a2), abs(a1 - a2 + 2*math.pi), abs(a1 - a2 - 2*math.pi))
+        ad_inner = lambda a1, a2: min(abs(a1 - a2), abs(a1 - a2 + 2*math.pi), abs(a1 - a2 - 2*math.pi))
         return ad_inner(tp1, tp2)
     
     def theta_to_dxyz(self, theta):
@@ -180,7 +180,7 @@ class VFH2D:
 
 
     def get_target_dir(self, position: np.ndarray, theta: float, target_position: np.ndarray) -> tuple[float, float]:
-        # execute A* alrgorithm.
+        # execute A* algorithm.
         # idea: repeatedly expand nodes based on heuristic until we reach a node that has been expanded N_g times.
         # the first step on the way to that node is the target.
 
