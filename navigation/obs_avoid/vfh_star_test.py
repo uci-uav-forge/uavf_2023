@@ -11,9 +11,9 @@ import time
 default_2d_params = VFHParams( \
         D_t = 0.2,
 
-        N_g = 3,
+        N_g = 2,
         R = 2,
-        alpha = 20,
+        alpha = 10,
         b = 1, 
         mu_1 = 5,
         mu_2 = 2,
@@ -43,7 +43,12 @@ class MeshTestHistogram:
         self.scene = o3d.t.geometry.RaycastingScene()
         for mesh in self.meshes:
             self.scene.add_triangles(mesh)
-    @functools.lru_cache(maxsize=None)
+        # prefill cache - dont mess up profiling
+        for x in range(-20,21):
+            for y in range(-20,21):
+                for z in range(-20,21):
+                    self.confinner((x,y,z))
+    @functools.cache
     def confinner(self, indices):
         indices = np.array(indices)
         indices2 = indices * default_2d_params.hist_res
@@ -56,7 +61,7 @@ class MeshTestHistogram:
         return self.confinner(tuple(indices))
 
 
-def run_test(VFHImpl, histogram, drone_pos, phi, theta, t_pos, suffix):
+def run_test(VFHImpl, histogram, drone_pos, phi, theta, t_pos, suffix, do_profile=False):
     print("="*10)
     print(f"test{suffix}")
     vfh = VFHImpl(default_2d_params, histogram)
@@ -72,12 +77,20 @@ def run_test(VFHImpl, histogram, drone_pos, phi, theta, t_pos, suffix):
     reslt3 = vfh.gen_masked_histogram(reslt2,pos,theta,phi)
     np.savetxt(f'masked_hist{suffix}', reslt3, delimiter=',', newline='\n')
 
-    print(vfh.gen_directions(reslt3, t_pos - pos))
-    with pprofile.Profile() as prof:
+    print("generated directions", vfh.gen_directions(reslt3, t_pos - pos))
+    
+    if do_profile:
+        with pprofile.Profile() as prof:
+            reslt = vfh.get_target_dir(pos, theta, phi,  t_pos)
+        print(f"took {prof.total_time}")
+        prof.dump_stats(f'profile{suffix}')
+    else:
+        t0 = time.time()
         reslt = vfh.get_target_dir(pos, theta, phi,  t_pos)
-    print(f"took {prof.total_time}")
-    prof.dump_stats(f'profile{suffix}')
-    print(vfh.theta_phi_to_dxyz(*reslt))
+        t1 = time.time()
+        print(f"took {t1-t0}")
+    
+    print("generated direction", vfh.theta_phi_to_dxyz(*reslt))
     return reslt
 
 def run_mesh_test(VFHImpl, meshes, drone_pos, phi, theta, t_pos, suffix):
@@ -88,25 +101,49 @@ def run_mesh_test(VFHImpl, meshes, drone_pos, phi, theta, t_pos, suffix):
     for mesh in meshes:
         display_scene.add_triangles(mesh)
     display_scene.add_triangles(o3d.t.geometry.TriangleMesh.create_sphere(radius=0.25).translate(drone_pos))
-    display_scene.add_triangles(o3d.t.geometry.TriangleMesh.create_arrow()
-                                .scale(0.1, (0,0,0))
-                                .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,math.pi/2,0]), center = (0,0,0))
-                                .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,0,reslt[0]]), center = (0,0,0))
-                                .translate(drone_pos))
+    if len(reslt) > 1:
+        display_scene.add_triangles(o3d.t.geometry.TriangleMesh.create_arrow()
+                                    .scale(0.1, (0,0,0))
+                                    .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,math.pi/2,0]), center = (0,0,0))
+                                    .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,reslt[1],reslt[0]]), center = (0,0,0))
+                                    .translate(drone_pos))
+    else:
+        display_scene.add_triangles(o3d.t.geometry.TriangleMesh.create_arrow()
+                                    .scale(0.1, (0,0,0))
+                                    .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,math.pi/2,0]), center = (0,0,0))
+                                    .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,0,reslt[0]]), center = (0,0,0))
+                                    .translate(drone_pos))
 
+
+    print("final result angle", *reslt)
 
     rays = o3d.t.geometry.RaycastingScene.create_rays_pinhole(
         fov_deg = 45,
         center= np.array([0,0,0]),
-        eye= np.array(drone_pos) + np.array([-10,0,-10]),
+        eye= np.array(drone_pos) + np.array([-10,0,-10]), # kinda hardcoded...
         up=[0, 0, 1],
         width_px=640,
         height_px=480,
     )
-    print(*reslt)
     ans = display_scene.cast_rays(rays)
     plt.imshow(ans['t_hit'].numpy())
-    plt.show()
+    plt.title(f'dir_below{suffix}')
+    plt.savefig(f'dir_below{suffix}.png')
+    plt.clf()
+    
+    rays = o3d.t.geometry.RaycastingScene.create_rays_pinhole(
+        fov_deg = 45,
+        center= np.array([0,0,0]),
+        eye= np.array(drone_pos) + np.array([-10,0,10]), # kinda hardcoded...
+        up=[0, 0, 1],
+        width_px=640,
+        height_px=480,
+    )
+    ans = display_scene.cast_rays(rays)
+    plt.imshow(ans['t_hit'].numpy())
+    plt.title(f'dir_above{suffix}')
+    plt.savefig(f'dir_above{suffix}.png')
+    plt.clf()
 
 class VFH2DWrapper(VFH2D):
     def get_masked_histogram(self, a,b,c, *args):
@@ -138,6 +175,7 @@ if __name__ == '__main__':
     t_pos = np.array([40,0,0])
 
     run_mesh_test(VFH2DWrapper, dead_end_meshes, drone_pos, phi, theta, t_pos, "_dead_end")
+    run_mesh_test(VFH, dead_end_meshes, drone_pos, phi, theta, t_pos, "_dead_end_non_2d")
 
     turn_right_meshes = [sphere_mesh(),
               sphere_mesh().translate([-1,-1,0]),
@@ -152,5 +190,5 @@ if __name__ == '__main__':
     
     turn_left_meshes = [sphere_mesh()
                         .translate([x,y,0])
-                        .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,0,-math.pi/4]), center = drone_pos) for x in range(-10, 10) for y in (-5, 5)]
+                        .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,0,-math.pi/4]), center = drone_pos) for x in range(-10, 10) for y in (-7, 7)]
     run_mesh_test(VFH2DWrapper, turn_left_meshes, drone_pos, phi, theta, t_pos, "_turn_left_par")

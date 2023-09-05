@@ -50,11 +50,11 @@ class VFH2D:
         idx = self.pos_to_idx(pos)
         di = math.ceil(self.params.r_active / self.params.hist_res)
         for dx in range(-di,di+1):
-            for dy in range(-di, di+1):
-                    mx = (dx+0.5)*self.params.hist_res
+            mx = (dx+0.5)*self.params.hist_res
+            dy_max = math.ceil(max(0,self.params.r_active**2 - mx**2)**0.5/self.params.hist_res)
+            for dy in range(-dy_max, dy_max):
                     my = (dy+0.5)*self.params.hist_res
                     dist = (mx**2 + my**2)**0.5
-                    dxy = (dx**2 + dy**2)**0.5
                     if self.params.r_drone <= dist <= self.params.r_active:
                         idx2 = idx + np.array([dx,dy,0])
                         conf = self.hist.get_confidence(idx2)

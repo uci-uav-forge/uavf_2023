@@ -194,7 +194,7 @@ class VFH:
 
     def angle_dist(self, tp1, tp2):
         ad_inner = lambda a1, a2: min(abs(a1 - a2), abs(a1 - a2 + 2*math.pi), abs(a1 - a2 - 2*math.pi))
-        return ad_inner(tp1[0], tp2[0]) + 10 * ad_inner(tp1[1], tp2[1])
+        return ad_inner(tp1[0], tp2[0]) + ad_inner(tp1[1], tp2[1])
 
     def theta_phi_to_dxyz(self, theta, phi):
         return np.array([math.cos(phi)*math.cos(theta), math.cos(phi)*math.sin(theta), math.sin(phi)])
