@@ -8,7 +8,8 @@ class VFHParams:
     D_t: float # total distance in meters planned per VFH iteration
     N_g: int # number of steps to plan out at a time
     R: float # steering radius: left/right turns
-    alpha: int # angular resolution: how many windows to divide 180 degrees into?
+    alpha_theta: int # angular resolution: how many windows to divide left/right turns into?
+    alpha_phi: int # angular resolution 2: how many windows to divide up/down turns into? 
     b: float # controls how fast increased distance from sensor affects confidence
     mu_1: float # weight penalizing candidate direction going away from target
     mu_2: float # weight penalizing turning from current direction
@@ -41,7 +42,7 @@ class VFH:
         return np.round(pos/self.params.hist_res)
     
     def gen_polar_histogram(self, pos: np.array) -> np.ndarray:
-        result = np.zeros((self.params.alpha, 2*self.params.alpha))
+        result = np.zeros((self.params.alpha_phi, self.params.alpha_theta))
 
         a = self.params.b * (self.params.r_active)**2
         # note: paper wants above to be a = 1 + b(r_active -1)**2/4
@@ -63,26 +64,23 @@ class VFH:
 
                         theta = math.atan2(dy,dx)
 
-                        phi = math.atan2(dz, dxy) + math.pi/2  
+                        phi = math.atan2(dz,dxy) + math.pi/2
 
                         enlargment_angle = math.asin(self.params.r_drone/dist)
 
-                        theta_idx = round((theta/(2*math.pi))*2*self.params.alpha)
-                        phi_idx = round(phi/math.pi*self.params.alpha)
+                        theta_idx = round((theta/(2*math.pi))*self.params.alpha_theta)
+                        phi_idx = round(phi/math.pi*self.params.alpha_phi)
 
-                        
-
-                        enlarge_idx = math.ceil(enlargment_angle/(math.pi)*self.params.alpha)
+                        enlarge_idx = math.ceil(enlargment_angle/(2*math.pi)*self.params.alpha_theta)
 
                         for tidx in range(theta_idx - enlarge_idx, theta_idx + enlarge_idx+1):
-                            for pidx in range(phi_idx - enlarge_idx, phi_idx + enlarge_idx+1):
-                                result[pidx % self.params.alpha,tidx % (2*self.params.alpha)] += conf*conf*(a - self.params.b*dist*dist)
+                            result[phi_idx % self.params.alpha_phi,tidx %self.params.alpha_theta] += conf*conf*(a - self.params.b*dist*dist)
         return result
     
     def gen_bin_histogram(self, polar_hist: np.ndarray) -> np.ndarray:
-        results = np.zeros((self.params.alpha, 2 * self.params.alpha))
-        for i in range(self.params.alpha):
-            for j in range(self.params.alpha * 2):
+        results = np.zeros((self.params.alpha_phi, self.params.alpha_theta))
+        for i in range(self.params.alpha_phi):
+            for j in range(self.params.alpha_theta):
                 if polar_hist[i][j] > self.params.t_high:
                     results[i][j] = 1
                 elif polar_hist[i][j] < self.params.t_low:
@@ -97,7 +95,7 @@ class VFH:
         results = bin_hist.copy()
 
         # left and right displacements to mask out for each phi
-        thetas = [[0, 0] for _ in range(self.params.alpha)] #todo change to np
+        thetas = [[0, 0] for _ in range(self.params.alpha_phi)] #todo change to np
 
         lx = pos[0] + self.params.R*math.cos(theta)*math.cos(phi)
         ly = pos[1] + self.params.R*math.sin(theta)*math.cos(phi)
@@ -125,7 +123,7 @@ class VFH:
                     theta_pos = math.atan2(dy,dx)
                     dxy = (dx**2 + dy**2)**0.5
                     phi_pos = math.atan2(dz, dxy) + math.pi/2
-                    phi_pos_idx = round(phi_pos/math.pi*self.params.alpha)
+                    phi_pos_idx = round(phi_pos/math.pi*self.params.alpha_phi)
 
                     idx2 = idx + np.array([dx,dy,dz])
 
@@ -142,10 +140,10 @@ class VFH:
                             if dist < math.pi:
                                 thetas[phi_pos_idx][1] = max(thetas[phi_pos_idx][1], dist)
         
-        for i in range(self.params.alpha):
+        for i in range(self.params.alpha_phi):
             lt,rt = thetas[i]
-            for j in range(self.params.alpha * 2):
-                theta_here = j * 2*math.pi / self.params.alpha
+            for j in range(self.params.alpha_theta):
+                theta_here = j * 2*math.pi / self.params.alpha_theta
 
                 # check if it's in the range [-theta - left_theta, -theta + right_theta]
                 
@@ -158,8 +156,8 @@ class VFH:
 
 
     def ij2step(self, i: int, j:int):
-        ia = i/self.params.alpha *2* math.pi
-        ja = j/(2*self.params.alpha) * 2*math.pi
+        ia = i/self.params.alpha_phi * math.pi - math.pi/2
+        ja = j/self.params.alpha_theta * 2*math.pi
         step_dist = self.params.D_t / self.params.N_g
         return np.array([step_dist*math.cos(ja)*math.cos(ia), step_dist*math.sin(ja)*math.cos(ia), step_dist*math.sin(ia)])
     
@@ -169,28 +167,26 @@ class VFH:
         dxy = (delta_position[0]**2 + delta_position[1]**2)**0.5
         phi_dpos = math.atan2(delta_position[2], dxy) + math.pi/2
 
-        dpos_j = round(theta_dpos * 2*self.params.alpha / (2*math.pi))
-        dpos_i = round(phi_dpos * self.params.alpha / math.pi )
+        dpos_j = round(theta_dpos * self.params.alpha_theta / (2*math.pi))
+        dpos_i = round(phi_dpos * self.params.alpha_phi / math.pi )
 
         # idea: sample in the target direction and spaced-out samples on borders of areas
         result = []
-        too_close = [[False] * (2*self.params.alpha) for _ in range(self.params.alpha)]
+        too_close = [[False] * self.params.alpha_theta for _ in range(self.params.alpha_phi)]
         
         
-        for i in range(self.params.alpha):
-            for j in range(self.params.alpha * 2):
-                if not masked_hist[i][j] and not too_close[i][j]:
+        for i in range(self.params.alpha_phi):
+            for j in range(self.params.alpha_theta):
+                if not masked_hist[i][j]:
                     aijs = [(i+1,j),(i-1,j),(i,j+1),(i,j-1)]
-                    if any(masked_hist[ai % self.params.alpha][aj % (2*self.params.alpha)] for ai,aj in aijs):
-                        result.append((i,j))
-                        for di in range(-self.params.dir_spacing,self.params.dir_spacing+1):
-                            for dj in range(-self.params.dir_spacing,self.params.dir_spacing+1):
-                                too_close[(i+di)%self.params.alpha][(j+dj) % (2*self.params.alpha)] = True
+                    if any(masked_hist[ai % self.params.alpha_phi][aj % (self.params.alpha_theta)] for ai,aj in aijs):
+                        if (not len(result)) or min(max(abs(i - i1), abs(j - j1)) for i1, j1 in result) > self.params.dir_spacing:
+                            result.append((i,j))
         
         if not masked_hist[dpos_i][dpos_j] and not too_close[dpos_i][dpos_j]:
             result.append((dpos_i, dpos_j))
         
-        return [ (math.pi / self.params.alpha * thi, math.pi / self.params.alpha * phi - math.pi/2) for phi, thi in result]
+        return [ (2*math.pi / self.params.alpha_theta * thi, math.pi / self.params.alpha_phi * phi - math.pi/2) for phi, thi in result]
 
     def angle_dist(self, tp1, tp2):
         ad_inner = lambda a1, a2: min(abs(a1 - a2), abs(a1 - a2 + 2*math.pi), abs(a1 - a2 - 2*math.pi))

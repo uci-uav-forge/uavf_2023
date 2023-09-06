@@ -1,14 +1,16 @@
-from .vfh_star import *
-from .vfh_star_2d import *
+from .vfh_star import VFH, VFHParams
+from .vfh_star_2d import VFH2D, VFHParams as VFH2DParams
 
+import numpy as np
 import open3d as o3d
 import matplotlib.pyplot as plt
 import pprofile
 import functools
 import copy
 import time
+import math
 
-default_2d_params = VFHParams( \
+default_2d_params = VFH2DParams( \
         D_t = 0.2,
 
         N_g = 2,
@@ -37,12 +39,43 @@ default_2d_params = VFHParams( \
         dir_spacing = 2
     )
 
+default_3d_params = VFHParams( \
+        D_t = 0.2,
+
+        N_g = 2,
+        R = 2,
+        alpha_theta = 10,
+        alpha_phi = 3,
+        b = 1, 
+        mu_1 = 5,
+        mu_2 = 2,
+        mu_3 = 2,
+        # (paper recommends mu_1 > mu_2 + mu_3)
+        mu_1p = 5,
+        mu_2p = 1,
+        mu_3p = 1,
+        # above parameters used to calculate cost for projected future motion rather than immediate plan
+        lmbda = 0.8,
+        hist_res = 1,
+
+        r_active = 10, 
+        r_drone = 0.7,
+
+        t_low = 0.1,
+        t_high = 0.9,
+        
+        mask_conf = 0.5,
+
+        dir_spacing = 2
+    )
+
 class MeshTestHistogram:
-    def __init__(self, meshes):
+    def __init__(self, meshes, hist_res):
         self.meshes = meshes
         self.scene = o3d.t.geometry.RaycastingScene()
         for mesh in self.meshes:
             self.scene.add_triangles(mesh)
+        self.hist_res = hist_res
         # prefill cache - dont mess up profiling
         for x in range(-20,21):
             for y in range(-20,21):
@@ -51,7 +84,7 @@ class MeshTestHistogram:
     @functools.cache
     def confinner(self, indices):
         indices = np.array(indices)
-        indices2 = indices * default_2d_params.hist_res
+        indices2 = indices * self.hist_res
         query_point = o3d.core.Tensor([list(indices2)], dtype=o3d.core.Dtype.Float32)
         if self.scene.compute_signed_distance(query_point) < 0:
             return 0.8
@@ -61,10 +94,10 @@ class MeshTestHistogram:
         return self.confinner(tuple(indices))
 
 
-def run_test(VFHImpl, histogram, drone_pos, phi, theta, t_pos, suffix, do_profile=False):
+def run_test(VFHImpl, histogram, drone_pos, phi, theta, t_pos, suffix, do_profile=True, params=default_2d_params):
     print("="*10)
     print(f"test{suffix}")
-    vfh = VFHImpl(default_2d_params, histogram)
+    vfh = VFHImpl(params, histogram)
     pos = np.array(drone_pos)
 
     reslt = vfh.gen_polar_histogram(pos)
@@ -93,9 +126,9 @@ def run_test(VFHImpl, histogram, drone_pos, phi, theta, t_pos, suffix, do_profil
     print("generated direction", vfh.theta_phi_to_dxyz(*reslt))
     return reslt
 
-def run_mesh_test(VFHImpl, meshes, drone_pos, phi, theta, t_pos, suffix):
-    dh = MeshTestHistogram(meshes)
-    reslt = run_test(VFHImpl, dh, drone_pos, phi, theta, t_pos, suffix)
+def run_mesh_test(VFHImpl, meshes, drone_pos, phi, theta, t_pos, suffix, params=default_2d_params):
+    dh = MeshTestHistogram(meshes, params.hist_res)
+    reslt = run_test(VFHImpl, dh, drone_pos, phi, theta, t_pos, suffix, params=params)
 
     display_scene = o3d.t.geometry.RaycastingScene()
     for mesh in meshes:
@@ -175,20 +208,20 @@ if __name__ == '__main__':
     t_pos = np.array([40,0,0])
 
     run_mesh_test(VFH2DWrapper, dead_end_meshes, drone_pos, phi, theta, t_pos, "_dead_end")
-    run_mesh_test(VFH, dead_end_meshes, drone_pos, phi, theta, t_pos, "_dead_end_non_2d")
+    run_mesh_test(VFH, dead_end_meshes, drone_pos, phi, theta, t_pos, "_dead_end_non_2d", params=default_3d_params)
 
     turn_right_meshes = [sphere_mesh(),
               sphere_mesh().translate([-1,-1,0]),
               sphere_mesh().translate([-2,-2,0])]
 
 
-    run_mesh_test(VFH2DWrapper, turn_right_meshes, drone_pos, phi, theta, t_pos, "_turn_right")
+    #run_mesh_test(VFH2DWrapper, turn_right_meshes, drone_pos, phi, theta, t_pos, "_turn_right")
 
     parallel_wall_meshes = [sphere_mesh().translate([x,y,0]) for x in range(-10, 10) for y in (-5, 5)]
 
-    run_mesh_test(VFH2DWrapper, parallel_wall_meshes, drone_pos, phi, theta, t_pos, "_par_walls")
+    #run_mesh_test(VFH2DWrapper, parallel_wall_meshes, drone_pos, phi, theta, t_pos, "_par_walls")
     
     turn_left_meshes = [sphere_mesh()
                         .translate([x,y,0])
                         .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,0,-math.pi/4]), center = drone_pos) for x in range(-10, 10) for y in (-7, 7)]
-    run_mesh_test(VFH2DWrapper, turn_left_meshes, drone_pos, phi, theta, t_pos, "_turn_left_par")
+    #run_mesh_test(VFH2DWrapper, turn_left_meshes, drone_pos, phi, theta, t_pos, "_turn_left_par")

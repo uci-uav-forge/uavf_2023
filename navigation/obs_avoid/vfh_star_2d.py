@@ -126,7 +126,7 @@ class VFH2D:
         
         lt,rt = thetas
         for j in range(self.params.alpha * 2):
-            theta_here = j * 2*math.pi / self.params.alpha
+            theta_here = j * math.pi / self.params.alpha
 
             # check if it's in the range [-theta - left_theta, -theta + right_theta]
             
