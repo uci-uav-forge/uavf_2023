@@ -45,7 +45,7 @@ default_3d_params = VFHParams( \
         N_g = 2,
         R = 2,
         alpha_theta = 10,
-        alpha_phi = 3,
+        alpha_phi = 7,
         b = 1, 
         mu_1 = 5,
         mu_2 = 2,
@@ -58,8 +58,8 @@ default_3d_params = VFHParams( \
         lmbda = 0.8,
         hist_res = 1,
 
-        r_active = 10, 
-        r_drone = 0.7,
+        r_active = 5, 
+        r_drone = 0.5,
 
         t_low = 0.1,
         t_high = 0.9,
@@ -94,7 +94,7 @@ class MeshTestHistogram:
         return self.confinner(tuple(indices))
 
 
-def run_test(VFHImpl, histogram, drone_pos, phi, theta, t_pos, suffix, do_profile=True, params=default_2d_params):
+def run_test(VFHImpl, histogram, drone_pos, phi, theta, t_pos, suffix, do_profile=False, params=default_2d_params):
     print("="*10)
     print(f"test{suffix}")
     vfh = VFHImpl(params, histogram)
@@ -210,18 +210,27 @@ if __name__ == '__main__':
     run_mesh_test(VFH2DWrapper, dead_end_meshes, drone_pos, phi, theta, t_pos, "_dead_end")
     run_mesh_test(VFH, dead_end_meshes, drone_pos, phi, theta, t_pos, "_dead_end_non_2d", params=default_3d_params)
 
+    dead_end_meshes_tall = \
+        [x for y in range(-10,10) for x in [sphere_mesh().translate([0,0,y]),
+              sphere_mesh().translate([-1,1,y]),
+              sphere_mesh().translate([-2,2,y]),
+              sphere_mesh().translate([-1,-1,y]),
+              sphere_mesh().translate([-2,-2,y])] ]
+    
+    run_mesh_test(VFH, dead_end_meshes_tall, drone_pos, phi, theta, t_pos, "_dead_end_3d_tall", params=default_3d_params)
+
     turn_right_meshes = [sphere_mesh(),
               sphere_mesh().translate([-1,-1,0]),
               sphere_mesh().translate([-2,-2,0])]
 
 
-    #run_mesh_test(VFH2DWrapper, turn_right_meshes, drone_pos, phi, theta, t_pos, "_turn_right")
+    run_mesh_test(VFH2DWrapper, turn_right_meshes, drone_pos, phi, theta, t_pos, "_turn_right")
 
     parallel_wall_meshes = [sphere_mesh().translate([x,y,0]) for x in range(-10, 10) for y in (-5, 5)]
 
-    #run_mesh_test(VFH2DWrapper, parallel_wall_meshes, drone_pos, phi, theta, t_pos, "_par_walls")
+    run_mesh_test(VFH2DWrapper, parallel_wall_meshes, drone_pos, phi, theta, t_pos, "_par_walls")
     
     turn_left_meshes = [sphere_mesh()
                         .translate([x,y,0])
                         .rotate(o3d.geometry.get_rotation_matrix_from_xyz([0,0,-math.pi/4]), center = drone_pos) for x in range(-10, 10) for y in (-7, 7)]
-    #run_mesh_test(VFH2DWrapper, turn_left_meshes, drone_pos, phi, theta, t_pos, "_turn_left_par")
+    run_mesh_test(VFH2DWrapper, turn_left_meshes, drone_pos, phi, theta, t_pos, "_turn_left_par")
