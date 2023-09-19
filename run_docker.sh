@@ -1,0 +1,1 @@
+docker run -v $(pwd):/root/catkin_ws/src/uavf_2023 -it uavf2023:latest /bin/bash
